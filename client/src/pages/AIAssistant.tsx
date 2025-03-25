@@ -1,0 +1,580 @@
+import { useState, useRef } from 'react';
+import { useLocation } from 'wouter';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardFooter, 
+  CardTitle, 
+  CardDescription 
+} from '@/components/ui/card';
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { 
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { 
+  Zap,
+  Send, 
+  Sparkles, 
+  Copy, 
+  RefreshCw, 
+  FileText, 
+  Clipboard,
+  MessageSquare,
+  Loader
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { Grant, Template, Artist } from '@shared/schema';
+
+export default function AIAssistant() {
+  const [location] = useLocation();
+  // Parse search params manually
+  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const initialTab = searchParams.get('action') === 'ask-question' ? 'questions' : 'proposals';
+  const [activeTab, setActiveTab] = useState(initialTab);
+  
+  // Proposal generation states
+  const [proposalType, setProposalType] = useState('project');
+  const [selectedGrant, setSelectedGrant] = useState('');
+  const [selectedArtist, setSelectedArtist] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+  const [generatingProposal, setGeneratingProposal] = useState(false);
+  const [proposalResult, setProposalResult] = useState('');
+  
+  // Question & Answer states
+  const [question, setQuestion] = useState('');
+  const [askingQuestion, setAskingQuestion] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
+  
+  // Templates state
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  
+  // History state
+  const [savedItems, setSavedItems] = useState<Array<{id: string, type: string, title: string, content: string, date: Date}>>([]);
+  
+  // Fetch data
+  const { data: grants } = useQuery<Grant[]>({
+    queryKey: ['/api/grants'],
+  });
+  
+  const { data: artists } = useQuery<Artist[]>({
+    queryKey: ['/api/artists'],
+  });
+  
+  const { data: templates } = useQuery<Template[]>({
+    queryKey: ['/api/templates'],
+  });
+  
+  const { toast } = useToast();
+  const messageEndRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to bottom of conversation
+  const scrollToBottom = () => {
+    messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  // Handle proposal generation
+  const handleGenerateProposal = async () => {
+    if (!projectDescription) {
+      toast({
+        title: "Project description required",
+        description: "Please enter a project description to generate a proposal",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setGeneratingProposal(true);
+      
+      // Mock AI response (in a real implementation, this would be an API call)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const selectedGrantObj = grants?.find(g => g.id === parseInt(selectedGrant));
+      const selectedArtistObj = artists?.find(a => a.id === parseInt(selectedArtist));
+      
+      // Template-like response
+      setProposalResult(`# Project Proposal: ${projectDescription.substring(0, 50)}...
+
+## Artist Information
+${selectedArtistObj ? selectedArtistObj.name : 'Independent Artist'}
+
+## Grant Information
+${selectedGrantObj ? `${selectedGrantObj.name} (${selectedGrantObj.organization})` : 'General Purpose Proposal'}
+
+## Project Overview
+${projectDescription}
+
+## Goals and Objectives
+- Develop innovative musical content that resonates with target audience
+- Establish strong creative foundation for long-term career development
+- Engage with community through music initiatives
+
+## Budget and Timeline
+This project requires approximately $15,000 and will be completed within a 6-month timeframe.
+
+## Expected Impact
+The proposed project will enhance artistic development while providing significant cultural contribution to the community.
+`);
+      
+      // Add to saved items
+      const newSavedItem = {
+        id: Date.now().toString(),
+        type: 'proposal',
+        title: `Proposal: ${projectDescription.substring(0, 30)}...`,
+        content: proposalResult,
+        date: new Date()
+      };
+      
+      setSavedItems(prev => [newSavedItem, ...prev]);
+      
+      toast({
+        title: "Proposal generated",
+        description: "Your proposal has been successfully generated",
+      });
+      
+    } catch (error) {
+      toast({
+        title: "Failed to generate proposal",
+        description: "There was an error generating your proposal. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setGeneratingProposal(false);
+    }
+  };
+  
+  // Handle asking a question
+  const handleAskQuestion = async () => {
+    if (!question.trim()) {
+      toast({
+        title: "Question required",
+        description: "Please enter a question to ask the AI assistant",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setAskingQuestion(true);
+      
+      // Add user question to history
+      const newQuestion = { role: 'user' as const, content: question };
+      setConversationHistory(prev => [...prev, newQuestion]);
+      
+      // Mock AI response (in a real implementation, this would be an API call)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Basic AI response
+      let response = '';
+      
+      if (question.toLowerCase().includes('grant')) {
+        response = "Grants for musicians typically require a strong project proposal, budget breakdown, artistic samples, and clear goals. Focus on aligning your project with the grant's specific mission. Most funders want to see community impact and innovation.";
+      } else if (question.toLowerCase().includes('application')) {
+        response = "When preparing a grant application, start early and read the guidelines thoroughly. Highlight your unique artistic perspective and be specific about how the funds will be used. Getting feedback on your draft from peers can significantly improve your chances.";
+      } else if (question.toLowerCase().includes('deadline')) {
+        response = "Grant deadlines are critical - missing them means waiting for the next cycle. I recommend setting multiple reminders at 2 weeks, 1 week, and 3 days before the deadline. Always submit at least 24 hours early to avoid technical issues.";
+      } else {
+        response = "That's a great question about music funding. Generally, successful artists approach grant applications strategically by researching the funder thoroughly, creating compelling narratives around their work, and demonstrating both artistic excellence and community impact.";
+      }
+      
+      // Add AI response to history
+      const aiResponse = { role: 'assistant' as const, content: response };
+      setConversationHistory(prev => [...prev, aiResponse]);
+      
+      // Clear question input
+      setQuestion('');
+      
+      // Scroll to bottom after response
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      
+    } catch (error) {
+      toast({
+        title: "Failed to get answer",
+        description: "There was an error processing your question. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setAskingQuestion(false);
+    }
+  };
+  
+  // Copy text to clipboard
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: "Copied to clipboard",
+        description: "The content has been copied to your clipboard",
+      });
+    }).catch(() => {
+      toast({
+        title: "Failed to copy",
+        description: "There was an error copying to clipboard",
+        variant: "destructive"
+      });
+    });
+  };
+  
+  // Handle template selection
+  const handleTemplateChange = (value: string) => {
+    setSelectedTemplate(value);
+    const template = templates?.find(t => t.id === parseInt(value));
+    if (template) {
+      setProjectDescription(template.content);
+    }
+  };
+  
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+            AI Assistant
+            <Badge variant="accent" className="ml-3">New</Badge>
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+            Get AI-powered help with writing proposals, answering questions about grants, and more
+          </p>
+        </div>
+      </div>
+      
+      <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid grid-cols-3 w-full md:w-[400px]">
+          <TabsTrigger value="proposals" className="flex items-center">
+            <FileText className="h-4 w-4 mr-2" />
+            <span>Proposals</span>
+          </TabsTrigger>
+          <TabsTrigger value="questions" className="flex items-center">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            <span>Questions</span>
+          </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center">
+            <Clipboard className="h-4 w-4 mr-2" />
+            <span>History</span>
+          </TabsTrigger>
+        </TabsList>
+        
+        {/* Proposal Generation Tab */}
+        <TabsContent value="proposals" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Generate a Grant Proposal</CardTitle>
+              <CardDescription>
+                Our AI will help you craft a professional grant proposal based on your inputs
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="proposalType">Proposal Type</Label>
+                <Select value={proposalType} onValueChange={setProposalType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select proposal type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="project">Project Proposal</SelectItem>
+                      <SelectItem value="artistic">Artistic Statement</SelectItem>
+                      <SelectItem value="budget">Budget Justification</SelectItem>
+                      <SelectItem value="impact">Impact Statement</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="grantSelect">Grant (Optional)</Label>
+                <Select value={selectedGrant} onValueChange={setSelectedGrant}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a grant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No specific grant</SelectItem>
+                    {grants?.map(grant => (
+                      <SelectItem key={grant.id} value={grant.id.toString()}>
+                        {grant.name} - {grant.organization}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="artistSelect">Artist (Optional)</Label>
+                <Select value={selectedArtist} onValueChange={setSelectedArtist}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an artist" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No specific artist</SelectItem>
+                    {artists?.map(artist => (
+                      <SelectItem key={artist.id} value={artist.id.toString()}>
+                        {artist.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="templateSelect">Start from Template (Optional)</Label>
+                <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No template</SelectItem>
+                    {templates?.filter(t => t.type === 'proposal')?.map(template => (
+                      <SelectItem key={template.id} value={template.id.toString()}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="projectDescription">Project Description</Label>
+                <Textarea
+                  id="projectDescription"
+                  placeholder="Describe your project or what you need help with..."
+                  className="min-h-[150px]"
+                  value={projectDescription}
+                  onChange={(e) => setProjectDescription(e.target.value)}
+                />
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <Button variant="outline" onClick={() => setProjectDescription('')}>
+                Clear
+              </Button>
+              <Button 
+                onClick={handleGenerateProposal} 
+                disabled={generatingProposal || !projectDescription.trim()}
+                className="gap-2"
+              >
+                {generatingProposal ? (
+                  <>
+                    <Loader className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-4 w-4" />
+                    Generate Proposal
+                  </>
+                )}
+              </Button>
+            </CardFooter>
+          </Card>
+          
+          {proposalResult && (
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-xl">Generated Proposal</CardTitle>
+                  <div className="flex space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={() => copyToClipboard(proposalResult)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={handleGenerateProposal}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-md whitespace-pre-wrap font-mono text-sm border border-gray-200 dark:border-gray-700 max-h-[500px] overflow-y-auto">
+                  {proposalResult}
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-2"
+                  onClick={() => {
+                    // Save as template logic would go here
+                    toast({
+                      title: "Saved as template",
+                      description: "This proposal has been saved as a template"
+                    });
+                  }}
+                >
+                  <FileText className="h-4 w-4" />
+                  Save as Template
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+        </TabsContent>
+        
+        {/* Questions Tab */}
+        <TabsContent value="questions" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Ask a Question</CardTitle>
+              <CardDescription>
+                Get answers about grant writing, music industry opportunities, applications, and more
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4 mb-4 max-h-[400px] overflow-y-auto">
+                {conversationHistory.length > 0 ? (
+                  <div className="space-y-4">
+                    {conversationHistory.map((message, index) => (
+                      <div 
+                        key={index} 
+                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div 
+                          className={`max-w-[80%] rounded-lg p-3 ${
+                            message.role === 'user' 
+                              ? 'bg-primary text-white' 
+                              : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                          }`}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={messageEndRef} />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-[200px] text-center space-y-3">
+                    <div className="w-12 h-12 rounded-full bg-primary-50 dark:bg-primary-900 flex items-center justify-center">
+                      <Sparkles className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        Ask me anything about music grants
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        I can help with application strategies, deadlines, requirements, and more
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <Input
+                  placeholder="Type your question here..."
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (!askingQuestion && question.trim()) handleAskQuestion();
+                    }
+                  }}
+                />
+                <Button 
+                  onClick={handleAskQuestion}
+                  disabled={askingQuestion || !question.trim()}
+                  size="icon"
+                >
+                  {askingQuestion ? (
+                    <Loader className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* History Tab */}
+        <TabsContent value="history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Your History</CardTitle>
+              <CardDescription>
+                Previously generated proposals and answered questions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {savedItems.length > 0 ? (
+                <div className="space-y-3">
+                  {savedItems.map(item => (
+                    <Card key={item.id} className="shadow-sm">
+                      <CardHeader className="p-4 pb-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium text-sm">{item.title}</p>
+                            <p className="text-xs text-gray-500">
+                              {item.date.toLocaleDateString()} · {item.date.toLocaleTimeString()}
+                            </p>
+                          </div>
+                          <Badge variant={item.type === 'proposal' ? 'default' : 'secondary'}>
+                            {item.type === 'proposal' ? 'Proposal' : 'Question'}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardFooter className="p-4 pt-2 flex justify-end space-x-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => copyToClipboard(item.content)}
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          Copy
+                        </Button>
+                        <Button 
+                          size="sm"
+                          onClick={() => {
+                            if (item.type === 'proposal') {
+                              setActiveTab('proposals');
+                              setProposalResult(item.content);
+                            }
+                          }}
+                        >
+                          View
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center p-12">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                    <Clipboard className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">No history yet</h3>
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">
+                    Generate proposals or ask questions to see them here
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
