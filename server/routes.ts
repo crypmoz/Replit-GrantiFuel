@@ -120,6 +120,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(201).json(template);
   });
 
+  // AI Assistant routes
+  const generateProposalSchema = z.object({
+    projectDescription: z.string(),
+    grantName: z.string().optional(),
+    artistName: z.string().optional(),
+    proposalType: z.string().optional()
+  });
+
+  app.post("/api/ai/generate-proposal", async (req, res) => {
+    try {
+      const parsedBody = generateProposalSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.error });
+      }
+      
+      const { projectDescription, grantName, artistName, proposalType } = parsedBody.data;
+      
+      const proposal = await generateProposal(
+        projectDescription,
+        grantName,
+        artistName,
+        proposalType
+      );
+      
+      // Create an activity to record the proposal generation
+      await storage.createActivity({
+        userId: 1, // Default user ID
+        action: "GENERATED",
+        entityType: "PROPOSAL",
+        entityId: 0, // Placeholder
+        details: {
+          projectDescription: projectDescription.substring(0, 100),
+          grantName,
+          artistName
+        }
+      });
+      
+      return res.json({ proposal });
+    } catch (error) {
+      console.error('Error in proposal generation endpoint:', error);
+      return res.status(500).json({ error: "Failed to generate proposal" });
+    }
+  });
+
+  const answerQuestionSchema = z.object({
+    question: z.string(),
+    conversationHistory: z.array(
+      z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string()
+      })
+    ).optional().default([])
+  });
+
+  app.post("/api/ai/answer-question", async (req, res) => {
+    try {
+      const parsedBody = answerQuestionSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.error });
+      }
+      
+      const { question, conversationHistory } = parsedBody.data;
+      
+      const answer = await answerQuestion(question, conversationHistory);
+      
+      // Create an activity to record the question
+      await storage.createActivity({
+        userId: 1, // Default user ID
+        action: "ASKED",
+        entityType: "QUESTION",
+        entityId: 0, // Placeholder
+        details: {
+          question: question.substring(0, 100),
+          answer: answer.substring(0, 100)
+        }
+      });
+      
+      return res.json({ answer });
+    } catch (error) {
+      console.error('Error in answer question endpoint:', error);
+      return res.status(500).json({ error: "Failed to answer question" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

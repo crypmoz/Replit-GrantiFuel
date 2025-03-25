@@ -103,42 +103,36 @@ export default function AIAssistant() {
     try {
       setGeneratingProposal(true);
       
-      // Mock AI response (in a real implementation, this would be an API call)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       const selectedGrantObj = grants?.find(g => g.id === parseInt(selectedGrant));
       const selectedArtistObj = artists?.find(a => a.id === parseInt(selectedArtist));
       
-      // Template-like response
-      setProposalResult(`# Project Proposal: ${projectDescription.substring(0, 50)}...
-
-## Artist Information
-${selectedArtistObj ? selectedArtistObj.name : 'Independent Artist'}
-
-## Grant Information
-${selectedGrantObj ? `${selectedGrantObj.name} (${selectedGrantObj.organization})` : 'General Purpose Proposal'}
-
-## Project Overview
-${projectDescription}
-
-## Goals and Objectives
-- Develop innovative musical content that resonates with target audience
-- Establish strong creative foundation for long-term career development
-- Engage with community through music initiatives
-
-## Budget and Timeline
-This project requires approximately $15,000 and will be completed within a 6-month timeframe.
-
-## Expected Impact
-The proposed project will enhance artistic development while providing significant cultural contribution to the community.
-`);
+      // Call the AI API
+      const response = await fetch('/api/ai/generate-proposal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectDescription,
+          grantName: selectedGrantObj?.name,
+          artistName: selectedArtistObj?.name,
+          proposalType
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate proposal');
+      }
+      
+      const data = await response.json();
+      setProposalResult(data.proposal);
       
       // Add to saved items
       const newSavedItem = {
         id: Date.now().toString(),
         type: 'proposal',
         title: `Proposal: ${projectDescription.substring(0, 30)}...`,
-        content: proposalResult,
+        content: data.proposal,
         date: new Date()
       };
       
@@ -150,6 +144,7 @@ The proposed project will enhance artistic development while providing significa
       });
       
     } catch (error) {
+      console.error('Error generating proposal:', error);
       toast({
         title: "Failed to generate proposal",
         description: "There was an error generating your proposal. Please try again.",
@@ -178,24 +173,26 @@ The proposed project will enhance artistic development while providing significa
       const newQuestion = { role: 'user' as const, content: question };
       setConversationHistory(prev => [...prev, newQuestion]);
       
-      // Mock AI response (in a real implementation, this would be an API call)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Call the AI API
+      const response = await fetch('/api/ai/answer-question', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question,
+          conversationHistory
+        }),
+      });
       
-      // Basic AI response
-      let response = '';
-      
-      if (question.toLowerCase().includes('grant')) {
-        response = "Grants for musicians typically require a strong project proposal, budget breakdown, artistic samples, and clear goals. Focus on aligning your project with the grant's specific mission. Most funders want to see community impact and innovation.";
-      } else if (question.toLowerCase().includes('application')) {
-        response = "When preparing a grant application, start early and read the guidelines thoroughly. Highlight your unique artistic perspective and be specific about how the funds will be used. Getting feedback on your draft from peers can significantly improve your chances.";
-      } else if (question.toLowerCase().includes('deadline')) {
-        response = "Grant deadlines are critical - missing them means waiting for the next cycle. I recommend setting multiple reminders at 2 weeks, 1 week, and 3 days before the deadline. Always submit at least 24 hours early to avoid technical issues.";
-      } else {
-        response = "That's a great question about music funding. Generally, successful artists approach grant applications strategically by researching the funder thoroughly, creating compelling narratives around their work, and demonstrating both artistic excellence and community impact.";
+      if (!response.ok) {
+        throw new Error('Failed to get answer');
       }
       
+      const data = await response.json();
+      
       // Add AI response to history
-      const aiResponse = { role: 'assistant' as const, content: response };
+      const aiResponse = { role: 'assistant' as const, content: data.answer };
       setConversationHistory(prev => [...prev, aiResponse]);
       
       // Clear question input
@@ -207,6 +204,7 @@ The proposed project will enhance artistic development while providing significa
       }, 100);
       
     } catch (error) {
+      console.error('Error getting answer:', error);
       toast({
         title: "Failed to get answer",
         description: "There was an error processing your question. Please try again.",
