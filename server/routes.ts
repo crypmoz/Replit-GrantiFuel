@@ -1,6 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { generateProposal, answerQuestion } from "./services/ai";
+import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API Routes
