@@ -304,7 +304,7 @@ export default function AIAssistant() {
                     <SelectValue placeholder="Select a grant" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No specific grant</SelectItem>
+                    <SelectItem value="none">No specific grant</SelectItem>
                     {grants?.map(grant => (
                       <SelectItem key={grant.id} value={grant.id.toString()}>
                         {grant.name} - {grant.organization}
@@ -321,7 +321,7 @@ export default function AIAssistant() {
                     <SelectValue placeholder="Select an artist" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No specific artist</SelectItem>
+                    <SelectItem value="none">No specific artist</SelectItem>
                     {artists?.map(artist => (
                       <SelectItem key={artist.id} value={artist.id.toString()}>
                         {artist.name}
@@ -338,7 +338,7 @@ export default function AIAssistant() {
                     <SelectValue placeholder="Select a template" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No template</SelectItem>
+                    <SelectItem value="none">No template</SelectItem>
                     {templates?.filter(t => t.type === 'proposal')?.map(template => (
                       <SelectItem key={template.id} value={template.id.toString()}>
                         {template.name}
