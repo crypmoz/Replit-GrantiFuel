@@ -71,10 +71,11 @@ export default function Header() {
                           {item.label}
                         </span>
                       ) : (
-                        <Link href={item.href}>
-                          <a className={index > 0 ? "ml-2 text-primary dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300" : "text-primary dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"}>
-                            {item.label}
-                          </a>
+                        <Link 
+                          href={item.href}
+                          className={index > 0 ? "ml-2 text-primary dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300" : "text-primary dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"}
+                        >
+                          {item.label}
                         </Link>
                       )}
                     </div>
