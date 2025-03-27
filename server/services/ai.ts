@@ -2,12 +2,14 @@ import axios from 'axios';
 import { storage } from '../storage';
 import { Document } from '@shared/schema';
 
+interface AIMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
 interface AICompletionRequest {
   model: string;
-  messages: Array<{
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-  }>;
+  messages: AIMessage[];
   temperature?: number;
   max_tokens?: number;
 }
@@ -32,10 +34,10 @@ if (!DEEPSEEK_API_KEY) {
 // Function to get relevant documents based on the question
 async function getRelevantDocuments(question: string) {
   try {
-    // Get all approved documents from the database
-    const approvedDocuments = await storage.getApprovedDocuments();
+    // Get all documents from the database (no approval needed)
+    const allDocuments = await storage.getAllDocuments();
     
-    if (!approvedDocuments || approvedDocuments.length === 0) {
+    if (!allDocuments || allDocuments.length === 0) {
       return [];
     }
     
@@ -44,7 +46,7 @@ async function getRelevantDocuments(question: string) {
     const keywords = extractKeywords(question.toLowerCase());
     
     // Score each document based on keyword matches
-    const scoredDocuments = approvedDocuments.map(doc => {
+    const scoredDocuments = allDocuments.map(doc => {
       const docText = `${doc.title} ${doc.content}`.toLowerCase();
       const score = keywords.reduce((score, keyword) => {
         return score + (docText.includes(keyword) ? 1 : 0);
@@ -187,8 +189,8 @@ export async function answerQuestion(
     const recentConversation = conversationHistory.slice(-3);
     
     // Convert the conversation history to the format expected by the API
-    const messages = [
-      { role: 'system' as const, content: systemPrompt }
+    const messages: AIMessage[] = [
+      { role: 'system', content: systemPrompt }
     ];
     
     // Add relevant document context if available
@@ -196,16 +198,16 @@ export async function answerQuestion(
       messages.push({ role: 'system' as const, content: documentContext });
     }
     
-    // Add conversation history
-    messages.push(
-      ...recentConversation.map(msg => ({
-        role: msg.role as 'user' | 'assistant',
+    // Add conversation history as messages
+    for (const msg of recentConversation) {
+      messages.push({
+        role: msg.role,
         content: msg.content
-      }))
-    );
+      });
+    }
     
     // Add the current question
-    messages.push({ role: 'user' as const, content: question });
+    messages.push({ role: 'user', content: question });
     
     const requestData: AICompletionRequest = {
       model: 'deepseek-chat',

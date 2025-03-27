@@ -721,16 +721,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Regular document creation (without file)
   app.post("/api/documents", requireAuth, async (req, res) => {
     try {
-      // For regular users, set isApproved to false by default
-      // Admins can set isApproved directly
+      // All documents are automatically approved for AI training
       let documentData = {
         ...req.body,
         userId: req.user!.id,
+        isApproved: true
       };
-      
-      if (req.user!.role !== 'admin') {
-        documentData.isApproved = false;
-      }
       
       const document = await storage.createDocument(documentData);
       
@@ -796,11 +792,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileSize: file.size,
       };
       
-      // For regular users, set isApproved to false by default
-      // Admins can set isApproved directly
-      if (req.user!.role !== 'admin') {
-        documentData.isApproved = false;
-      }
+      // All documents are automatically approved for AI training
+      documentData.isApproved = true;
       
       const document = await storage.createDocument(documentData);
       
