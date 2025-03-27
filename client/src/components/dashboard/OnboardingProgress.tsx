@@ -32,10 +32,14 @@ export function OnboardingProgress() {
     // When this component mounts, mark the dashboard as viewed
     // You can add similar effects in other components to track progress
     // without requiring explicit user action
-    if (!hasCompletedTask("dashboard_viewed")) {
-      completeTask("dashboard_viewed", { timestamp: new Date().toISOString() });
-    }
-  }, [completeTask, hasCompletedTask]);
+    const timer = setTimeout(() => {
+      if (!hasCompletedTask("dashboard_viewed")) {
+        completeTask("dashboard_viewed", { timestamp: new Date().toISOString() });
+      }
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <Card>
