@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
@@ -125,67 +125,138 @@ const DocumentRow = ({
 
   return (
     <TableRow>
-      <TableCell className="font-medium">{document.title}</TableCell>
+      <TableCell className="font-medium">
+        <span id={`document-title-${document.id}`}>{document.title}</span>
+      </TableCell>
       <TableCell>
-        <Badge variant={document.type === 'admin_knowledge' ? 'destructive' : 'secondary'}>
+        <Badge 
+          variant={document.type === 'admin_knowledge' ? 'destructive' : 'secondary'}
+          aria-label={`Type: ${typeLabels[document.type] || document.type}`}
+        >
           {typeLabels[document.type] || document.type}
         </Badge>
       </TableCell>
-      <TableCell>{formatDate(document.createdAt)}</TableCell>
+      <TableCell aria-label={`Created on: ${formatDate(document.createdAt)}`}>
+        {formatDate(document.createdAt)}
+      </TableCell>
       <TableCell>
         {document.isApproved ? (
-          <Badge variant="success" className="bg-green-600">Approved</Badge>
+          <Badge 
+            variant="success" 
+            className="bg-green-600"
+            aria-label="Status: Approved"
+          >
+            Approved
+          </Badge>
         ) : (
-          <Badge variant="outline">Pending</Badge>
+          <Badge 
+            variant="outline"
+            aria-label="Status: Pending approval"
+          >
+            Pending
+          </Badge>
         )}
       </TableCell>
       <TableCell>
         {document.isPublic ? (
-          <Badge variant="secondary">Public</Badge>
+          <Badge 
+            variant="secondary"
+            aria-label="Visibility: Public"
+          >
+            Public
+          </Badge>
         ) : (
-          <Badge variant="outline">Private</Badge>
+          <Badge 
+            variant="outline"
+            aria-label="Visibility: Private"
+          >
+            Private
+          </Badge>
         )}
       </TableCell>
       <TableCell>
-        <div className="flex space-x-2">
+        <div 
+          className="flex space-x-2"
+          role="group"
+          aria-label={`Actions for document: ${document.title}`}
+        >
           <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
             <SheetTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Eye className="h-4 w-4 mr-1" />
-                Preview
+              <Button 
+                size="sm" 
+                variant="outline"
+                aria-label={`Preview document: ${document.title}`}
+                aria-haspopup="dialog"
+              >
+                <Eye className="h-4 w-4 mr-1" aria-hidden="true" />
+                <span>Preview</span>
               </Button>
             </SheetTrigger>
-            <SheetContent className="w-[600px] sm:w-[600px] md:w-[900px]">
+            <SheetContent 
+              className="w-[600px] sm:w-[600px] md:w-[900px]"
+              aria-labelledby={`preview-title-${document.id}`}
+            >
               <SheetHeader>
-                <SheetTitle>{document.title}</SheetTitle>
+                <SheetTitle id={`preview-title-${document.id}`}>{document.title}</SheetTitle>
                 <SheetDescription>
-                  Type: {typeLabels[document.type]} | 
-                  Created: {formatDate(document.createdAt)} | 
-                  {document.isApproved ? ' Approved' : ' Pending Approval'}
+                  <dl className="flex flex-wrap gap-x-3">
+                    <div className="inline">
+                      <dt className="inline">Type: </dt>
+                      <dd className="inline">{typeLabels[document.type]}</dd>
+                    </div>
+                    <div className="inline">
+                      <dt className="inline">Created: </dt>
+                      <dd className="inline">{formatDate(document.createdAt)}</dd>
+                    </div>
+                    <div className="inline">
+                      <dt className="inline">Status: </dt>
+                      <dd className="inline">{document.isApproved ? 'Approved' : 'Pending Approval'}</dd>
+                    </div>
+                  </dl>
                 </SheetDescription>
               </SheetHeader>
               <div className="mt-6">
-                <div className="prose max-w-none">
+                <div 
+                  className="prose max-w-none"
+                  role="region"
+                  aria-label="Document content"
+                  tabIndex={0}
+                >
                   <pre className="whitespace-pre-wrap">{document.content}</pre>
                 </div>
               </div>
             </SheetContent>
           </Sheet>
           
-          <Button size="sm" variant="outline" onClick={() => onEdit(document)}>
-            <Edit className="h-4 w-4 mr-1" />
-            Edit
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={() => onEdit(document)}
+            aria-label={`Edit document: ${document.title}`}
+          >
+            <Edit className="h-4 w-4 mr-1" aria-hidden="true" />
+            <span>Edit</span>
           </Button>
           
-          <Button size="sm" variant="destructive" onClick={() => onDelete(document.id)}>
-            <Trash2 className="h-4 w-4 mr-1" />
-            Delete
+          <Button 
+            size="sm" 
+            variant="destructive" 
+            onClick={() => onDelete(document.id)}
+            aria-label={`Delete document: ${document.title}`}
+          >
+            <Trash2 className="h-4 w-4 mr-1" aria-hidden="true" />
+            <span>Delete</span>
           </Button>
           
           {userRole === 'admin' && !document.isApproved && (
-            <Button size="sm" variant="default" onClick={() => onApprove(document.id)}>
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Approve
+            <Button 
+              size="sm" 
+              variant="default" 
+              onClick={() => onApprove(document.id)}
+              aria-label={`Approve document: ${document.title}`}
+            >
+              <CheckCircle className="h-4 w-4 mr-1" aria-hidden="true" />
+              <span>Approve</span>
             </Button>
           )}
         </div>
@@ -208,20 +279,45 @@ const DocumentForm = ({
     resolver: zodResolver(documentSchema),
     defaultValues
   });
+  
+  // Flag to focus the first input on form mount
+  const [shouldFocus, setShouldFocus] = useState(true);
+  
+  // Reset focus flag when form unmounts
+  useEffect(() => {
+    return () => setShouldFocus(true);
+  }, []);
+  
+  // Get form state for highlighting errors
+  const { formState: { errors, isSubmitting } } = form;
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form 
+        onSubmit={form.handleSubmit(onSubmit)} 
+        className="space-y-6"
+        aria-label={defaultValues && 'id' in defaultValues ? "Edit document form" : "Create new document form"}
+        noValidate
+      >
         <FormField
           control={form.control}
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Title</FormLabel>
+              <FormLabel htmlFor="document-title">Title</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="Enter document title" />
+                <Input 
+                  id="document-title"
+                  placeholder="Enter document title" 
+                  aria-describedby="title-error"
+                  aria-required="true"
+                  aria-invalid={!!errors.title}
+                  autoFocus={shouldFocus}
+                  onFocus={() => setShouldFocus(false)}
+                  {...field}
+                />
               </FormControl>
-              <FormMessage />
+              <FormMessage id="title-error" aria-live="polite" />
             </FormItem>
           )}
         />
@@ -231,13 +327,15 @@ const DocumentForm = ({
           name="type"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Document Type</FormLabel>
+              <FormLabel htmlFor="document-type">Document Type</FormLabel>
               <Select
                 onValueChange={field.onChange}
                 defaultValue={field.value}
+                aria-describedby="type-description type-error"
+                aria-required="true"
               >
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger id="document-type">
                     <SelectValue placeholder="Select document type" />
                   </SelectTrigger>
                 </FormControl>
@@ -251,10 +349,10 @@ const DocumentForm = ({
                   <SelectItem value="user_upload">User Upload</SelectItem>
                 </SelectContent>
               </Select>
-              <FormDescription>
+              <FormDescription id="type-description">
                 Select the category that best describes this document.
               </FormDescription>
-              <FormMessage />
+              <FormMessage id="type-error" aria-live="polite" />
             </FormItem>
           )}
         />
@@ -264,18 +362,22 @@ const DocumentForm = ({
           name="content"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Content</FormLabel>
+              <FormLabel htmlFor="document-content">Content</FormLabel>
               <FormControl>
                 <Textarea 
-                  {...field} 
+                  id="document-content"
                   placeholder="Enter document content" 
                   className="min-h-[200px]" 
+                  aria-describedby="content-description content-error"
+                  aria-required="true"
+                  aria-invalid={!!errors.content}
+                  {...field} 
                 />
               </FormControl>
-              <FormDescription>
+              <FormDescription id="content-description">
                 The content will be used by the AI assistant to provide accurate information.
               </FormDescription>
-              <FormMessage />
+              <FormMessage id="content-error" aria-live="polite" />
             </FormItem>
           )}
         />
@@ -285,17 +387,19 @@ const DocumentForm = ({
           name="tags"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Tags</FormLabel>
+              <FormLabel htmlFor="document-tags">Tags</FormLabel>
               <FormControl>
                 <Input 
-                  {...field} 
+                  id="document-tags"
                   placeholder="Enter comma-separated tags (e.g. jazz, funding, orchestra)" 
+                  aria-describedby="tags-description tags-error"
+                  {...field} 
                 />
               </FormControl>
-              <FormDescription>
+              <FormDescription id="tags-description">
                 Tags help categorize and find documents. Separate with commas.
               </FormDescription>
-              <FormMessage />
+              <FormMessage id="tags-error" aria-live="polite" />
             </FormItem>
           )}
         />
@@ -307,13 +411,15 @@ const DocumentForm = ({
             <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
               <FormControl>
                 <Checkbox
+                  id="document-public"
                   checked={field.value}
                   onCheckedChange={field.onChange}
+                  aria-describedby="public-description"
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>Make Public</FormLabel>
-                <FormDescription>
+                <FormLabel htmlFor="document-public">Make Public</FormLabel>
+                <FormDescription id="public-description">
                   Public documents can be seen by all users once approved
                 </FormDescription>
               </div>
@@ -329,13 +435,15 @@ const DocumentForm = ({
               <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
                 <FormControl>
                   <Checkbox
+                    id="document-approved"
                     checked={field.value}
                     onCheckedChange={field.onChange}
+                    aria-describedby="approved-description"
                   />
                 </FormControl>
                 <div className="space-y-1 leading-none">
-                  <FormLabel>Approve Document</FormLabel>
-                  <FormDescription>
+                  <FormLabel htmlFor="document-approved">Approve Document</FormLabel>
+                  <FormDescription id="approved-description">
                     Approved documents can be used by the AI assistant
                   </FormDescription>
                 </div>
@@ -345,7 +453,23 @@ const DocumentForm = ({
         )}
         
         <DialogFooter>
-          <Button type="submit">Save Document</Button>
+          <Button 
+            type="submit" 
+            disabled={isSubmitting}
+            aria-busy={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <span className="sr-only">Saving document...</span>
+                <span aria-hidden="true" className="flex items-center">
+                  <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+                  Saving...
+                </span>
+              </>
+            ) : (
+              'Save Document'
+            )}
+          </Button>
         </DialogFooter>
       </form>
     </Form>
@@ -553,53 +677,89 @@ export default function Documents() {
 
   return (
     <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Documents</h1>
-          <p className="text-muted-foreground">
-            Manage your documents and knowledge base for the AI assistant
-          </p>
+      {/* Skip to content link for keyboard users */}
+      <a 
+        href="#document-content" 
+        className="sr-only focus:not-sr-only focus:absolute focus:p-4 focus:bg-background focus:z-50 focus:top-4 focus:left-4 focus:outline-none focus:ring-2 focus:ring-primary"
+      >
+        Skip to document content
+      </a>
+      
+      <header className="mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 
+              className="text-3xl font-bold tracking-tight" 
+              id="page-title"
+            >
+              Documents
+            </h1>
+            <p 
+              className="text-muted-foreground"
+              id="page-description"
+            >
+              Manage your documents and knowledge base for the AI assistant
+            </p>
+          </div>
+          
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                onClick={() => setEditingDocument(null)}
+                aria-label="Add new document"
+              >
+                <Plus className="mr-2 h-4 w-4" aria-hidden="true" /> 
+                <span>Add Document</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent 
+              className="sm:max-w-[600px]"
+              aria-labelledby="dialog-title"
+              aria-describedby="dialog-description"
+            >
+              <DialogHeader>
+                <DialogTitle id="dialog-title">
+                  {editingDocument ? 'Edit Document' : 'Create New Document'}
+                </DialogTitle>
+                <DialogDescription id="dialog-description">
+                  {editingDocument 
+                    ? 'Update the document details below.' 
+                    : 'Add a new document to the knowledge base to help the AI assistant provide better answers.'}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <DocumentForm 
+                defaultValues={editingDocument || defaultValues} 
+                onSubmit={handleSubmit}
+                userRole={user?.role || 'user'}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
-        
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditingDocument(null)}>
-              <Plus className="mr-2 h-4 w-4" /> Add Document
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>
-                {editingDocument ? 'Edit Document' : 'Create New Document'}
-              </DialogTitle>
-              <DialogDescription>
-                {editingDocument 
-                  ? 'Update the document details below.' 
-                  : 'Add a new document to the knowledge base to help the AI assistant provide better answers.'}
-              </DialogDescription>
-            </DialogHeader>
-            
-            <DocumentForm 
-              defaultValues={editingDocument || defaultValues} 
-              onSubmit={handleSubmit}
-              userRole={user?.role || 'user'}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
+      </header>
 
-      <div className="mt-4">
+      <main id="document-content" tabIndex={-1}>
         <Tabs defaultValue="documents" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="documents" className="flex items-center">
-              <FileText className="mr-2 h-4 w-4" /> Text Documents
+          <TabsList className="mb-4" aria-label="Document categories">
+            <TabsTrigger 
+              value="documents" 
+              className="flex items-center"
+              aria-controls="documents-panel"
+            >
+              <FileText className="mr-2 h-4 w-4" aria-hidden="true" /> 
+              <span>Text Documents</span>
             </TabsTrigger>
-            <TabsTrigger value="uploads" className="flex items-center">
-              <Upload className="mr-2 h-4 w-4" /> File Uploads
+            <TabsTrigger 
+              value="uploads" 
+              className="flex items-center"
+              aria-controls="uploads-panel"
+            >
+              <Upload className="mr-2 h-4 w-4" aria-hidden="true" /> 
+              <span>File Uploads</span>
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="documents">
+          <TabsContent value="documents" id="documents-panel" role="tabpanel">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Knowledge Base Documents</CardTitle>
@@ -774,7 +934,7 @@ export default function Documents() {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
     </div>
   );
 }
