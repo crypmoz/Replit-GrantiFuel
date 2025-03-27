@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -18,6 +18,7 @@ export const users = pgTable("users", {
   resetPasswordExpires: timestamp("reset_password_expires"),
   lastLogin: timestamp("last_login"),
   active: boolean("active").default(true).notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -26,6 +27,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   activities: many(activities),
   artists: many(artists),
   templates: many(templates),
+  subscriptions: many(subscriptions),
 }));
 
 export const grants = pgTable("grants", {
@@ -123,6 +125,47 @@ export const templatesRelations = relations(templates, ({ one }) => ({
   }),
 }));
 
+// Subscription Plan Tiers
+export const planTierEnum = pgEnum('plan_tier', ['free', 'basic', 'premium']);
+
+export const subscriptionPlans = pgTable("subscription_plans", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  tier: planTierEnum("tier").notNull(),
+  price: integer("price").notNull(), // stored in cents
+  description: text("description").notNull(),
+  maxApplications: integer("max_applications").notNull(),
+  maxArtists: integer("max_artists").notNull(),
+  features: text("features").array(),
+  stripePriceId: text("stripe_price_id"),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const subscriptions = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  planId: integer("plan_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: text("status").notNull().default("active"),
+  currentPeriodStart: timestamp("current_period_start").notNull(),
+  currentPeriodEnd: timestamp("current_period_end").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  canceledAt: timestamp("canceled_at"),
+});
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  user: one(users, {
+    fields: [subscriptions.userId],
+    references: [users.id],
+  }),
+  plan: one(subscriptionPlans, {
+    fields: [subscriptions.planId],
+    references: [subscriptionPlans.id],
+  }),
+}));
+
 // Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({ 
   id: true, 
@@ -140,6 +183,8 @@ export const insertArtistSchema = createInsertSchema(artists).omit({ id: true, c
 export const insertApplicationSchema = createInsertSchema(applications).omit({ id: true, startedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
 export const insertTemplateSchema = createInsertSchema(templates).omit({ id: true, createdAt: true });
+export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({ id: true, createdAt: true });
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true, canceledAt: true });
 
 // Additional validation schemas for API requests
 export const generateProposalSchema = z.object({
@@ -166,6 +211,8 @@ export type InsertArtist = z.infer<typeof insertArtistSchema>;
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
+export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Grant = typeof grants.$inferSelect;
@@ -173,3 +220,5 @@ export type Artist = typeof artists.$inferSelect;
 export type Application = typeof applications.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type Template = typeof templates.$inferSelect;
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;

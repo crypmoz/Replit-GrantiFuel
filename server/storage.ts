@@ -4,7 +4,9 @@ import {
   artists, type Artist, type InsertArtist,
   applications, type Application, type InsertApplication,
   activities, type Activity, type InsertActivity,
-  templates, type Template, type InsertTemplate
+  templates, type Template, type InsertTemplate,
+  subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
+  subscriptions, type Subscription, type InsertSubscription
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -21,6 +23,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<User>;
   
   // Grants
   getAllGrants(): Promise<Grant[]>;
@@ -47,6 +50,16 @@ export interface IStorage {
   getTemplate(id: number): Promise<Template | undefined>;
   createTemplate(template: InsertTemplate): Promise<Template>;
   updateTemplate(id: number, template: Partial<InsertTemplate>): Promise<Template | undefined>;
+  
+  // Subscription Plans
+  getAllSubscriptionPlans(): Promise<SubscriptionPlan[]>;
+  getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined>;
+  createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan>;
+  
+  // Subscriptions
+  getUserSubscription(userId: number): Promise<Subscription | undefined>;
+  createSubscription(subscription: InsertSubscription): Promise<Subscription>;
+  updateSubscription(id: number, subscription: Partial<InsertSubscription>): Promise<Subscription | undefined>;
   
   // Session store
   sessionStore: session.Store;
@@ -77,6 +90,15 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+  
+  async updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ stripeCustomerId })
+      .where(eq(users.id, userId))
+      .returning();
     return user;
   }
   
@@ -166,6 +188,46 @@ export class DatabaseStorage implements IStorage {
       .where(eq(templates.id, id))
       .returning();
     return template;
+  }
+  
+  // Subscription Plan methods
+  async getAllSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    return await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.active, true));
+  }
+  
+  async getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined> {
+    const [plan] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, id));
+    return plan;
+  }
+  
+  async createSubscriptionPlan(insertPlan: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
+    const [plan] = await db.insert(subscriptionPlans).values(insertPlan).returning();
+    return plan;
+  }
+  
+  // Subscription methods
+  async getUserSubscription(userId: number): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.userId, userId))
+      .orderBy(desc(subscriptions.createdAt))
+      .limit(1);
+    return subscription;
+  }
+  
+  async createSubscription(insertSubscription: InsertSubscription): Promise<Subscription> {
+    const [subscription] = await db.insert(subscriptions).values(insertSubscription).returning();
+    return subscription;
+  }
+  
+  async updateSubscription(id: number, updateData: Partial<InsertSubscription>): Promise<Subscription | undefined> {
+    const [subscription] = await db
+      .update(subscriptions)
+      .set(updateData)
+      .where(eq(subscriptions.id, id))
+      .returning();
+    return subscription;
   }
 }
 
@@ -285,6 +347,42 @@ const initializeDatabase = async () => {
       entityType: "ARTIST",
       entityId: artist2.id,
       details: { name: artist2.name }
+    });
+    
+    // Add subscription plans
+    await db.insert(subscriptionPlans).values({
+      name: "Free",
+      tier: "free",
+      price: 0,
+      description: "Basic plan for individual musicians",
+      maxApplications: 1,
+      maxArtists: 1,
+      features: ["1 grant application", "1 artist profile", "AI assistance", "Basic templates"],
+      active: true
+    });
+    
+    await db.insert(subscriptionPlans).values({
+      name: "Basic",
+      tier: "basic",
+      price: 2500, // $25.00
+      description: "Great for small ensembles and emerging artists",
+      maxApplications: 5,
+      maxArtists: 2,
+      features: ["5 grant applications", "2 artist profiles", "Priority AI assistance", "All templates", "Email support"],
+      stripePriceId: process.env.STRIPE_BASIC_PRICE_ID,
+      active: true
+    });
+    
+    await db.insert(subscriptionPlans).values({
+      name: "Premium",
+      tier: "premium",
+      price: 6000, // $60.00
+      description: "Professional package for established musicians and organizations",
+      maxApplications: 20,
+      maxArtists: 10,
+      features: ["20 grant applications", "10 artist profiles", "Priority AI assistance", "All templates", "Priority support", "Grant deadline alerts", "Application analytics"],
+      stripePriceId: process.env.STRIPE_PREMIUM_PRICE_ID,
+      active: true
     });
     
     console.log("Database initialized with default data");

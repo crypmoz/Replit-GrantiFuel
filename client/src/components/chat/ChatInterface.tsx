@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useChatbot, MessageType } from '@/context/ChatbotContext';
 import TypingIndicator from '@/components/chat/TypingIndicator';
+import ReactMarkdown from 'react-markdown';
 
 export function ChatMessage({ message }: { message: MessageType }) {
   const isUser = message.role === 'user';
@@ -29,7 +30,13 @@ export function ChatMessage({ message }: { message: MessageType }) {
             : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
         }`}
       >
-        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        {isUser ? (
+          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+        ) : (
+          <div className="prose dark:prose-invert prose-sm max-w-none">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
         {message.sources && message.sources.length > 0 && (
           <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
             <p className="text-xs font-medium mb-1">Sources:</p>
