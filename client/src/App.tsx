@@ -16,10 +16,13 @@ import AIAssistant from "@/pages/AIAssistant";
 import LandingPage from "@/pages/LandingPage";
 import About from "@/pages/About";
 import Pricing from "@/pages/Pricing";
+import AuthPage from "@/pages/auth-page";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { ChatbotProvider } from "@/context/ChatbotContext";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ProtectedRoute } from "@/lib/protected-route";
 
 function AppContent() {
   const [location] = useLocation();
@@ -29,8 +32,7 @@ function AppContent() {
     location === "/" || 
     location === "/about" || 
     location === "/pricing" ||
-    location === "/login" ||
-    location === "/register" ||
+    location === "/auth" ||
     location === "/contact" ||
     location === "/success-stories" ||
     location === "/blog";
@@ -44,16 +46,16 @@ function AppContent() {
           <Header />
           <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
             <Switch>
-              <Route path="/dashboard" component={Dashboard} />
-              <Route path="/grants" component={Grants} />
-              <Route path="/artists" component={Artists} />
-              <Route path="/artists/:id" component={ArtistDetail} />
-              <Route path="/applications" component={Applications} />
-              <Route path="/applications/:id" component={ApplicationDetail} />
-              <Route path="/templates" component={Templates} />
-              <Route path="/templates/:id" component={TemplateDetail} />
-              <Route path="/templates/:id/edit" component={TemplateEdit} />
-              <Route path="/ai-assistant" component={AIAssistant} />
+              <ProtectedRoute path="/dashboard" component={Dashboard} />
+              <ProtectedRoute path="/grants" component={Grants} />
+              <ProtectedRoute path="/artists" component={Artists} />
+              <ProtectedRoute path="/artists/:id" component={ArtistDetail} />
+              <ProtectedRoute path="/applications" component={Applications} />
+              <ProtectedRoute path="/applications/:id" component={ApplicationDetail} />
+              <ProtectedRoute path="/templates" component={Templates} />
+              <ProtectedRoute path="/templates/:id" component={TemplateDetail} />
+              <ProtectedRoute path="/templates/:id/edit" component={TemplateEdit} />
+              <ProtectedRoute path="/ai-assistant" component={AIAssistant} />
               <Route component={NotFound} />
             </Switch>
           </main>
@@ -68,6 +70,7 @@ function AppContent() {
       <Route path="/" component={LandingPage} />
       <Route path="/about" component={About} />
       <Route path="/pricing" component={Pricing} />
+      <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -77,10 +80,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <ChatbotProvider>
-          <AppContent />
-          <Toaster />
-        </ChatbotProvider>
+        <AuthProvider>
+          <ChatbotProvider>
+            <AppContent />
+            <Toaster />
+          </ChatbotProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

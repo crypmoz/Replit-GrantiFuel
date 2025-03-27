@@ -11,6 +11,10 @@ import { eq, desc } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
+import { scrypt, randomBytes } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
 
 export interface IStorage {
   // Users
@@ -43,9 +47,23 @@ export interface IStorage {
   getTemplate(id: number): Promise<Template | undefined>;
   createTemplate(template: InsertTemplate): Promise<Template>;
   updateTemplate(id: number, template: Partial<InsertTemplate>): Promise<Template | undefined>;
+  
+  // Session store
+  sessionStore: session.Store;
 }
 
 export class DatabaseStorage implements IStorage {
+  // Session store
+  sessionStore: session.Store;
+  
+  constructor() {
+    const PostgresStore = connectPg(session);
+    this.sessionStore = new PostgresStore({
+      pool,
+      createTableIfMissing: true
+    });
+  }
+  
   // User methods
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -157,18 +175,24 @@ const initializeDatabase = async () => {
   const userCheck = await db.select().from(users).limit(1);
   
   if (userCheck.length === 0) {
-    // Create admin user with hashed password (in a real app, use bcrypt)
-    const [user] = await db.insert(users).values({
+    // Create admin user with hashed password
+    const salt = randomBytes(16).toString("hex");
+    const buf = await scryptAsync("admin123", salt, 64) as Buffer;
+    const hashedPassword = `${buf.toString("hex")}.${salt}`;
+    
+    // Insert user skipping the bio field that might cause problems
+    const userValues = {
       username: "admin",
-      password: "admin123", // In a real app, this would be properly hashed
+      password: hashedPassword,
       name: "Admin User",
       email: "admin@example.com",
       avatar: null,
-      bio: "System administrator",
       role: "admin",
       verified: true,
       active: true
-    }).returning();
+    };
+    
+    const [user] = await db.insert(users).values(userValues).returning();
     
     // Add initial grants
     const [grant1] = await db.insert(grants).values({
@@ -227,6 +251,7 @@ const initializeDatabase = async () => {
     
     // Add initial applications
     await db.insert(applications).values({
+      userId: user.id,
       grantId: grant1.id,
       artistId: artist1.id,
       status: "in_progress",
@@ -236,6 +261,7 @@ const initializeDatabase = async () => {
     });
     
     await db.insert(applications).values({
+      userId: user.id,
       grantId: grant2.id,
       artistId: artist2.id,
       status: "draft",

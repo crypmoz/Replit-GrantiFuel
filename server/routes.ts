@@ -20,16 +20,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API Routes
   
   // Users routes
-  app.get("/api/users/current", async (req, res) => {
-    // Get the default admin user 
-    const user = await storage.getUserByUsername("admin");
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    return res.json(user);
+  app.get("/api/users/current", requireAuth, (req, res) => {
+    res.json(req.user);
   });
   
-  app.get("/api/users/:id", async (req, res) => {
+  app.get("/api/users/:id", requireAuth, async (req, res) => {
+    // Only allow admin to access other users or users to access their own info
+    if (req.user!.id !== parseInt(req.params.id) && req.user!.role !== 'admin') {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    
     const user = await storage.getUser(parseInt(req.params.id));
     if (!user) {
       return res.status(404).json({ message: "User not found" });
