@@ -9,6 +9,7 @@ import Artists from "@/pages/Artists";
 import ArtistDetail from "@/pages/ArtistDetail";
 import Applications from "@/pages/Applications";
 import Templates from "@/pages/Templates";
+import TemplateDetail from "@/pages/TemplateDetail";
 import AIAssistant from "@/pages/AIAssistant";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
@@ -30,6 +31,7 @@ function AppContent() {
             <Route path="/artists/:id" component={ArtistDetail} />
             <Route path="/applications" component={Applications} />
             <Route path="/templates" component={Templates} />
+            <Route path="/templates/:id" component={TemplateDetail} />
             <Route path="/ai-assistant" component={AIAssistant} />
             <Route component={NotFound} />
           </Switch>
