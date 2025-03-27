@@ -1,10 +1,22 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateProposal, answerQuestion } from "./services/ai";
 import { z } from "zod";
+import { setupAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication
+  setupAuth(app);
+  
+  // Middleware to check authentication for protected routes
+  const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    next();
+  };
+  
   // API Routes
   
   // Users routes
@@ -39,8 +51,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(grant);
   });
 
-  app.post("/api/grants", async (req, res) => {
-    const grant = await storage.createGrant(req.body);
+  app.post("/api/grants", requireAuth, async (req, res) => {
+    const grant = await storage.createGrant({
+      ...req.body,
+      userId: req.user!.id
+    });
     return res.status(201).json(grant);
   });
   
@@ -58,8 +73,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(artist);
   });
 
-  app.post("/api/artists", async (req, res) => {
-    const artist = await storage.createArtist(req.body);
+  app.post("/api/artists", requireAuth, async (req, res) => {
+    const artist = await storage.createArtist({
+      ...req.body,
+      userId: req.user!.id
+    });
     return res.status(201).json(artist);
   });
   
@@ -77,16 +95,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(application);
   });
 
-  app.post("/api/applications", async (req, res) => {
-    const application = await storage.createApplication(req.body);
+  app.post("/api/applications", requireAuth, async (req, res) => {
+    const application = await storage.createApplication({
+      ...req.body,
+      userId: req.user!.id
+    });
     return res.status(201).json(application);
   });
 
-  app.patch("/api/applications/:id", async (req, res) => {
-    const application = await storage.updateApplication(parseInt(req.params.id), req.body);
-    if (!application) {
+  app.patch("/api/applications/:id", requireAuth, async (req, res) => {
+    // Get existing application to verify ownership
+    const existingApplication = await storage.getApplication(parseInt(req.params.id));
+    if (!existingApplication) {
       return res.status(404).json({ message: "Application not found" });
     }
+    
+    // Check if the application belongs to the current user
+    if (existingApplication.userId !== req.user!.id) {
+      return res.status(403).json({ message: "You don't have permission to modify this application" });
+    }
+    
+    const application = await storage.updateApplication(parseInt(req.params.id), req.body);
     return res.json(application);
   });
 
@@ -96,8 +125,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(activities);
   });
 
-  app.post("/api/activities", async (req, res) => {
-    const activity = await storage.createActivity(req.body);
+  app.post("/api/activities", requireAuth, async (req, res) => {
+    const activity = await storage.createActivity({
+      ...req.body,
+      userId: req.user!.id
+    });
     return res.status(201).json(activity);
   });
 
@@ -115,16 +147,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(template);
   });
 
-  app.post("/api/templates", async (req, res) => {
-    const template = await storage.createTemplate(req.body);
+  app.post("/api/templates", requireAuth, async (req, res) => {
+    const template = await storage.createTemplate({
+      ...req.body,
+      userId: req.user!.id
+    });
     return res.status(201).json(template);
   });
   
-  app.put("/api/templates/:id", async (req, res) => {
-    const template = await storage.updateTemplate(parseInt(req.params.id), req.body);
-    if (!template) {
+  app.put("/api/templates/:id", requireAuth, async (req, res) => {
+    // Get existing template to verify ownership
+    const existingTemplate = await storage.getTemplate(parseInt(req.params.id));
+    if (!existingTemplate) {
       return res.status(404).json({ message: "Template not found" });
     }
+    
+    // Check if the template belongs to the current user
+    if (existingTemplate.userId !== req.user!.id) {
+      return res.status(403).json({ message: "You don't have permission to modify this template" });
+    }
+    
+    const template = await storage.updateTemplate(parseInt(req.params.id), req.body);
     return res.json(template);
   });
 
@@ -136,7 +179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     proposalType: z.string().optional()
   });
 
-  app.post("/api/ai/generate-proposal", async (req, res) => {
+  app.post("/api/ai/generate-proposal", requireAuth, async (req, res) => {
     try {
       const parsedBody = generateProposalSchema.safeParse(req.body);
       if (!parsedBody.success) {
@@ -154,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create an activity to record the proposal generation
       await storage.createActivity({
-        userId: 1, // Default user ID
+        userId: req.user!.id,
         action: "GENERATED",
         entityType: "PROPOSAL",
         // No need to specify entityId if it's nullable in the schema
@@ -182,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     ).optional().default([])
   });
 
-  app.post("/api/ai/answer-question", async (req, res) => {
+  app.post("/api/ai/answer-question", requireAuth, async (req, res) => {
     try {
       const parsedBody = answerQuestionSchema.safeParse(req.body);
       if (!parsedBody.success) {
@@ -195,7 +238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create an activity to record the question
       await storage.createActivity({
-        userId: 1, // Default user ID
+        userId: req.user!.id,
         action: "ASKED",
         entityType: "QUESTION",
         // No need to specify entityId if it's nullable in the schema

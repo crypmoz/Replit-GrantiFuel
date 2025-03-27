@@ -8,13 +8,24 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(),
   avatar: text("avatar"),
+  bio: text("bio"),
+  role: text("role").default("user").notNull(),
+  verified: boolean("verified").default(false).notNull(),
+  verificationToken: text("verification_token"),
+  resetPasswordToken: text("reset_password_token"),
+  resetPasswordExpires: timestamp("reset_password_expires"),
+  lastLogin: timestamp("last_login"),
+  active: boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const usersRelations = relations(users, ({ many }) => ({
   activities: many(activities),
+  artists: many(artists),
+  templates: many(templates),
 }));
 
 export const grants = pgTable("grants", {
@@ -34,6 +45,7 @@ export const grantsRelations = relations(grants, ({ many }) => ({
 
 export const artists = pgTable("artists", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
@@ -42,12 +54,17 @@ export const artists = pgTable("artists", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const artistsRelations = relations(artists, ({ many }) => ({
+export const artistsRelations = relations(artists, ({ many, one }) => ({
   applications: many(applications),
+  user: one(users, {
+    fields: [artists.userId],
+    references: [users.id],
+  }),
 }));
 
 export const applications = pgTable("applications", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   grantId: integer("grant_id").notNull(),
   artistId: integer("artist_id").notNull(),
   status: text("status").notNull().default("draft"),
@@ -65,6 +82,10 @@ export const applicationsRelations = relations(applications, ({ one }) => ({
   artist: one(artists, {
     fields: [applications.artistId],
     references: [artists.id],
+  }),
+  user: one(users, {
+    fields: [applications.userId],
+    references: [users.id],
   }),
 }));
 
@@ -87,6 +108,7 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
 
 export const templates = pgTable("templates", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   name: text("name").notNull(),
   description: text("description"),
   content: text("content").notNull(),
@@ -94,8 +116,25 @@ export const templates = pgTable("templates", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const templatesRelations = relations(templates, ({ one }) => ({
+  user: one(users, {
+    fields: [templates.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert Schemas
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
+export const insertUserSchema = createInsertSchema(users).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true,
+  lastLogin: true,
+  verificationToken: true,
+  resetPasswordToken: true,
+  resetPasswordExpires: true,
+  verified: true,
+  active: true
+});
 export const insertGrantSchema = createInsertSchema(grants).omit({ id: true, createdAt: true });
 export const insertArtistSchema = createInsertSchema(artists).omit({ id: true, createdAt: true });
 export const insertApplicationSchema = createInsertSchema(applications).omit({ id: true, startedAt: true });

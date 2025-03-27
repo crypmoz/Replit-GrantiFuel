@@ -8,6 +8,9 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 
 export interface IStorage {
   // Users
@@ -154,13 +157,18 @@ const initializeDatabase = async () => {
   const userCheck = await db.select().from(users).limit(1);
   
   if (userCheck.length === 0) {
-    await db.insert(users).values({
+    // Create admin user with hashed password (in a real app, use bcrypt)
+    const [user] = await db.insert(users).values({
       username: "admin",
-      password: "admin123", // In a real app, this would be hashed
+      password: "admin123", // In a real app, this would be properly hashed
       name: "Admin User",
       email: "admin@example.com",
-      avatar: null
-    });
+      avatar: null,
+      bio: "System administrator",
+      role: "admin",
+      verified: true,
+      active: true
+    }).returning();
     
     // Add initial grants
     const [grant1] = await db.insert(grants).values({
@@ -181,8 +189,9 @@ const initializeDatabase = async () => {
       requirements: "Must include educational components"
     }).returning();
     
-    // Add initial artists
+    // Add initial artists with userId reference
     const [artist1] = await db.insert(artists).values({
+      userId: user.id,
       name: "Emma Johnson",
       email: "emma@example.com",
       phone: "555-123-4567",
@@ -191,6 +200,7 @@ const initializeDatabase = async () => {
     }).returning();
     
     const [artist2] = await db.insert(artists).values({
+      userId: user.id,
       name: "Marcus Rivera",
       email: "marcus@example.com",
       phone: "555-987-6543",
@@ -198,8 +208,9 @@ const initializeDatabase = async () => {
       genres: ["Hip-Hop", "R&B", "Electronic"]
     }).returning();
     
-    // Add initial templates
+    // Add initial templates with userId reference
     await db.insert(templates).values({
+      userId: user.id,
       name: "Standard Project Proposal",
       description: "General template for music project proposals",
       content: "# Project Proposal\n\n## Background\n\n## Goals\n\n## Budget\n\n## Timeline\n\n## Expected Impact",
@@ -207,6 +218,7 @@ const initializeDatabase = async () => {
     });
     
     await db.insert(templates).values({
+      userId: user.id,
       name: "Artist Statement",
       description: "Template for crafting compelling artist statements",
       content: "# Artist Statement\n\nAs an artist, my work explores...\n\nMy artistic journey began...\n\nThrough my music, I aim to...",
@@ -230,6 +242,23 @@ const initializeDatabase = async () => {
       progress: 25,
       answers: { question1: "Initial concept ideas..." },
       submittedAt: null
+    });
+    
+    // Add initial activities for the user
+    await db.insert(activities).values({
+      userId: user.id,
+      action: "CREATED",
+      entityType: "ARTIST",
+      entityId: artist1.id,
+      details: { name: artist1.name }
+    });
+    
+    await db.insert(activities).values({
+      userId: user.id,
+      action: "CREATED",
+      entityType: "ARTIST",
+      entityId: artist2.id,
+      details: { name: artist2.name }
     });
     
     console.log("Database initialized with default data");
