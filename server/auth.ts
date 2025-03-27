@@ -104,9 +104,22 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res, next) => {
+    // Get the session ID before destroying it
+    const sessionID = req.sessionID;
+    
+    // First logout using Passport
     req.logout((err) => {
       if (err) return next(err);
-      res.sendStatus(200);
+      
+      // Then destroy the session completely
+      req.session.destroy((err) => {
+        if (err) return next(err);
+        
+        // Clear the session cookie
+        res.clearCookie('connect.sid');
+        
+        res.status(200).json({ message: "Logged out successfully" });
+      });
     });
   });
 

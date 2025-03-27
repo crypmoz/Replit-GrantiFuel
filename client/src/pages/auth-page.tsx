@@ -36,9 +36,10 @@ export default function AuthPage() {
   // Redirect to home if already logged in
   useEffect(() => {
     if (user && !isLoading) {
-      navigate("/");
+      // Use window.location for a full page refresh
+      window.location.href = "/";
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading]);
 
   // Setup login form
   const loginForm = useForm<LoginData>({
@@ -69,9 +70,8 @@ export default function AuthPage() {
     registerMutation.mutate(data);
   };
 
-  if (user && !isLoading) {
-    return <Redirect to="/" />;
-  }
+  // We handle the redirect in the useEffect hook above
+  // Remove this duplicate check to avoid race conditions
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row items-center justify-center p-4 md:p-8 bg-gradient-to-br from-background to-secondary/20">

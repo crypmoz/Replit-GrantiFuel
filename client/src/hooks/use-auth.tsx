@@ -63,6 +63,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Login successful",
         description: `Welcome back, ${user.name || user.username}!`,
       });
+      
+      // Force a page refresh to ensure all state is properly initialized
+      window.location.href = '/dashboard';
     },
     onError: (error: Error) => {
       toast({
@@ -91,6 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: "Registration successful",
         description: `Welcome, ${user.name || user.username}!`,
       });
+
+      // Force a page refresh to ensure all state is properly initialized
+      window.location.href = '/dashboard';
     },
     onError: (error: Error) => {
       toast({

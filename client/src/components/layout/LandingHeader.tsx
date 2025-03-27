@@ -93,11 +93,11 @@ export default function LandingHeader() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => navigate('/auth')}
+              onClick={() => window.location.href = '/auth'}
             >
               Log in
             </Button>
-            <Button onClick={() => navigate('/dashboard')}>
+            <Button onClick={() => window.location.href = '/dashboard'}>
               Get Started
             </Button>
           </div>
@@ -148,13 +148,13 @@ export default function LandingHeader() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => navigate('/auth')}
+                  onClick={() => window.location.href = '/auth'}
                 >
                   Log in
                 </Button>
                 <Button
                   className="w-full"
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => window.location.href = '/dashboard'}
                 >
                   Get Started
                 </Button>
