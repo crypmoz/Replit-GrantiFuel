@@ -14,6 +14,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import LandingHeader from '@/components/layout/LandingHeader';
+import Footer from '@/components/layout/Footer';
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
@@ -239,6 +240,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      
+      <Footer />
     </div>
   );
 }

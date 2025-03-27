@@ -7,7 +7,7 @@ import { useTheme } from '@/hooks/use-theme';
 export default function LandingHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [location, setLocation] = useLocation();
+  const [location, navigate] = useLocation();
   const { theme, setTheme } = useTheme();
 
   const navItems = [
@@ -93,11 +93,11 @@ export default function LandingHeader() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => setLocation('/auth')}
+              onClick={() => navigate('/auth')}
             >
               Log in
             </Button>
-            <Button onClick={() => setLocation('/dashboard')}>
+            <Button onClick={() => navigate('/dashboard')}>
               Get Started
             </Button>
           </div>
@@ -148,13 +148,13 @@ export default function LandingHeader() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => setLocation('/auth')}
+                  onClick={() => navigate('/auth')}
                 >
                   Log in
                 </Button>
                 <Button
                   className="w-full"
-                  onClick={() => setLocation('/dashboard')}
+                  onClick={() => navigate('/dashboard')}
                 >
                   Get Started
                 </Button>
