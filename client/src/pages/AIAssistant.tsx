@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { Grant, Template, Artist } from '@shared/schema';
 import ChatInterface from '@/components/chat/ChatInterface';
 import ProfileSelector from '@/components/chat/ProfileSelector';
@@ -414,22 +415,141 @@ export default function AIAssistant() {
                   {proposalResult}
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex justify-between">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   className="gap-2"
-                  onClick={() => {
-                    // Save as template logic would go here
-                    toast({
-                      title: "Saved as template",
-                      description: "This proposal has been saved as a template"
-                    });
+                  onClick={async () => {
+                    try {
+                      // Save as template logic
+                      const templateName = `${proposalType.charAt(0).toUpperCase() + proposalType.slice(1)} - ${new Date().toLocaleDateString()}`;
+                      
+                      const response = await fetch('/api/templates', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          name: templateName,
+                          description: projectDescription.substring(0, 100) + (projectDescription.length > 100 ? '...' : ''),
+                          content: proposalResult,
+                          type: 'proposal'
+                        }),
+                      });
+                      
+                      if (!response.ok) {
+                        throw new Error('Failed to save template');
+                      }
+                      
+                      // Create activity for saving template
+                      await fetch('/api/activities', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          userId: 1, // Default user
+                          action: 'CREATED',
+                          entityType: 'TEMPLATE',
+                          details: {
+                            templateName,
+                            type: 'proposal'
+                          }
+                        }),
+                      });
+                      
+                      // Invalidate templates cache
+                      queryClient.invalidateQueries({ queryKey: ['/api/templates'] });
+                      
+                      toast({
+                        title: "Saved as template",
+                        description: "This proposal has been saved as a template"
+                      });
+                    } catch (error) {
+                      console.error('Error saving template:', error);
+                      toast({
+                        title: "Failed to save template",
+                        description: "There was an error saving your template. Please try again.",
+                        variant: "destructive"
+                      });
+                    }
                   }}
                 >
                   <FileText className="h-4 w-4" />
                   Save as Template
                 </Button>
+                
+                {selectedGrant && selectedGrant !== 'none' && selectedArtist && selectedArtist !== 'none' && (
+                  <Button 
+                    size="sm" 
+                    className="gap-2"
+                    onClick={async () => {
+                      try {
+                        // Create a new application using the proposal
+                        const response = await fetch('/api/applications', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            grantId: parseInt(selectedGrant),
+                            artistId: parseInt(selectedArtist),
+                            status: 'draft',
+                            progress: 30, // Start with some progress since we have a proposal
+                            answers: {
+                              proposal: proposalResult,
+                              projectDescription: projectDescription
+                            }
+                          }),
+                        });
+                        
+                        if (!response.ok) {
+                          throw new Error('Failed to create application');
+                        }
+                        
+                        const application = await response.json();
+                        
+                        // Create activity for new application
+                        await fetch('/api/activities', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            userId: 1, // Default user
+                            action: 'CREATED',
+                            entityType: 'APPLICATION',
+                            entityId: application.id,
+                            details: {
+                              grantId: parseInt(selectedGrant),
+                              artistId: parseInt(selectedArtist)
+                            }
+                          }),
+                        });
+                        
+                        // Invalidate applications cache
+                        queryClient.invalidateQueries({ queryKey: ['/api/applications'] });
+                        
+                        toast({
+                          title: "Application created",
+                          description: "A draft application has been created with this proposal"
+                        });
+                        
+                      } catch (error) {
+                        console.error('Error creating application:', error);
+                        toast({
+                          title: "Failed to create application",
+                          description: "There was an error creating your application. Please try again.",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Create Application
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           )}

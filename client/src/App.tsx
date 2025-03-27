@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/Dashboard";
 import Grants from "@/pages/Grants";
 import Artists from "@/pages/Artists";
+import ArtistDetail from "@/pages/ArtistDetail";
 import Applications from "@/pages/Applications";
 import Templates from "@/pages/Templates";
 import AIAssistant from "@/pages/AIAssistant";
@@ -26,6 +27,7 @@ function AppContent() {
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/grants" component={Grants} />
             <Route path="/artists" component={Artists} />
+            <Route path="/artists/:id" component={ArtistDetail} />
             <Route path="/applications" component={Applications} />
             <Route path="/templates" component={Templates} />
             <Route path="/ai-assistant" component={AIAssistant} />
