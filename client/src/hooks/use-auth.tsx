@@ -110,11 +110,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     onSuccess: () => {
+      // Clear all queries in the cache to ensure a clean state
+      queryClient.clear();
+      
+      // Then set the user to null specifically
       queryClient.setQueryData(["/api/user"], null);
+      
       toast({
         title: "Logged out",
         description: "You have been successfully logged out."
       });
+      
+      // Force a page reload to ensure all state is reset properly
+      window.location.href = '/auth';
     },
     onError: (error: Error) => {
       toast({
