@@ -4,8 +4,9 @@ import { Link } from 'wouter';
 import { Activity } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Edit, Plus, Check, FileText, Clock, User, ArrowRightCircle } from 'lucide-react';
+import { Activity as ActivityIcon, CheckCircle, Edit, Plus, Check, FileText, Clock, User, ArrowRightCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { cn } from '@/lib/utils';
 
 export default function RecentActivities() {
   const { user } = useAuth();
@@ -15,19 +16,24 @@ export default function RecentActivities() {
 
   if (isLoading) {
     return (
-      <Card className="shadow">
-        <CardHeader>
-          <CardTitle className="text-xl">Recent Activities</CardTitle>
-          <CardDescription>Latest updates on your grant applications</CardDescription>
+      <Card className="shadow-sm border-muted">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <ActivityIcon className="h-5 w-5 text-primary" />
+            Recent Activities
+          </CardTitle>
+          <CardDescription>
+            Latest updates on your grant applications
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex space-x-4">
-                <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700"></div>
-                <div className="flex-1 space-y-2 py-1">
+              <div key={i} className="flex items-start space-x-3">
+                <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700"></div>
+                <div className="flex-1 space-y-2">
                   <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
                 </div>
               </div>
             ))}
@@ -186,76 +192,159 @@ export default function RecentActivities() {
   const showActivities = displayActivities.slice(0, 5);
 
   return (
-    <Card className="shadow h-full">
-      <CardHeader>
-        <CardTitle className="text-xl flex items-center justify-between">
+    <Card className="shadow-sm border-muted h-full">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-xl">
+          <ActivityIcon className="h-5 w-5 text-primary" />
           Recent Activities
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-sm font-normal"
-            asChild
-          >
-            <Link to="/applications">View applications</Link>
-          </Button>
         </CardTitle>
-        <CardDescription>Latest updates on your grant applications</CardDescription>
+        <CardDescription>
+          Latest updates on your grant applications
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {showActivities.length === 0 ? (
           <div className="text-center py-6 text-muted-foreground">
             <p>No recent activities to show. Start by creating an application!</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2"
+              asChild
+            >
+              <Link to="/applications/new">Create application</Link>
+            </Button>
           </div>
         ) : (
           <div className="flow-root">
             <ul role="list" className="-mb-8" aria-label="Activity Timeline">
-              {showActivities.map((activity, idx) => (
-                <li key={activity.id}>
-                  <div className="relative pb-8">
-                    {idx < showActivities.length - 1 && (
-                      <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-700" aria-hidden="true"></span>
-                    )}
-                    <div className="relative flex space-x-3">
-                      <div>
-                        {getActivityIcon(activity)}
-                      </div>
-                      <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                        <div>
-                          <p className="text-sm text-foreground">
-                            {getActivityMessage(activity)}
-                          </p>
+              {showActivities.map((activity, idx) => {
+                // Modify the icon styling
+                const iconSize = "h-4 w-4";
+                const baseClasses = "h-7 w-7 rounded-full flex items-center justify-center";
+                let bgColor = "";
+                let borderColor = "";
+                let iconColor = "text-white";
+                
+                switch (activity.action) {
+                  case 'completed':
+                    bgColor = "bg-green-500";
+                    borderColor = "border-green-200 dark:border-green-900/30";
+                    break;
+                  case 'updated':
+                    bgColor = "bg-amber-500";
+                    borderColor = "border-amber-200 dark:border-amber-900/30";
+                    break;
+                  case 'created':
+                    bgColor = "bg-blue-500";
+                    borderColor = "border-blue-200 dark:border-blue-900/30";
+                    break;
+                  case 'submitted':
+                    bgColor = "bg-violet-500";
+                    borderColor = "border-violet-200 dark:border-violet-900/30";
+                    break;
+                  case 'received':
+                    bgColor = "bg-teal-500";
+                    borderColor = "border-teal-200 dark:border-teal-900/30";
+                    break;
+                  case 'reviewed':
+                    bgColor = "bg-yellow-500";
+                    borderColor = "border-yellow-200 dark:border-yellow-900/30";
+                    break;
+                  case 'deadline':
+                    bgColor = "bg-red-500";
+                    borderColor = "border-red-200 dark:border-red-900/30";
+                    break;
+                  default:
+                    bgColor = "bg-gray-500";
+                    borderColor = "border-gray-200 dark:border-gray-700";
+                }
+                
+                // Get the appropriate icon
+                let icon;
+                switch (activity.action) {
+                  case 'completed': icon = <CheckCircle className={iconSize} />; break;
+                  case 'updated': icon = <Edit className={iconSize} />; break;
+                  case 'created': icon = <Plus className={iconSize} />; break;
+                  case 'received': icon = <Check className={iconSize} />; break;
+                  case 'submitted': icon = <ArrowRightCircle className={iconSize} />; break;
+                  case 'reviewed': icon = <FileText className={iconSize} />; break;
+                  case 'deadline': icon = <Clock className={iconSize} />; break;
+                  default: icon = <User className={iconSize} />;
+                }
+                
+                return (
+                  <li key={activity.id}>
+                    <div className="relative pb-6">
+                      {idx < showActivities.length - 1 && (
+                        <span 
+                          className="absolute top-3.5 left-3.5 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-700/50" 
+                          aria-hidden="true"
+                        ></span>
+                      )}
+                      <div className="relative flex items-start space-x-3">
+                        <div className={cn(
+                          baseClasses, 
+                          bgColor, 
+                          iconColor,
+                          "border", 
+                          borderColor
+                        )}>
+                          {icon}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-center mb-1">
+                            <p className="text-sm font-medium">
+                              {getActivityMessage(activity)}
+                            </p>
+                            <time 
+                              className="text-xs text-muted-foreground whitespace-nowrap ml-2"
+                              dateTime={typeof activity.createdAt === 'string' 
+                                ? activity.createdAt 
+                                : (activity.createdAt instanceof Date 
+                                  ? activity.createdAt.toISOString() 
+                                  : new Date().toISOString())}
+                            >
+                              {formatDistanceToNow(
+                                typeof activity.createdAt === 'string' 
+                                  ? new Date(activity.createdAt) 
+                                  : (activity.createdAt instanceof Date 
+                                    ? activity.createdAt 
+                                    : new Date()
+                                  ), 
+                                { addSuffix: true }
+                              )}
+                            </time>
+                          </div>
                           {activity.entityId && (
                             <Link 
                               to={getEntityLink(activity)} 
-                              className="text-xs text-primary hover:underline mt-1 inline-block"
+                              className="text-xs text-primary hover:underline inline-flex items-center"
                             >
                               View details
+                              <ArrowRight className="ml-1 h-3 w-3" />
                             </Link>
                           )}
                         </div>
-                        <div className="text-right text-xs whitespace-nowrap text-muted-foreground">
-                          <time dateTime={typeof activity.createdAt === 'string' ? activity.createdAt : (activity.createdAt instanceof Date ? activity.createdAt.toISOString() : new Date().toISOString())}>
-                            {formatDistanceToNow(typeof activity.createdAt === 'string' ? new Date(activity.createdAt) : (activity.createdAt instanceof Date ? activity.createdAt : new Date()), { addSuffix: true })}
-                          </time>
-                        </div>
                       </div>
                     </div>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
         
         {showActivities.length > 0 && (
-          <div className="mt-6">
+          <div className="mt-4 pt-3 border-t border-muted">
             <Button 
               variant="outline" 
-              className="w-full"
+              size="sm"
+              className="w-full text-xs"
               asChild
             >
               <Link to="/applications">
-                View all applications
+                View all activities
               </Link>
             </Button>
           </div>
