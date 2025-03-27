@@ -7,7 +7,8 @@ import {
   templates, type Template, type InsertTemplate,
   subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
   subscriptions, type Subscription, type InsertSubscription,
-  documents, type Document, type InsertDocument
+  documents, type Document, type InsertDocument,
+  userOnboarding, type UserOnboarding, type InsertUserOnboarding
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -25,6 +26,10 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<User>;
+  
+  // Onboarding
+  getUserOnboardingTasks(userId: number): Promise<UserOnboarding[]>;
+  completeOnboardingTask(userId: number, task: string, data?: any): Promise<UserOnboarding>;
   
   // Grants
   getAllGrants(): Promise<Grant[]>;
@@ -299,6 +304,45 @@ export class DatabaseStorage implements IStorage {
       .delete(documents)
       .where(eq(documents.id, id));
     return true; // In Drizzle, the delete operation doesn't return the number of affected rows
+  }
+  
+  // Onboarding task methods
+  async getUserOnboardingTasks(userId: number): Promise<UserOnboarding[]> {
+    return await db
+      .select()
+      .from(userOnboarding)
+      .where(eq(userOnboarding.userId, userId))
+      .orderBy(desc(userOnboarding.completedAt));
+  }
+  
+  async completeOnboardingTask(userId: number, task: string, data?: any): Promise<UserOnboarding> {
+    // Check if task already exists to avoid duplicates
+    const existingTask = await db
+      .select()
+      .from(userOnboarding)
+      .where(and(
+        eq(userOnboarding.userId, userId),
+        // Use the raw value directly for the enum column
+        eq(userOnboarding.task, task as any)
+      ))
+      .limit(1);
+      
+    // If task already exists, return it without modification
+    if (existingTask.length > 0) {
+      return existingTask[0];
+    }
+    
+    // Insert new onboarding task
+    const [onboardingTask] = await db
+      .insert(userOnboarding)
+      .values({
+        userId,
+        task: task as any, // Cast to any to work around enum type checking
+        data: data || null
+      })
+      .returning();
+      
+    return onboardingTask;
   }
 }
 

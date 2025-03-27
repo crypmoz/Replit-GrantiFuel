@@ -29,6 +29,7 @@ import Header from "@/components/layout/Header";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { ChatbotProvider } from "@/context/ChatbotContext";
 import { AuthProvider } from "@/hooks/use-auth";
+import { OnboardingProvider } from "@/hooks/use-onboarding";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { SkipToContent, LiveRegion } from "@/components/ui/a11y-utils";
 
@@ -126,10 +127,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <ChatbotProvider>
-            <AppContent />
-            <Toaster />
-          </ChatbotProvider>
+          <OnboardingProvider queryClient={queryClient}>
+            <ChatbotProvider>
+              <AppContent />
+              <Toaster />
+            </ChatbotProvider>
+          </OnboardingProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

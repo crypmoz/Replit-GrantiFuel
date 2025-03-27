@@ -496,6 +496,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Onboarding routes
+  app.get("/api/onboarding", requireAuth, async (req, res) => {
+    try {
+      const tasks = await storage.getUserOnboardingTasks(req.user!.id);
+      return res.json(tasks);
+    } catch (error) {
+      console.error("Error getting onboarding tasks:", error);
+      return res.status(500).json({ message: "Error getting onboarding tasks" });
+    }
+  });
+
+  app.post("/api/onboarding/complete", requireAuth, async (req, res) => {
+    try {
+      const { task, data } = req.body;
+      
+      if (!task) {
+        return res.status(400).json({ message: "Task is required" });
+      }
+      
+      const completedTask = await storage.completeOnboardingTask(req.user!.id, task, data);
+      
+      // Create an activity record for task completion
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "COMPLETED",
+        entityType: "ONBOARDING",
+        entityId: completedTask.id,
+        details: { task, completedAt: new Date() }
+      });
+      
+      return res.status(201).json(completedTask);
+    } catch (error) {
+      console.error("Error completing onboarding task:", error);
+      return res.status(500).json({ message: "Error completing onboarding task" });
+    }
+  });
+
   // Subscription routes
   app.get("/api/subscription-plans", async (req, res) => {
     try {

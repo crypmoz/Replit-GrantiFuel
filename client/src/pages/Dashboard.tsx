@@ -5,6 +5,7 @@ import StatsCard from '@/components/dashboard/StatsCard';
 import UpcomingDeadlines from '@/components/dashboard/UpcomingDeadlines';
 import RecentActivities from '@/components/dashboard/RecentActivities';
 import ApplicationProgress from '@/components/dashboard/ApplicationProgress';
+import { OnboardingProgress } from '@/components/dashboard/OnboardingProgress';
 import AIAssistant from '@/components/dashboard/AIAssistant';
 import { Grant, Application } from '@shared/schema';
 
@@ -99,12 +100,13 @@ export default function Dashboard() {
       {/* Upcoming Deadlines */}
       <UpcomingDeadlines />
 
-      {/* Application Progress & Recent Activities */}
+      {/* Application Progress, Onboarding & Recent Activities */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2">
           <RecentActivities />
         </div>
-        <div>
+        <div className="space-y-6">
+          <OnboardingProgress />
           <ApplicationProgress />
           <AIAssistant />
         </div>

@@ -151,6 +151,18 @@ export const documentsRelations = relations(documents, ({ one }) => ({
 }));
 
 export const planTierEnum = pgEnum('plan_tier', ['free', 'basic', 'premium']);
+export const onboardingTaskEnum = pgEnum('onboarding_task', [
+  'profile_completed', 
+  'first_grant_viewed', 
+  'first_artist_created',
+  'first_application_started',
+  'ai_assistant_used', 
+  'first_document_uploaded',
+  'first_template_saved',
+  'first_application_completed',
+  'profile_picture_added',
+  'notification_settings_updated'
+]);
 
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: serial("id").primaryKey(),
@@ -165,6 +177,21 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const userOnboarding = pgTable("user_onboarding", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  task: onboardingTaskEnum("task").notNull(),
+  completedAt: timestamp("completed_at").notNull().defaultNow(),
+  data: json("data"),
+});
+
+export const userOnboardingRelations = relations(userOnboarding, ({ one }) => ({
+  user: one(users, {
+    fields: [userOnboarding.userId],
+    references: [users.id],
+  }),
+}));
 
 export const subscriptions = pgTable("subscriptions", {
   id: serial("id").primaryKey(),
@@ -250,6 +277,10 @@ export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 
+export const insertUserOnboardingSchema = createInsertSchema(userOnboarding).omit({ id: true, completedAt: true });
+export type InsertUserOnboarding = z.infer<typeof insertUserOnboardingSchema>;
+export type UserOnboarding = typeof userOnboarding.$inferSelect;
+
 // Add user relations after all tables are defined
 export const usersRelations = relations(users, ({ many }) => ({
   activities: many(activities),
@@ -257,4 +288,5 @@ export const usersRelations = relations(users, ({ many }) => ({
   templates: many(templates),
   subscriptions: many(subscriptions),
   documents: many(documents),
+  onboardingTasks: many(userOnboarding),
 }));
