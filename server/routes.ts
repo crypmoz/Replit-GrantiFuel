@@ -8,17 +8,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API Routes
   
   // Users routes
-  app.get("/api/users/:id", async (req, res) => {
-    const user = await storage.getUser(parseInt(req.params.id));
+  app.get("/api/users/current", async (req, res) => {
+    // Get the default admin user 
+    const user = await storage.getUserByUsername("admin");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
     return res.json(user);
   });
-
-  app.get("/api/users/current", async (req, res) => {
-    // Mock current user for now
-    const user = await storage.getUserByUsername("johndoe");
+  
+  app.get("/api/users/:id", async (req, res) => {
+    const user = await storage.getUser(parseInt(req.params.id));
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }

@@ -6,9 +6,8 @@ import {
   activities, type Activity, type InsertActivity,
   templates, type Template, type InsertTemplate
 } from "@shared/schema";
-
-// modify the interface with any CRUD methods
-// you might need
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -42,240 +41,194 @@ export interface IStorage {
   createTemplate(template: InsertTemplate): Promise<Template>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private grants: Map<number, Grant>;
-  private artists: Map<number, Artist>;
-  private applications: Map<number, Application>;
-  private activities: Map<number, Activity>;
-  private templates: Map<number, Template>;
-  
-  private userCurrentId: number;
-  private grantCurrentId: number;
-  private artistCurrentId: number;
-  private applicationCurrentId: number;
-  private activityCurrentId: number;
-  private templateCurrentId: number;
+export class DatabaseStorage implements IStorage {
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
 
-  constructor() {
-    this.users = new Map();
-    this.grants = new Map();
-    this.artists = new Map();
-    this.applications = new Map();
-    this.activities = new Map();
-    this.templates = new Map();
-    
-    this.userCurrentId = 1;
-    this.grantCurrentId = 1;
-    this.artistCurrentId = 1;
-    this.applicationCurrentId = 1;
-    this.activityCurrentId = 1;
-    this.templateCurrentId = 1;
-    
-    // Initialize with mock data
-    this.initMockData();
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
   }
   
-  private initMockData() {
-    // Add a mock user
-    this.createUser({
-      username: "johndoe",
-      password: "password123",
-      name: "John Doe",
-      email: "john@example.com",
+  // Grant methods
+  async getAllGrants(): Promise<Grant[]> {
+    return await db.select().from(grants).orderBy(desc(grants.deadline));
+  }
+  
+  async getGrant(id: number): Promise<Grant | undefined> {
+    const [grant] = await db.select().from(grants).where(eq(grants.id, id));
+    return grant;
+  }
+  
+  async createGrant(insertGrant: InsertGrant): Promise<Grant> {
+    const [grant] = await db.insert(grants).values(insertGrant).returning();
+    return grant;
+  }
+  
+  // Artist methods
+  async getAllArtists(): Promise<Artist[]> {
+    return await db.select().from(artists).orderBy(artists.name);
+  }
+  
+  async getArtist(id: number): Promise<Artist | undefined> {
+    const [artist] = await db.select().from(artists).where(eq(artists.id, id));
+    return artist;
+  }
+  
+  async createArtist(insertArtist: InsertArtist): Promise<Artist> {
+    const [artist] = await db.insert(artists).values(insertArtist).returning();
+    return artist;
+  }
+  
+  // Application methods
+  async getAllApplications(): Promise<Application[]> {
+    return await db.select().from(applications);
+  }
+  
+  async getApplication(id: number): Promise<Application | undefined> {
+    const [application] = await db.select().from(applications).where(eq(applications.id, id));
+    return application;
+  }
+  
+  async createApplication(insertApplication: InsertApplication): Promise<Application> {
+    const [application] = await db.insert(applications).values(insertApplication).returning();
+    return application;
+  }
+  
+  async updateApplication(id: number, updateData: Partial<InsertApplication>): Promise<Application | undefined> {
+    const [application] = await db
+      .update(applications)
+      .set(updateData)
+      .where(eq(applications.id, id))
+      .returning();
+    return application;
+  }
+  
+  // Activity methods
+  async getAllActivities(): Promise<Activity[]> {
+    return await db.select().from(activities).orderBy(desc(activities.createdAt));
+  }
+  
+  async createActivity(insertActivity: InsertActivity): Promise<Activity> {
+    const [activity] = await db.insert(activities).values(insertActivity).returning();
+    return activity;
+  }
+  
+  // Template methods
+  async getAllTemplates(): Promise<Template[]> {
+    return await db.select().from(templates);
+  }
+  
+  async getTemplate(id: number): Promise<Template | undefined> {
+    const [template] = await db.select().from(templates).where(eq(templates.id, id));
+    return template;
+  }
+  
+  async createTemplate(insertTemplate: InsertTemplate): Promise<Template> {
+    const [template] = await db.insert(templates).values(insertTemplate).returning();
+    return template;
+  }
+}
+
+// Initialize a database instance automatically
+const initializeDatabase = async () => {
+  // Create a default user if none exists
+  const userCheck = await db.select().from(users).limit(1);
+  
+  if (userCheck.length === 0) {
+    await db.insert(users).values({
+      username: "admin",
+      password: "admin123", // In a real app, this would be hashed
+      name: "Admin User",
+      email: "admin@example.com",
       avatar: null
     });
     
-    // Add mock grants
-    this.createGrant({
+    // Add initial grants
+    const [grant1] = await db.insert(grants).values({
       name: "Music Innovation Grant",
       organization: "Harmony Foundation",
       amount: "$5,000",
       deadline: new Date(2025, 5, 15),
       description: "Supporting innovative music projects",
       requirements: "Open to musicians with at least 2 years of experience"
-    });
+    }).returning();
     
-    this.createGrant({
+    const [grant2] = await db.insert(grants).values({
       name: "Community Music Program",
       organization: "Metro Arts Council",
       amount: "$10,000",
       deadline: new Date(2025, 4, 30),
       description: "Funding community engagement through music",
       requirements: "Must include educational components"
-    });
+    }).returning();
     
-    // Add mock artists
-    this.createArtist({
+    // Add initial artists
+    const [artist1] = await db.insert(artists).values({
       name: "Emma Johnson",
       email: "emma@example.com",
       phone: "555-123-4567",
       bio: "Classical pianist with 10 years of experience",
       genres: ["Classical", "Contemporary"]
-    });
+    }).returning();
     
-    this.createArtist({
+    const [artist2] = await db.insert(artists).values({
       name: "Marcus Rivera",
       email: "marcus@example.com",
       phone: "555-987-6543",
       bio: "Hip-hop producer and community educator",
       genres: ["Hip-Hop", "R&B", "Electronic"]
-    });
+    }).returning();
     
-    // Add mock applications
-    this.createApplication({
-      grantId: 1,
-      artistId: 1,
-      status: "in_progress",
-      progress: 60,
-      answers: { question1: "This project aims to...", question2: "The budget breakdown is..." },
-      submittedAt: null
-    });
-    
-    this.createApplication({
-      grantId: 2,
-      artistId: 2,
-      status: "draft",
-      progress: 25,
-      answers: { question1: "Initial concept ideas..." },
-      submittedAt: null
-    });
-    
-    // Add mock activities
-    this.createActivity({
-      userId: 1,
-      action: "created",
-      entityType: "application",
-      entityId: 1,
-      details: { message: "Started application for Music Innovation Grant" }
-    });
-    
-    this.createActivity({
-      userId: 1,
-      action: "updated",
-      entityType: "application",
-      entityId: 1,
-      details: { message: "Updated project description" }
-    });
-    
-    // Add mock templates
-    this.createTemplate({
+    // Add initial templates
+    await db.insert(templates).values({
       name: "Standard Project Proposal",
       description: "General template for music project proposals",
       content: "# Project Proposal\n\n## Background\n\n## Goals\n\n## Budget\n\n## Timeline\n\n## Expected Impact",
       type: "proposal"
     });
     
-    this.createTemplate({
+    await db.insert(templates).values({
       name: "Artist Statement",
       description: "Template for crafting compelling artist statements",
       content: "# Artist Statement\n\nAs an artist, my work explores...\n\nMy artistic journey began...\n\nThrough my music, I aim to...",
       type: "statement"
     });
-  }
-
-  // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id, createdAt: new Date() };
-    this.users.set(id, user);
-    return user;
-  }
-  
-  // Grant methods
-  async getAllGrants(): Promise<Grant[]> {
-    return Array.from(this.grants.values());
-  }
-  
-  async getGrant(id: number): Promise<Grant | undefined> {
-    return this.grants.get(id);
-  }
-  
-  async createGrant(insertGrant: InsertGrant): Promise<Grant> {
-    const id = this.grantCurrentId++;
-    const grant: Grant = { ...insertGrant, id, createdAt: new Date() };
-    this.grants.set(id, grant);
-    return grant;
-  }
-  
-  // Artist methods
-  async getAllArtists(): Promise<Artist[]> {
-    return Array.from(this.artists.values());
-  }
-  
-  async getArtist(id: number): Promise<Artist | undefined> {
-    return this.artists.get(id);
-  }
-  
-  async createArtist(insertArtist: InsertArtist): Promise<Artist> {
-    const id = this.artistCurrentId++;
-    const artist: Artist = { ...insertArtist, id, createdAt: new Date() };
-    this.artists.set(id, artist);
-    return artist;
-  }
-  
-  // Application methods
-  async getAllApplications(): Promise<Application[]> {
-    return Array.from(this.applications.values());
-  }
-  
-  async getApplication(id: number): Promise<Application | undefined> {
-    return this.applications.get(id);
-  }
-  
-  async createApplication(insertApplication: InsertApplication): Promise<Application> {
-    const id = this.applicationCurrentId++;
-    const application: Application = { ...insertApplication, id, startedAt: new Date() };
-    this.applications.set(id, application);
-    return application;
-  }
-  
-  async updateApplication(id: number, updateData: Partial<InsertApplication>): Promise<Application | undefined> {
-    const application = this.applications.get(id);
-    if (!application) return undefined;
     
-    const updatedApplication = { ...application, ...updateData };
-    this.applications.set(id, updatedApplication);
-    return updatedApplication;
+    // Add initial applications
+    await db.insert(applications).values({
+      grantId: grant1.id,
+      artistId: artist1.id,
+      status: "in_progress",
+      progress: 60,
+      answers: { question1: "This project aims to...", question2: "The budget breakdown is..." },
+      submittedAt: null
+    });
+    
+    await db.insert(applications).values({
+      grantId: grant2.id,
+      artistId: artist2.id,
+      status: "draft",
+      progress: 25,
+      answers: { question1: "Initial concept ideas..." },
+      submittedAt: null
+    });
+    
+    console.log("Database initialized with default data");
   }
-  
-  // Activity methods
-  async getAllActivities(): Promise<Activity[]> {
-    return Array.from(this.activities.values());
-  }
-  
-  async createActivity(insertActivity: InsertActivity): Promise<Activity> {
-    const id = this.activityCurrentId++;
-    const activity: Activity = { ...insertActivity, id, createdAt: new Date() };
-    this.activities.set(id, activity);
-    return activity;
-  }
-  
-  // Template methods
-  async getAllTemplates(): Promise<Template[]> {
-    return Array.from(this.templates.values());
-  }
-  
-  async getTemplate(id: number): Promise<Template | undefined> {
-    return this.templates.get(id);
-  }
-  
-  async createTemplate(insertTemplate: InsertTemplate): Promise<Template> {
-    const id = this.templateCurrentId++;
-    const template: Template = { ...insertTemplate, id, createdAt: new Date() };
-    this.templates.set(id, template);
-    return template;
-  }
-}
+};
 
-export const storage = new MemStorage();
+// Call initialization
+initializeDatabase().catch(err => {
+  console.error("Error initializing database:", err);
+});
+
+export const storage = new DatabaseStorage();

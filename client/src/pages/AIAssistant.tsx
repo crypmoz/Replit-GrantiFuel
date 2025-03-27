@@ -41,6 +41,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { Grant, Template, Artist } from '@shared/schema';
+import ChatInterface from '@/components/chat/ChatInterface';
+import ProfileSelector from '@/components/chat/ProfileSelector';
+import { useChatbot, GrantProfileType } from '@/context/ChatbotContext';
 
 export default function AIAssistant() {
   const [location] = useLocation();
@@ -434,77 +437,24 @@ export default function AIAssistant() {
         
         {/* Questions Tab */}
         <TabsContent value="questions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ask a Question</CardTitle>
-              <CardDescription>
-                Get answers about grant writing, music industry opportunities, applications, and more
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-4 mb-4 max-h-[400px] overflow-y-auto">
-                {conversationHistory.length > 0 ? (
-                  <div className="space-y-4">
-                    {conversationHistory.map((message, index) => (
-                      <div 
-                        key={index} 
-                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div 
-                          className={`max-w-[80%] rounded-lg p-3 ${
-                            message.role === 'user' 
-                              ? 'bg-primary text-white' 
-                              : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600'
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        </div>
-                      </div>
-                    ))}
-                    <div ref={messageEndRef} />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-[200px] text-center space-y-3">
-                    <div className="w-12 h-12 rounded-full bg-primary-50 dark:bg-primary-900 flex items-center justify-center">
-                      <Sparkles className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                        Ask me anything about music grants
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                        I can help with application strategies, deadlines, requirements, and more
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center space-x-2">
-                <Input
-                  placeholder="Type your question here..."
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      if (!askingQuestion && question.trim()) handleAskQuestion();
-                    }
-                  }}
-                />
-                <Button 
-                  onClick={handleAskQuestion}
-                  disabled={askingQuestion || !question.trim()}
-                  size="icon"
-                >
-                  {askingQuestion ? (
-                    <Loader className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ask a Question</CardTitle>
+                  <CardDescription>
+                    Get answers about grant writing, music industry opportunities, applications, and more
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ChatInterface />
+                </CardContent>
+              </Card>
+            </div>
+            <div className="md:col-span-1">
+              <ProfileSelector />
+            </div>
+          </div>
         </TabsContent>
         
         {/* History Tab */}

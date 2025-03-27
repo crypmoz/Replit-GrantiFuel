@@ -12,6 +12,7 @@ import AIAssistant from "@/pages/AIAssistant";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import { ThemeProvider } from "@/hooks/use-theme";
+import { ChatbotProvider } from "@/context/ChatbotContext";
 
 function AppContent() {
   return (
@@ -40,8 +41,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AppContent />
-        <Toaster />
+        <ChatbotProvider>
+          <AppContent />
+          <Toaster />
+        </ChatbotProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

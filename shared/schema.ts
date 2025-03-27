@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -11,6 +12,10 @@ export const users = pgTable("users", {
   avatar: text("avatar"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const usersRelations = relations(users, ({ many }) => ({
+  activities: many(activities),
+}));
 
 export const grants = pgTable("grants", {
   id: serial("id").primaryKey(),
@@ -23,6 +28,10 @@ export const grants = pgTable("grants", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const grantsRelations = relations(grants, ({ many }) => ({
+  applications: many(applications),
+}));
+
 export const artists = pgTable("artists", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -32,6 +41,10 @@ export const artists = pgTable("artists", {
   genres: text("genres").array(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const artistsRelations = relations(artists, ({ many }) => ({
+  applications: many(applications),
+}));
 
 export const applications = pgTable("applications", {
   id: serial("id").primaryKey(),
@@ -44,6 +57,17 @@ export const applications = pgTable("applications", {
   startedAt: timestamp("started_at").defaultNow(),
 });
 
+export const applicationsRelations = relations(applications, ({ one }) => ({
+  grant: one(grants, {
+    fields: [applications.grantId],
+    references: [grants.id],
+  }),
+  artist: one(artists, {
+    fields: [applications.artistId],
+    references: [artists.id],
+  }),
+}));
+
 export const activities = pgTable("activities", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
@@ -53,6 +77,13 @@ export const activities = pgTable("activities", {
   details: json("details"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const activitiesRelations = relations(activities, ({ one }) => ({
+  user: one(users, {
+    fields: [activities.userId],
+    references: [users.id],
+  }),
+}));
 
 export const templates = pgTable("templates", {
   id: serial("id").primaryKey(),
@@ -70,6 +101,24 @@ export const insertArtistSchema = createInsertSchema(artists).omit({ id: true, c
 export const insertApplicationSchema = createInsertSchema(applications).omit({ id: true, startedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
 export const insertTemplateSchema = createInsertSchema(templates).omit({ id: true, createdAt: true });
+
+// Additional validation schemas for API requests
+export const generateProposalSchema = z.object({
+  projectDescription: z.string().min(1, "Project description is required"),
+  grantName: z.string().optional(),
+  artistName: z.string().optional(),
+  proposalType: z.string().optional(),
+});
+
+export const answerQuestionSchema = z.object({
+  question: z.string().min(1, "Question is required"),
+  conversationHistory: z.array(
+    z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string(),
+    })
+  ).optional().default([]),
+});
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
