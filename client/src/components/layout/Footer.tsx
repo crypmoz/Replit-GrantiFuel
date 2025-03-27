@@ -79,9 +79,9 @@ export default function Footer() {
               {companyLinks.map((link, index) => (
                 <li key={index}>
                   <Link href={link.href}>
-                    <a className="text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary-400 transition-colors">
+                    <div className="text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary-400 transition-colors cursor-pointer">
                       {link.label}
-                    </a>
+                    </div>
                   </Link>
                 </li>
               ))}
@@ -94,9 +94,9 @@ export default function Footer() {
               {productLinks.map((link, index) => (
                 <li key={index}>
                   <Link href={link.href}>
-                    <a className="text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary-400 transition-colors">
+                    <div className="text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary-400 transition-colors cursor-pointer">
                       {link.label}
-                    </a>
+                    </div>
                   </Link>
                 </li>
               ))}
@@ -109,9 +109,9 @@ export default function Footer() {
               {resourceLinks.map((link, index) => (
                 <li key={index}>
                   <Link href={link.href}>
-                    <a className="text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary-400 transition-colors">
+                    <div className="text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary-400 transition-colors cursor-pointer">
                       {link.label}
-                    </a>
+                    </div>
                   </Link>
                 </li>
               ))}
@@ -124,9 +124,9 @@ export default function Footer() {
               {legalLinks.map((link, index) => (
                 <li key={index}>
                   <Link href={link.href}>
-                    <a className="text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary-400 transition-colors">
+                    <div className="text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary-400 transition-colors cursor-pointer">
                       {link.label}
-                    </a>
+                    </div>
                   </Link>
                 </li>
               ))}
