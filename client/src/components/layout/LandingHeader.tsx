@@ -16,6 +16,7 @@ export default function LandingHeader() {
     { label: 'Success Stories', href: '/success-stories' },
     { label: 'About', href: '/about' },
     { label: 'Blog', href: '/blog' },
+    { label: 'Contact', href: '/contact' },
   ];
 
   // Close menu when location changes
@@ -92,7 +93,7 @@ export default function LandingHeader() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => setLocation('/login')}
+              onClick={() => setLocation('/auth')}
             >
               Log in
             </Button>
@@ -147,7 +148,7 @@ export default function LandingHeader() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => setLocation('/login')}
+                  onClick={() => setLocation('/auth')}
                 >
                   Log in
                 </Button>

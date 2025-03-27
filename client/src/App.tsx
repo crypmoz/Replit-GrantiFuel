@@ -20,6 +20,9 @@ import AuthPage from "@/pages/auth-page";
 import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
 import Checkout from "@/pages/checkout";
+import SuccessStories from "@/pages/SuccessStories";
+import Blog from "@/pages/Blog";
+import Contact from "@/pages/Contact";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import { ThemeProvider } from "@/hooks/use-theme";
@@ -78,6 +81,9 @@ function AppContent() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/checkout/:planName" component={Checkout} />
+      <Route path="/success-stories" component={SuccessStories} />
+      <Route path="/blog" component={Blog} />
+      <Route path="/contact" component={Contact} />
       <Route component={NotFound} />
     </Switch>
   );
