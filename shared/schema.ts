@@ -23,12 +23,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const usersRelations = relations(users, ({ many }) => ({
-  activities: many(activities),
-  artists: many(artists),
-  templates: many(templates),
-  subscriptions: many(subscriptions),
-}));
+// Define the relations after all tables are defined
 
 export const grants = pgTable("grants", {
   id: serial("id").primaryKey(),
@@ -126,6 +121,29 @@ export const templatesRelations = relations(templates, ({ one }) => ({
 }));
 
 // Subscription Plan Tiers
+// Knowledge documents for AI
+export const documentTypeEnum = pgEnum('document_type', ['grant_info', 'artist_guide', 'application_tips', 'admin_knowledge', 'user_upload']);
+
+export const documents = pgTable("knowledge_documents", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  type: documentTypeEnum("type").notNull(),
+  tags: text("tags").array(),
+  isPublic: boolean("is_public").default(false).notNull(),
+  isApproved: boolean("is_approved").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const documentsRelations = relations(documents, ({ one }) => ({
+  user: one(users, {
+    fields: [documents.userId],
+    references: [users.id],
+  }),
+}));
+
 export const planTierEnum = pgEnum('plan_tier', ['free', 'basic', 'premium']);
 
 export const subscriptionPlans = pgTable("subscription_plans", {
@@ -185,6 +203,7 @@ export const insertActivitySchema = createInsertSchema(activities).omit({ id: tr
 export const insertTemplateSchema = createInsertSchema(templates).omit({ id: true, createdAt: true });
 export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({ id: true, createdAt: true });
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true, canceledAt: true });
+export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Additional validation schemas for API requests
 export const generateProposalSchema = z.object({
@@ -213,6 +232,7 @@ export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
 export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Grant = typeof grants.$inferSelect;
@@ -222,3 +242,13 @@ export type Activity = typeof activities.$inferSelect;
 export type Template = typeof templates.$inferSelect;
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
+export type Document = typeof documents.$inferSelect;
+
+// Add user relations after all tables are defined
+export const usersRelations = relations(users, ({ many }) => ({
+  activities: many(activities),
+  artists: many(artists),
+  templates: many(templates),
+  subscriptions: many(subscriptions),
+  documents: many(documents),
+}));

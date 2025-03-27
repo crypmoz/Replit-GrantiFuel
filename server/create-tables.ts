@@ -1,7 +1,8 @@
 import { db } from "./db";
 import { sql } from "drizzle-orm";
 import { 
-  users, grants, artists, applications, activities, templates
+  users, grants, artists, applications, activities, templates,
+  documents, documentTypeEnum, subscriptionPlans, planTierEnum, subscriptions
 } from "@shared/schema";
 
 async function createTables() {
@@ -12,10 +13,17 @@ async function createTables() {
     await db.execute(sql`DROP TABLE IF EXISTS activities`);
     await db.execute(sql`DROP TABLE IF EXISTS applications`);
     await db.execute(sql`DROP TABLE IF EXISTS templates`);
+    await db.execute(sql`DROP TABLE IF EXISTS knowledge_documents`);
+    await db.execute(sql`DROP TABLE IF EXISTS subscriptions`);
+    await db.execute(sql`DROP TABLE IF EXISTS subscription_plans`);
     await db.execute(sql`DROP TABLE IF EXISTS artists`);
     await db.execute(sql`DROP TABLE IF EXISTS grants`);
     await db.execute(sql`DROP TABLE IF EXISTS users`);
     await db.execute(sql`DROP TABLE IF EXISTS session`);
+    
+    // Drop enum types if they exist
+    await db.execute(sql`DROP TYPE IF EXISTS document_type`);
+    await db.execute(sql`DROP TYPE IF EXISTS plan_tier`);
 
     // Users table
     await db.execute(sql`
@@ -115,6 +123,59 @@ async function createTables() {
         "sess" json NOT NULL,
         "expire" timestamp(6) NOT NULL,
         CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+      )
+    `);
+    
+    // Create enums
+    await db.execute(sql`CREATE TYPE document_type AS ENUM ('grant_info', 'artist_guide', 'application_tips', 'admin_knowledge', 'user_upload')`);
+    await db.execute(sql`CREATE TYPE plan_tier AS ENUM ('free', 'basic', 'premium')`);
+    
+    // Subscription plans table
+    await db.execute(sql`
+      CREATE TABLE subscription_plans (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        tier plan_tier NOT NULL,
+        price INTEGER NOT NULL,
+        description TEXT NOT NULL,
+        max_applications INTEGER NOT NULL,
+        max_artists INTEGER NOT NULL,
+        features TEXT[],
+        stripe_price_id TEXT,
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Subscriptions table
+    await db.execute(sql`
+      CREATE TABLE subscriptions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        plan_id INTEGER NOT NULL REFERENCES subscription_plans(id),
+        stripe_customer_id TEXT,
+        stripe_subscription_id TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        current_period_start TIMESTAMP NOT NULL,
+        current_period_end TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        canceled_at TIMESTAMP
+      )
+    `);
+    
+    // Knowledge documents table
+    await db.execute(sql`
+      CREATE TABLE knowledge_documents (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        type document_type NOT NULL,
+        tags TEXT[],
+        is_public BOOLEAN NOT NULL DEFAULT false,
+        is_approved BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 

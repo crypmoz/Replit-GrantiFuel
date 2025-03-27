@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { storage } from '../storage';
+import { Document } from '@shared/schema';
 
 interface AICompletionRequest {
   model: string;
@@ -25,6 +27,59 @@ const API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 if (!DEEPSEEK_API_KEY) {
   console.warn('Warning: DEEPSEEK_API_KEY environment variable is not set');
+}
+
+// Function to get relevant documents based on the question
+async function getRelevantDocuments(question: string) {
+  try {
+    // Get all approved documents from the database
+    const approvedDocuments = await storage.getApprovedDocuments();
+    
+    if (!approvedDocuments || approvedDocuments.length === 0) {
+      return [];
+    }
+    
+    // Simple keyword matching for document relevance
+    // In a production environment, this would be replaced with proper vector embeddings and similarity search
+    const keywords = extractKeywords(question.toLowerCase());
+    
+    // Score each document based on keyword matches
+    const scoredDocuments = approvedDocuments.map(doc => {
+      const docText = `${doc.title} ${doc.content}`.toLowerCase();
+      const score = keywords.reduce((score, keyword) => {
+        return score + (docText.includes(keyword) ? 1 : 0);
+      }, 0);
+      
+      return { ...doc, score };
+    });
+    
+    // Sort by relevance score and return the most relevant ones
+    return scoredDocuments
+      .filter(doc => doc.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3); // Limit to top 3 documents
+  } catch (error) {
+    console.error('Error retrieving relevant documents:', error);
+    return []; // Return empty array on error
+  }
+}
+
+// Helper function to extract potential keywords from a question
+function extractKeywords(question: string): string[] {
+  // Remove common words and punctuation
+  const stopWords = ['a', 'an', 'the', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 
+                    'be', 'been', 'being', 'in', 'on', 'at', 'to', 'for', 'with', 
+                    'by', 'about', 'like', 'through', 'over', 'before', 'after', 
+                    'between', 'under', 'above', 'how', 'what', 'why', 'where', 
+                    'when', 'who', 'which', 'can', 'could', 'should', 'would', 
+                    'will', 'shall', 'may', 'might', 'must', 'of', 'from'];
+  
+  // Split by spaces and filter out stop words and short words
+  return question
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
+    .split(' ')
+    .map(word => word.trim())
+    .filter(word => word.length > 2 && !stopWords.includes(word));
 }
 
 export async function generateProposal(
@@ -106,29 +161,57 @@ export async function answerQuestion(
   conversationHistory: Array<{ role: 'user' | 'assistant', content: string }>
 ): Promise<string> {
   try {
-    // Optimize the system prompt to be concise and focused
-    const systemPrompt = `You are a music grant specialist. Provide concise, helpful answers about music grants, funding, and applications. Format your responses in markdown for readability. Use bullet points for lists, ## for section headers, and ** for emphasis. Keep your answers brief but informative.`;
+    // Retrieve knowledge documents
+    const relevantDocuments = await getRelevantDocuments(question);
     
-    // Optimize conversation history to only include the most recent exchanges (last 4 messages)
-    const recentConversation = conversationHistory.slice(-4);
+    // Create context from relevant documents
+    let documentContext = '';
+    if (relevantDocuments.length > 0) {
+      documentContext = "I'll refer to the following information to answer your question:\n\n";
+      
+      // Add only the most relevant content to avoid context overflow
+      relevantDocuments.slice(0, 2).forEach(doc => {
+        documentContext += `From "${doc.title}":\n${doc.content.substring(0, 600)}...\n\n`;
+      });
+    }
+    
+    // Base system prompt
+    let systemPrompt = `You are a music grant specialist. Provide concise, helpful answers about music grants, funding, and applications. Format your responses in markdown for readability. Use bullet points for lists, ## for section headers, and ** for emphasis. Keep your answers brief but informative.`;
+    
+    // Add document instructions if we have relevant docs
+    if (relevantDocuments.length > 0) {
+      systemPrompt += `\n\nI have access to a knowledge base with information about music grants and funding. If the information provided doesn't directly answer the question, I'll rely on my general knowledge.`;
+    }
+    
+    // Optimize conversation history to only include the most recent exchanges (last 3 messages to save context)
+    const recentConversation = conversationHistory.slice(-3);
     
     // Convert the conversation history to the format expected by the API
     const messages = [
-      { role: 'system' as const, content: systemPrompt },
+      { role: 'system' as const, content: systemPrompt }
+    ];
+    
+    // Add relevant document context if available
+    if (documentContext) {
+      messages.push({ role: 'system' as const, content: documentContext });
+    }
+    
+    // Add conversation history
+    messages.push(
       ...recentConversation.map(msg => ({
         role: msg.role as 'user' | 'assistant',
         content: msg.content
-      })),
-      { role: 'user' as const, content: question }
-    ];
+      }))
+    );
+    
+    // Add the current question
+    messages.push({ role: 'user' as const, content: question });
     
     const requestData: AICompletionRequest = {
       model: 'deepseek-chat',
       messages,
       temperature: 0.7,
-      max_tokens: 800, // Reduced for faster responses
-      // Add a timeout to prevent long queries
-      // Specify to generate directly without thinking too much
+      max_tokens: 800, // Reasonable length for most answers
     };
     
     // Use a timeout to prevent hanging requests

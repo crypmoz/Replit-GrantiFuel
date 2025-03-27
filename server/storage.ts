@@ -6,10 +6,11 @@ import {
   activities, type Activity, type InsertActivity,
   templates, type Template, type InsertTemplate,
   subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
-  subscriptions, type Subscription, type InsertSubscription
+  subscriptions, type Subscription, type InsertSubscription,
+  documents, type Document, type InsertDocument
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -50,6 +51,15 @@ export interface IStorage {
   getTemplate(id: number): Promise<Template | undefined>;
   createTemplate(template: InsertTemplate): Promise<Template>;
   updateTemplate(id: number, template: Partial<InsertTemplate>): Promise<Template | undefined>;
+  
+  // Knowledge Documents
+  getAllDocuments(): Promise<Document[]>;
+  getDocumentsByUser(userId: number): Promise<Document[]>;
+  getApprovedDocuments(): Promise<Document[]>;
+  getDocument(id: number): Promise<Document | undefined>;
+  createDocument(document: InsertDocument): Promise<Document>;
+  updateDocument(id: number, document: Partial<InsertDocument>): Promise<Document | undefined>;
+  deleteDocument(id: number): Promise<boolean>;
   
   // Subscription Plans
   getAllSubscriptionPlans(): Promise<SubscriptionPlan[]>;
@@ -237,6 +247,59 @@ export class DatabaseStorage implements IStorage {
       .set({ canceledAt })
       .where(eq(subscriptions.id, id));
   }
+  
+  // Knowledge Document methods
+  async getAllDocuments(): Promise<Document[]> {
+    return await db.select().from(documents).orderBy(desc(documents.createdAt));
+  }
+  
+  async getDocumentsByUser(userId: number): Promise<Document[]> {
+    return await db
+      .select()
+      .from(documents)
+      .where(eq(documents.userId, userId))
+      .orderBy(desc(documents.createdAt));
+  }
+  
+  async getApprovedDocuments(): Promise<Document[]> {
+    return await db
+      .select()
+      .from(documents)
+      .where(and(
+        eq(documents.isApproved, true),
+        eq(documents.isPublic, true)
+      ))
+      .orderBy(desc(documents.createdAt));
+  }
+  
+  async getDocument(id: number): Promise<Document | undefined> {
+    const [document] = await db.select().from(documents).where(eq(documents.id, id));
+    return document;
+  }
+  
+  async createDocument(insertDocument: InsertDocument): Promise<Document> {
+    const [document] = await db.insert(documents).values(insertDocument).returning();
+    return document;
+  }
+  
+  async updateDocument(id: number, updateData: Partial<InsertDocument>): Promise<Document | undefined> {
+    const [document] = await db
+      .update(documents)
+      .set({
+        ...updateData,
+        updatedAt: new Date()
+      })
+      .where(eq(documents.id, id))
+      .returning();
+    return document;
+  }
+  
+  async deleteDocument(id: number): Promise<boolean> {
+    const result = await db
+      .delete(documents)
+      .where(eq(documents.id, id));
+    return true; // In Drizzle, the delete operation doesn't return the number of affected rows
+  }
 }
 
 // Initialize a database instance automatically
@@ -391,6 +454,27 @@ const initializeDatabase = async () => {
       features: ["20 grant applications", "10 artist profiles", "Priority AI assistance", "All templates", "Priority support", "Grant deadline alerts", "Application analytics"],
       stripePriceId: process.env.STRIPE_PREMIUM_PRICE_ID,
       active: true
+    });
+    
+    // Add initial knowledge documents
+    await db.insert(documents).values({
+      userId: user.id,
+      title: "Guide to Grant Writing for Musicians",
+      content: "# Guide to Grant Writing for Musicians\n\nGrant writing can be a challenging but rewarding process for musicians seeking funding. Here are some key tips for success:\n\n## Research Thoroughly\nIdentify grants that align with your musical focus and career stage. Look for foundations, government agencies, and private organizations that support your type of work.\n\n## Read Guidelines Carefully\nEach grant has specific requirements and preferences. Follow instructions exactly, and make sure you qualify before applying.\n\n## Be Clear and Specific\nClearly articulate your project goals, timeline, and budget. Use concrete examples and avoid jargon.\n\n## Tell Your Story\nMake your narrative compelling by connecting your musical work to broader impacts. Explain why your project matters and how it will benefit others.\n\n## Get Feedback\nHave colleagues review your application before submitting. A fresh perspective can identify weaknesses or unclear sections.\n\n## Plan Ahead\nStart working on applications well before deadlines. Quality applications take time to develop.",
+      type: "application_tips",
+      tags: ["grant writing", "funding", "tips", "music"],
+      isPublic: true,
+      isApproved: true
+    });
+    
+    await db.insert(documents).values({
+      userId: user.id,
+      title: "Understanding Music Grant Evaluation Criteria",
+      content: "# Understanding Music Grant Evaluation Criteria\n\nWhen reviewing grant applications for music projects, evaluators typically consider several key factors:\n\n## Artistic Merit\nEvaluators assess the quality, creativity, and originality of your work. Include samples of your best work and clearly explain your artistic vision.\n\n## Feasibility\nYour proposal must demonstrate that you can successfully complete the project. Include a realistic timeline, budget, and explanation of your qualifications.\n\n## Impact\nGrant makers want to fund projects that make a difference. Explain how your project will benefit your artistic development, your community, or the music field.\n\n## Innovation\nMany funders look for projects that break new ground or approach traditional forms in fresh ways. Highlight the innovative aspects of your work.\n\n## Diversity and Inclusion\nIncreasingly, funders value projects that engage diverse participants or address issues of equity and access in the arts.\n\n## Budget Clarity\nYour budget should be detailed, realistic, and appropriate for the scope of the project. Make sure all expenses are justified and clearly explained.",
+      type: "grant_info",
+      tags: ["evaluation", "criteria", "funding", "music grants"],
+      isPublic: true,
+      isApproved: true
     });
     
     console.log("Database initialized with default data");

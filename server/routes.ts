@@ -611,6 +611,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ received: true });
   });
 
+  // Knowledge Documents routes
+  app.get("/api/documents", requireAuth, async (req, res) => {
+    try {
+      // Regular users can only see approved and public documents or their own
+      // Admin users can see all documents
+      if (req.user!.role === 'admin') {
+        const documents = await storage.getAllDocuments();
+        return res.json(documents);
+      } else {
+        // Get approved public documents
+        const approvedDocs = await storage.getApprovedDocuments();
+        
+        // Get user's own documents
+        const userDocs = await storage.getDocumentsByUser(req.user!.id);
+        
+        // Combine and deduplicate (a user's doc might also be approved)
+        const combinedDocs = [...approvedDocs];
+        
+        // Add user docs that aren't already in the approved list
+        for (const userDoc of userDocs) {
+          if (!combinedDocs.some(doc => doc.id === userDoc.id)) {
+            combinedDocs.push(userDoc);
+          }
+        }
+        
+        return res.json(combinedDocs);
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+      return res.status(500).json({ error: "Failed to retrieve documents" });
+    }
+  });
+  
+  app.get("/api/documents/:id", requireAuth, async (req, res) => {
+    try {
+      const docId = parseInt(req.params.id);
+      const document = await storage.getDocument(docId);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Check if user has permission to view this document
+      const isAdmin = req.user!.role === 'admin';
+      const isOwner = document.userId === req.user!.id;
+      const isPublicAndApproved = document.isPublic && document.isApproved;
+      
+      if (!isAdmin && !isOwner && !isPublicAndApproved) {
+        return res.status(403).json({ message: "You don't have permission to view this document" });
+      }
+      
+      return res.json(document);
+    } catch (error) {
+      console.error('Error fetching document:', error);
+      return res.status(500).json({ error: "Failed to retrieve document" });
+    }
+  });
+  
+  app.post("/api/documents", requireAuth, async (req, res) => {
+    try {
+      // For regular users, set isApproved to false by default
+      // Admins can set isApproved directly
+      let documentData = {
+        ...req.body,
+        userId: req.user!.id,
+      };
+      
+      if (req.user!.role !== 'admin') {
+        documentData.isApproved = false;
+      }
+      
+      const document = await storage.createDocument(documentData);
+      
+      // Create an activity record
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "CREATED",
+        entityType: "DOCUMENT",
+        entityId: document.id,
+        details: {
+          title: document.title,
+          type: document.type
+        }
+      });
+      
+      return res.status(201).json(document);
+    } catch (error) {
+      console.error('Error creating document:', error);
+      return res.status(500).json({ error: "Failed to create document" });
+    }
+  });
+  
+  app.put("/api/documents/:id", requireAuth, async (req, res) => {
+    try {
+      const docId = parseInt(req.params.id);
+      const existingDoc = await storage.getDocument(docId);
+      
+      if (!existingDoc) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Check if user has permission to update this document
+      const isAdmin = req.user!.role === 'admin';
+      const isOwner = existingDoc.userId === req.user!.id;
+      
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({ message: "You don't have permission to update this document" });
+      }
+      
+      // For regular users, prevent setting isApproved
+      let updateData = { ...req.body };
+      if (!isAdmin) {
+        delete updateData.isApproved;
+      }
+      
+      const updatedDoc = await storage.updateDocument(docId, updateData);
+      return res.json(updatedDoc);
+    } catch (error) {
+      console.error('Error updating document:', error);
+      return res.status(500).json({ error: "Failed to update document" });
+    }
+  });
+  
+  app.delete("/api/documents/:id", requireAuth, async (req, res) => {
+    try {
+      const docId = parseInt(req.params.id);
+      const existingDoc = await storage.getDocument(docId);
+      
+      if (!existingDoc) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Check if user has permission to delete this document
+      const isAdmin = req.user!.role === 'admin';
+      const isOwner = existingDoc.userId === req.user!.id;
+      
+      if (!isAdmin && !isOwner) {
+        return res.status(403).json({ message: "You don't have permission to delete this document" });
+      }
+      
+      await storage.deleteDocument(docId);
+      
+      // Create an activity record
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "DELETED",
+        entityType: "DOCUMENT",
+        entityId: docId,
+        details: {
+          title: existingDoc.title,
+          type: existingDoc.type
+        }
+      });
+      
+      return res.json({ message: "Document deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      return res.status(500).json({ error: "Failed to delete document" });
+    }
+  });
+  
+  // Approve a document (admin only)
+  app.post("/api/documents/:id/approve", requireAuth, async (req, res) => {
+    try {
+      // Check if user is an admin
+      if (req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Only administrators can approve documents" });
+      }
+      
+      const docId = parseInt(req.params.id);
+      const existingDoc = await storage.getDocument(docId);
+      
+      if (!existingDoc) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      const updatedDoc = await storage.updateDocument(docId, {
+        isApproved: true
+      });
+      
+      // Create an activity record
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "APPROVED",
+        entityType: "DOCUMENT",
+        entityId: docId,
+        details: {
+          title: existingDoc.title,
+          type: existingDoc.type
+        }
+      });
+      
+      return res.json(updatedDoc);
+    } catch (error) {
+      console.error('Error approving document:', error);
+      return res.status(500).json({ error: "Failed to approve document" });
+    }
+  });
+
   // Helper function to get user ID from Stripe customer ID
   async function getUserIdFromCustomerId(customerId: string): Promise<number | null> {
     try {
