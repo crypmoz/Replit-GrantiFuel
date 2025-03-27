@@ -13,6 +13,7 @@ import Templates from "@/pages/Templates";
 import TemplateDetail from "@/pages/TemplateDetail";
 import TemplateEdit from "@/pages/TemplateEdit";
 import AIAssistant from "@/pages/AIAssistant";
+import Documents from "@/pages/Documents";
 import LandingPage from "@/pages/LandingPage";
 import About from "@/pages/About";
 import Pricing from "@/pages/Pricing";
@@ -63,6 +64,7 @@ function AppContent() {
               <ProtectedRoute path="/templates/:id" component={TemplateDetail} />
               <ProtectedRoute path="/templates/:id/edit" component={TemplateEdit} />
               <ProtectedRoute path="/ai-assistant" component={AIAssistant} />
+              <ProtectedRoute path="/documents" component={Documents} />
               <ProtectedRoute path="/profile" component={ProfilePage} />
               <ProtectedRoute path="/settings" component={SettingsPage} />
               <Route component={NotFound} />

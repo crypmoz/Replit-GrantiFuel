@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Music, Home, DollarSign, Users, FileText, LayoutTemplate, Zap, LogOut } from 'lucide-react';
+import { 
+  Music, Home, DollarSign, Users, FileText, 
+  LayoutTemplate, Zap, LogOut, BookOpen
+} from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
 import { User } from '@shared/schema';
@@ -19,6 +22,7 @@ const navItems: NavItem[] = [
   { href: '/applications', label: 'Applications', icon: <FileText className="h-5 w-5 mr-3" /> },
   { href: '/templates', label: 'Templates', icon: <LayoutTemplate className="h-5 w-5 mr-3" /> },
   { href: '/ai-assistant', label: 'AI Assistant', icon: <Zap className="h-5 w-5 mr-3" /> },
+  { href: '/documents', label: 'Documents', icon: <BookOpen className="h-5 w-5 mr-3" /> },
 ];
 
 export default function Sidebar() {
