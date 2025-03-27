@@ -124,75 +124,73 @@ const DocumentRow = ({
   };
 
   return (
-    <>
-      <TableRow>
-        <TableCell className="font-medium">{document.title}</TableCell>
-        <TableCell>
-          <Badge variant={document.type === 'admin_knowledge' ? 'destructive' : 'secondary'}>
-            {typeLabels[document.type] || document.type}
-          </Badge>
-        </TableCell>
-        <TableCell>{formatDate(document.createdAt)}</TableCell>
-        <TableCell>
-          {document.isApproved ? (
-            <Badge variant="success" className="bg-green-600">Approved</Badge>
-          ) : (
-            <Badge variant="outline">Pending</Badge>
-          )}
-        </TableCell>
-        <TableCell>
-          {document.isPublic ? (
-            <Badge variant="secondary">Public</Badge>
-          ) : (
-            <Badge variant="outline">Private</Badge>
-          )}
-        </TableCell>
-        <TableCell>
-          <div className="flex space-x-2">
-            <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
-              <SheetTrigger asChild>
-                <Button size="sm" variant="outline">
-                  <Eye className="h-4 w-4 mr-1" />
-                  Preview
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="w-[600px] sm:w-[600px] md:w-[900px]">
-                <SheetHeader>
-                  <SheetTitle>{document.title}</SheetTitle>
-                  <SheetDescription>
-                    Type: {typeLabels[document.type]} | 
-                    Created: {formatDate(document.createdAt)} | 
-                    {document.isApproved ? ' Approved' : ' Pending Approval'}
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="mt-6">
-                  <div className="prose max-w-none">
-                    <pre className="whitespace-pre-wrap">{document.content}</pre>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-            
-            <Button size="sm" variant="outline" onClick={() => onEdit(document)}>
-              <Edit className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-            
-            <Button size="sm" variant="destructive" onClick={() => onDelete(document.id)}>
-              <Trash2 className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
-            
-            {userRole === 'admin' && !document.isApproved && (
-              <Button size="sm" variant="default" onClick={() => onApprove(document.id)}>
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Approve
+    <TableRow>
+      <TableCell className="font-medium">{document.title}</TableCell>
+      <TableCell>
+        <Badge variant={document.type === 'admin_knowledge' ? 'destructive' : 'secondary'}>
+          {typeLabels[document.type] || document.type}
+        </Badge>
+      </TableCell>
+      <TableCell>{formatDate(document.createdAt)}</TableCell>
+      <TableCell>
+        {document.isApproved ? (
+          <Badge variant="success" className="bg-green-600">Approved</Badge>
+        ) : (
+          <Badge variant="outline">Pending</Badge>
+        )}
+      </TableCell>
+      <TableCell>
+        {document.isPublic ? (
+          <Badge variant="secondary">Public</Badge>
+        ) : (
+          <Badge variant="outline">Private</Badge>
+        )}
+      </TableCell>
+      <TableCell>
+        <div className="flex space-x-2">
+          <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
+            <SheetTrigger asChild>
+              <Button size="sm" variant="outline">
+                <Eye className="h-4 w-4 mr-1" />
+                Preview
               </Button>
-            )}
-          </div>
-        </TableCell>
-      </TableRow>
-    </>
+            </SheetTrigger>
+            <SheetContent className="w-[600px] sm:w-[600px] md:w-[900px]">
+              <SheetHeader>
+                <SheetTitle>{document.title}</SheetTitle>
+                <SheetDescription>
+                  Type: {typeLabels[document.type]} | 
+                  Created: {formatDate(document.createdAt)} | 
+                  {document.isApproved ? ' Approved' : ' Pending Approval'}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-6">
+                <div className="prose max-w-none">
+                  <pre className="whitespace-pre-wrap">{document.content}</pre>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+          
+          <Button size="sm" variant="outline" onClick={() => onEdit(document)}>
+            <Edit className="h-4 w-4 mr-1" />
+            Edit
+          </Button>
+          
+          <Button size="sm" variant="destructive" onClick={() => onDelete(document.id)}>
+            <Trash2 className="h-4 w-4 mr-1" />
+            Delete
+          </Button>
+          
+          {userRole === 'admin' && !document.isApproved && (
+            <Button size="sm" variant="default" onClick={() => onApprove(document.id)}>
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Approve
+            </Button>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
   );
 };
 
@@ -372,7 +370,7 @@ export default function Documents() {
   };
 
   // Query documents
-  const { data: documents, isLoading, error } = useQuery({
+  const { data: documents = [], isLoading, error } = useQuery({
     queryKey: ['/api/documents'],
     queryFn: async () => {
       const res = await apiRequest('GET', '/api/documents');
@@ -549,6 +547,10 @@ export default function Documents() {
     );
   }
 
+  // Filter documents by type
+  const textDocuments = documents.filter((doc: Document) => !doc.fileType || doc.fileType === 'none');
+  const fileDocuments = documents.filter((doc: Document) => doc.fileType && doc.fileType !== 'none');
+
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
@@ -578,14 +580,7 @@ export default function Documents() {
             </DialogHeader>
             
             <DocumentForm 
-              defaultValues={editingDocument ? {
-                title: editingDocument.title,
-                content: editingDocument.content,
-                type: editingDocument.type,
-                tags: editingDocument.tags || '',
-                isPublic: editingDocument.isPublic,
-                isApproved: editingDocument.isApproved
-              } : defaultValues} 
+              defaultValues={editingDocument || defaultValues} 
               onSubmit={handleSubmit}
               userRole={user?.role || 'user'}
             />
@@ -613,7 +608,7 @@ export default function Documents() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {documents && documents.length > 0 ? (
+                {textDocuments.length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -626,18 +621,16 @@ export default function Documents() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {documents
-                        .filter(doc => doc.fileType === 'none')
-                        .map((doc: Document) => (
-                          <DocumentRow 
-                            key={doc.id} 
-                            document={doc} 
-                            onEdit={handleEdit}
-                            onDelete={(id) => deleteDocumentMutation.mutate(id)}
-                            onApprove={(id) => approveDocumentMutation.mutate(id)}
-                            userRole={user?.role || 'user'}
-                          />
-                        ))}
+                      {textDocuments.map((doc: Document) => (
+                        <DocumentRow 
+                          key={doc.id} 
+                          document={doc} 
+                          onEdit={handleEdit}
+                          onDelete={(id) => deleteDocumentMutation.mutate(id)}
+                          onApprove={(id) => approveDocumentMutation.mutate(id)}
+                          userRole={user?.role || 'user'}
+                        />
+                      ))}
                     </TableBody>
                   </Table>
                 ) : (
@@ -657,6 +650,14 @@ export default function Documents() {
                   </div>
                 )}
               </CardContent>
+              <CardFooter className="border-t p-4">
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Info className="h-4 w-4 mr-1" />
+                  {user?.role === 'admin' 
+                    ? 'As an admin, you can approve documents for use by the AI assistant.'
+                    : 'Your documents will need approval before they can be used by the AI assistant.'}
+                </div>
+              </CardFooter>
             </Card>
           </TabsContent>
           
@@ -683,7 +684,7 @@ export default function Documents() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {documents && documents.filter(doc => doc.fileType !== 'none').length > 0 ? (
+                  {fileDocuments.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -695,26 +696,27 @@ export default function Documents() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {documents
-                          .filter(doc => doc.fileType !== 'none')
-                          .map((doc: Document) => (
-                            <TableRow key={doc.id}>
-                              <TableCell className="font-medium">{doc.title}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline">
-                                  {doc.fileType.toUpperCase()}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>{new Date(doc.createdAt).toLocaleDateString()}</TableCell>
-                              <TableCell>
-                                {doc.isApproved ? (
-                                  <Badge variant="success" className="bg-green-600">Approved</Badge>
-                                ) : (
-                                  <Badge variant="outline">Pending</Badge>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex space-x-2">
+                        {fileDocuments.map((doc: Document) => (
+                          <TableRow key={doc.id}>
+                            <TableCell className="font-medium">{doc.title}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {doc.fileType?.toUpperCase() || 'UNKNOWN'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                              {doc.isApproved ? (
+                                <Badge variant="success" className="bg-green-600">Approved</Badge>
+                              ) : (
+                                <Badge variant="outline">Pending</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                {doc.filePath && (
                                   <Button 
                                     size="sm" 
                                     variant="outline" 
@@ -725,30 +727,31 @@ export default function Documents() {
                                       View
                                     </a>
                                   </Button>
-                                  
+                                )}
+                                
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive" 
+                                  onClick={() => deleteDocumentMutation.mutate(doc.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Delete
+                                </Button>
+                                
+                                {user?.role === 'admin' && !doc.isApproved && (
                                   <Button 
                                     size="sm" 
-                                    variant="destructive" 
-                                    onClick={() => deleteDocumentMutation.mutate(doc.id)}
+                                    variant="default" 
+                                    onClick={() => approveDocumentMutation.mutate(doc.id)}
                                   >
-                                    <Trash2 className="h-4 w-4 mr-1" />
-                                    Delete
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Approve
                                   </Button>
-                                  
-                                  {user?.role === 'admin' && !doc.isApproved && (
-                                    <Button 
-                                      size="sm" 
-                                      variant="default" 
-                                      onClick={() => approveDocumentMutation.mutate(doc.id)}
-                                    >
-                                      <CheckCircle className="h-4 w-4 mr-1" />
-                                      Approve
-                                    </Button>
-                                  )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
                       </TableBody>
                     </Table>
                   ) : (
@@ -761,7 +764,7 @@ export default function Documents() {
                     </div>
                   )}
                 </CardContent>
-                <CardFooter className="flex justify-between border-t p-4">
+                <CardFooter className="border-t p-4">
                   <div className="flex items-center text-sm text-muted-foreground">
                     <Info className="h-4 w-4 mr-1" />
                     Files are processed and their contents are extracted for use by the AI assistant.

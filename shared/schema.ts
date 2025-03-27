@@ -123,6 +123,7 @@ export const templatesRelations = relations(templates, ({ one }) => ({
 // Subscription Plan Tiers
 // Knowledge documents for AI
 export const documentTypeEnum = pgEnum('document_type', ['grant_info', 'artist_guide', 'application_tips', 'admin_knowledge', 'user_upload']);
+export const fileTypeEnum = pgEnum('file_type', ['none', 'pdf', 'docx', 'txt']);
 
 export const documents = pgTable("knowledge_documents", {
   id: serial("id").primaryKey(),
@@ -133,6 +134,11 @@ export const documents = pgTable("knowledge_documents", {
   tags: text("tags").array(),
   isPublic: boolean("is_public").default(false).notNull(),
   isApproved: boolean("is_approved").default(false).notNull(),
+  // File upload fields
+  fileName: text("file_name"),
+  fileType: fileTypeEnum("file_type").default('none'),
+  fileUrl: text("file_url"),
+  fileSize: integer("file_size"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

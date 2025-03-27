@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateProposal, answerQuestion } from "./services/ai";
@@ -8,12 +8,58 @@ import Stripe from "stripe";
 import { db } from "./db";
 import { users, subscriptions } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import express from "express";
 
 // Initialize Stripe with secret key
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer storage
+const storage2 = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (_req, file, cb) => {
+    // Generate a unique filename with original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
+});
+
+// File filter to allow only permitted file types
+const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+  const allowedExtensions = ['.pdf', '.docx', '.txt'];
+  
+  const ext = path.extname(file.originalname).toLowerCase();
+  
+  if (allowedTypes.includes(file.mimetype) && allowedExtensions.includes(ext)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file type. Only PDF, DOCX, and TXT files are allowed.'));
+  }
+};
+
+// Create multer upload instance
+const upload = multer({ 
+  storage: storage2,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max file size
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
@@ -26,6 +72,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     next();
   };
+  
+  // Serve uploaded files
+  app.use('/uploads', express.static(uploadsDir));
   
   // API Routes
   
@@ -669,6 +718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Regular document creation (without file)
   app.post("/api/documents", requireAuth, async (req, res) => {
     try {
       // For regular users, set isApproved to false by default
@@ -700,6 +750,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error creating document:', error);
       return res.status(500).json({ error: "Failed to create document" });
+    }
+  });
+  
+  // Document creation with file upload
+  app.post("/api/documents/upload", requireAuth, upload.single('file'), async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      // Get JSON data from request body
+      const { title, content, type, tags, isPublic } = req.body;
+      
+      if (!title || !content || !type) {
+        // Clean up uploaded file if data is invalid
+        fs.unlinkSync(file.path);
+        return res.status(400).json({ error: "Missing required fields: title, content, and type are required" });
+      }
+      
+      // Determine file type for database
+      let fileType: 'pdf' | 'docx' | 'txt' = 'none' as any;
+      const extension = path.extname(file.originalname).toLowerCase();
+      
+      if (extension === '.pdf') fileType = 'pdf';
+      else if (extension === '.docx') fileType = 'docx';
+      else if (extension === '.txt') fileType = 'txt';
+      
+      // Create relative URL for file
+      const fileUrl = `/uploads/${path.basename(file.path)}`;
+      
+      // Prepare document data
+      let documentData: any = {
+        userId: req.user!.id,
+        title,
+        content,
+        type,
+        tags: tags ? JSON.parse(tags) : [],
+        isPublic: isPublic === 'true',
+        // File data
+        fileName: file.originalname,
+        fileType,
+        fileUrl,
+        fileSize: file.size,
+      };
+      
+      // For regular users, set isApproved to false by default
+      // Admins can set isApproved directly
+      if (req.user!.role !== 'admin') {
+        documentData.isApproved = false;
+      }
+      
+      const document = await storage.createDocument(documentData);
+      
+      // Create an activity record
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "UPLOADED",
+        entityType: "DOCUMENT",
+        entityId: document.id,
+        details: {
+          title: document.title,
+          type: document.type,
+          fileName: document.fileName,
+          fileType: document.fileType
+        }
+      });
+      
+      return res.status(201).json(document);
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      
+      // Clean up file if there was an error
+      if (req.file) {
+        try {
+          fs.unlinkSync(req.file.path);
+        } catch (unlinkError) {
+          console.error('Error deleting file after failed upload:', unlinkError);
+        }
+      }
+      
+      return res.status(500).json({ error: "Failed to upload document" });
     }
   });
   
