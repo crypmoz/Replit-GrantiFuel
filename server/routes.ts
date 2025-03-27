@@ -119,6 +119,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const template = await storage.createTemplate(req.body);
     return res.status(201).json(template);
   });
+  
+  app.put("/api/templates/:id", async (req, res) => {
+    const template = await storage.updateTemplate(parseInt(req.params.id), req.body);
+    if (!template) {
+      return res.status(404).json({ message: "Template not found" });
+    }
+    return res.json(template);
+  });
 
   // AI Assistant routes
   const generateProposalSchema = z.object({

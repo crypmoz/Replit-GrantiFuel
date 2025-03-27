@@ -39,6 +39,7 @@ export interface IStorage {
   getAllTemplates(): Promise<Template[]>;
   getTemplate(id: number): Promise<Template | undefined>;
   createTemplate(template: InsertTemplate): Promise<Template>;
+  updateTemplate(id: number, template: Partial<InsertTemplate>): Promise<Template | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -134,6 +135,15 @@ export class DatabaseStorage implements IStorage {
   
   async createTemplate(insertTemplate: InsertTemplate): Promise<Template> {
     const [template] = await db.insert(templates).values(insertTemplate).returning();
+    return template;
+  }
+  
+  async updateTemplate(id: number, updateData: Partial<InsertTemplate>): Promise<Template | undefined> {
+    const [template] = await db
+      .update(templates)
+      .set(updateData)
+      .where(eq(templates.id, id))
+      .returning();
     return template;
   }
 }

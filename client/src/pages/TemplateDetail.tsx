@@ -126,7 +126,90 @@ export default function TemplateDetail() {
               </Button>
               <Button 
                 size="sm"
-                onClick={() => window.location.href = `/applications/new?templateId=${template.id}`}
+                onClick={() => {
+                  // For now, we'll simply add the content to a new application
+                  // This would typically go to a new application form
+                  const createApplication = async () => {
+                    try {
+                      // Get the first grant and artist as defaults
+                      const [grantsRes, artistsRes] = await Promise.all([
+                        fetch('/api/grants'),
+                        fetch('/api/artists')
+                      ]);
+                      
+                      const grants = await grantsRes.json();
+                      const artists = await artistsRes.json();
+                      
+                      if (grants.length === 0 || artists.length === 0) {
+                        throw new Error('No grants or artists available');
+                      }
+                      
+                      const firstGrant = grants[0];
+                      const firstArtist = artists[0];
+                      
+                      // Create a new application with the template content
+                      const response = await fetch('/api/applications', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          grantId: firstGrant.id,
+                          artistId: firstArtist.id,
+                          status: 'draft',
+                          progress: 25,
+                          answers: {
+                            proposal: template.content,
+                            templateUsed: template.name
+                          }
+                        }),
+                      });
+                      
+                      if (!response.ok) {
+                        throw new Error('Failed to create application');
+                      }
+                      
+                      const newApplication = await response.json();
+                      
+                      // Create activity for using template
+                      await fetch('/api/activities', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          userId: 1,
+                          action: 'CREATED',
+                          entityType: 'APPLICATION',
+                          entityId: newApplication.id,
+                          details: {
+                            grantName: firstGrant.name,
+                            artistName: firstArtist.name,
+                            templateUsed: template.name
+                          }
+                        }),
+                      });
+                      
+                      toast({
+                        title: 'Application created',
+                        description: `New application started using template: ${template.name}`,
+                      });
+                      
+                      // Redirect to applications page
+                      window.location.href = '/applications';
+                      
+                    } catch (error) {
+                      console.error('Error creating application:', error);
+                      toast({
+                        title: 'Error creating application',
+                        description: 'Failed to create a new application. Please try again.',
+                        variant: 'destructive'
+                      });
+                    }
+                  };
+                  
+                  createApplication();
+                }}
               >
                 Use Template
               </Button>
