@@ -62,7 +62,7 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication
+  // Setup authentication first
   setupAuth(app);
   
   // Middleware to check authentication for protected routes
@@ -72,6 +72,188 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     next();
   };
+  
+  // Add request batching for improved performance
+  app.post("/api/batch", requireAuth, async (req, res) => {
+    try {
+      const { requests } = req.body;
+      
+      if (!Array.isArray(requests)) {
+        return res.status(400).json({ error: "Requests must be an array" });
+      }
+      
+      // Limit batch size for performance reasons
+      if (requests.length > 20) {
+        return res.status(400).json({ error: "Batch request limit exceeded (max 20)" });
+      }
+      
+      const results = await Promise.all(
+        requests.map(async (request) => {
+          const { url, method = "GET", body } = request;
+          
+          if (!url || typeof url !== "string") {
+            return { error: "Invalid request URL" };
+          }
+          
+          try {
+            // Extract path parameters from URL pattern
+            const urlParts = url.split('/');
+            let id: number | null = null;
+            
+            // Check for ID pattern in URL (like /api/resource/:id)
+            if (urlParts.length > 3 && !isNaN(parseInt(urlParts[3]))) {
+              id = parseInt(urlParts[3]);
+            }
+            
+            // Create a mock response object that captures the response
+            const mockRes = {
+              status: (code: number) => {
+                mockRes.statusCode = code;
+                return mockRes;
+              },
+              json: (data: any) => {
+                mockRes.data = data;
+                return mockRes;
+              },
+              send: (data: any) => {
+                mockRes.data = data;
+                return mockRes;
+              },
+              statusCode: 200,
+              data: null as any,
+            };
+            
+            // Expanded route handling with more endpoints supported
+            const userId = req.user?.id;
+            
+            // Handle different routes based on URL pattern and method
+            if (url === "/api/user" && method === "GET") {
+              mockRes.data = req.user;
+            } 
+            else if (url.startsWith("/api/subscription-plans") && method === "GET") {
+              mockRes.data = await storage.getAllSubscriptionPlans();
+            }
+            else if (url === "/api/user/subscription" && method === "GET") {
+              // Ensure userId exists before querying
+              if (userId) {
+                const subscription = await storage.getUserSubscription(userId);
+                if (subscription) {
+                  const plan = await storage.getSubscriptionPlan(subscription.planId);
+                  mockRes.data = { subscription, plan };
+                } else {
+                  mockRes.status(404).json({ message: "No active subscription found" });
+                }
+              } else {
+                mockRes.status(401).json({ message: "Authentication required" });
+              }
+            }
+            // REST API endpoints with resource patterns
+            else if (url.startsWith("/api/grants")) {
+              if (method === "GET") {
+                if (id) {
+                  // Single grant request
+                  const grant = await storage.getGrant(id);
+                  if (grant) {
+                    mockRes.data = grant;
+                  } else {
+                    mockRes.status(404).json({ message: "Grant not found" });
+                  }
+                } else {
+                  // All grants request
+                  mockRes.data = await storage.getAllGrants();
+                }
+              }
+            } 
+            else if (url.startsWith("/api/artists")) {
+              if (method === "GET") {
+                if (id) {
+                  // Single artist request
+                  const artist = await storage.getArtist(id);
+                  if (artist) {
+                    mockRes.data = artist;
+                  } else {
+                    mockRes.status(404).json({ message: "Artist not found" });
+                  }
+                } else {
+                  // All artists request
+                  mockRes.data = await storage.getAllArtists();
+                }
+              }
+            } 
+            else if (url.startsWith("/api/applications")) {
+              if (method === "GET") {
+                if (id) {
+                  // Single application request
+                  const application = await storage.getApplication(id);
+                  if (application) {
+                    mockRes.data = application;
+                  } else {
+                    mockRes.status(404).json({ message: "Application not found" });
+                  }
+                } else {
+                  // All applications request
+                  mockRes.data = await storage.getAllApplications();
+                }
+              }
+            } 
+            else if (url.startsWith("/api/documents")) {
+              if (method === "GET") {
+                if (id) {
+                  // Single document request
+                  const document = await storage.getDocument(id);
+                  if (document) {
+                    mockRes.data = document;
+                  } else {
+                    mockRes.status(404).json({ message: "Document not found" });
+                  }
+                } else {
+                  // All documents request
+                  mockRes.data = await storage.getAllDocuments();
+                }
+              }
+            } 
+            else if (url.startsWith("/api/templates")) {
+              if (method === "GET") {
+                if (id) {
+                  // Single template request
+                  const template = await storage.getTemplate(id);
+                  if (template) {
+                    mockRes.data = template;
+                  } else {
+                    mockRes.status(404).json({ message: "Template not found" });
+                  }
+                } else {
+                  // All templates request
+                  mockRes.data = await storage.getAllTemplates();
+                }
+              }
+            } 
+            else {
+              mockRes.status(404).json({ error: "Route not found in batch processing" });
+            }
+            
+            return {
+              status: mockRes.statusCode,
+              data: mockRes.data,
+            };
+          } catch (error: any) {
+            console.error(`Error processing batch request for ${url}:`, error);
+            return {
+              status: 500,
+              error: error.message || "Internal server error",
+            };
+          }
+        })
+      );
+      
+      // Cache results to improve performance of frequently requested data
+      res.set('Cache-Control', 'public, max-age=60'); // 1 minute cache
+      res.json({ results });
+    } catch (error: any) {
+      console.error("Error processing batch request:", error);
+      res.status(500).json({ error: error.message || "Failed to process batch request" });
+    }
+  });
   
   // Serve uploaded files
   app.use('/uploads', express.static(uploadsDir));

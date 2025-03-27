@@ -716,13 +716,13 @@ export default function Documents() {
                             </TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
-                                {doc.filePath && (
+                                {doc.fileUrl && (
                                   <Button 
                                     size="sm" 
                                     variant="outline" 
                                     asChild
                                   >
-                                    <a href={`/uploads/documents/${doc.filePath}`} target="_blank" rel="noopener noreferrer">
+                                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
                                       <Eye className="h-4 w-4 mr-1" />
                                       View
                                     </a>
