@@ -17,6 +17,8 @@ import LandingPage from "@/pages/LandingPage";
 import About from "@/pages/About";
 import Pricing from "@/pages/Pricing";
 import AuthPage from "@/pages/auth-page";
+import ProfilePage from "@/pages/ProfilePage";
+import SettingsPage from "@/pages/SettingsPage";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import { ThemeProvider } from "@/hooks/use-theme";
@@ -56,6 +58,8 @@ function AppContent() {
               <ProtectedRoute path="/templates/:id" component={TemplateDetail} />
               <ProtectedRoute path="/templates/:id/edit" component={TemplateEdit} />
               <ProtectedRoute path="/ai-assistant" component={AIAssistant} />
+              <ProtectedRoute path="/profile" component={ProfilePage} />
+              <ProtectedRoute path="/settings" component={SettingsPage} />
               <Route component={NotFound} />
             </Switch>
           </main>
