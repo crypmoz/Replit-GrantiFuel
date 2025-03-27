@@ -36,7 +36,7 @@ interface ApplicationWithDetails extends Application {
 export default function Applications() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [sortField, setSortField] = useState<string>('submittedAt');
+  const [sortField, setSortField] = useState<string>('startedAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   const { data: applications, isLoading: isLoadingApplications } = useQuery<Application[]>({
@@ -88,6 +88,10 @@ export default function Applications() {
         aValue = a.artist?.name || '';
         bValue = b.artist?.name || '';
         break;
+      case 'startedAt':
+        aValue = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+        bValue = b.startedAt ? new Date(b.startedAt).getTime() : 0;
+        break;
       case 'submittedAt':
         aValue = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
         bValue = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
@@ -101,8 +105,8 @@ export default function Applications() {
         bValue = b.progress || 0;
         break;
       default:
-        aValue = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
-        bValue = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+        aValue = a.startedAt ? new Date(a.startedAt).getTime() : 0;
+        bValue = b.startedAt ? new Date(b.startedAt).getTime() : 0;
     }
 
     // Compare values based on sort direction
@@ -246,6 +250,15 @@ export default function Applications() {
                       </th>
                       <th
                         className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400 cursor-pointer"
+                        onClick={() => handleSort('startedAt')}
+                      >
+                        <div className="flex items-center">
+                          Start Date
+                          {getSortIcon('startedAt')}
+                        </div>
+                      </th>
+                      <th
+                        className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400 cursor-pointer"
                         onClick={() => handleSort('deadline')}
                       >
                         <div className="flex items-center">
@@ -285,6 +298,15 @@ export default function Applications() {
                           <div className="text-sm text-gray-900 dark:text-white">
                             {app.artist?.name || 'Unknown Artist'}
                           </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {app.startedAt ? (
+                            <div className="text-sm text-gray-900 dark:text-white">
+                              {format(new Date(app.startedAt), 'MMM d, yyyy')}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500 dark:text-gray-400">Not available</div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {app.grant?.deadline ? (
