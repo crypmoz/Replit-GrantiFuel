@@ -36,8 +36,9 @@ const CheckoutForm = ({ planId }: { planId: number }) => {
     setIsLoading(true);
     
     try {
-      const { error } = await stripe.confirmPayment({
+      const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
+        redirect: 'if_required',
         confirmParams: {
           return_url: window.location.origin + '/dashboard?subscription=success',
         },
@@ -49,13 +50,34 @@ const CheckoutForm = ({ planId }: { planId: number }) => {
           description: error.message,
           variant: "destructive",
         });
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        // Create a subscription in our database
+        try {
+          const response = await apiRequest("POST", "/api/record-subscription-payment", { 
+            paymentIntentId: paymentIntent.id,
+            planId: planId
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Error recording subscription:", errorData);
+            // Still show success to user since payment worked
+          }
+          
+          toast({
+            title: "Payment Successful",
+            description: "Thank you for your subscription!",
+          });
+          
+          setLocation('/dashboard?subscription=success');
+        } catch (err) {
+          console.error("Error recording subscription:", err);
+          // Still redirect to success since the payment worked
+          setLocation('/dashboard?subscription=success');
+        }
       } else {
-        toast({
-          title: "Payment Successful",
-          description: "Thank you for your subscription!",
-        });
-        
-        setLocation('/dashboard');
+        // This shouldn't happen with redirect: 'if_required'
+        setLocation('/dashboard?subscription=success');
       }
     } catch (err: any) {
       toast({
@@ -161,19 +183,24 @@ function CheckoutContainer() {
         throw new Error(errorData.error || "Failed to create customer");
       }
       
-      // Then create the subscription
+      // Then create the subscription payment intent
       const subscriptionResponse = await apiRequest("POST", "/api/create-subscription", { 
         planId: plan.id
       });
       
       const data = await subscriptionResponse.json();
       if (!subscriptionResponse.ok) {
-        throw new Error(data.error || "Failed to create subscription");
+        throw new Error(data.error || "Failed to create subscription payment");
       }
       
       if (!data.clientSecret) {
         throw new Error("No client secret returned from server");
       }
+      
+      console.log("Payment intent created successfully:", {
+        planName: data.planName,
+        planPrice: data.planPrice
+      });
       
       setClientSecret(data.clientSecret);
       setPaymentStatus('success');

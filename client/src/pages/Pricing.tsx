@@ -157,8 +157,11 @@ export default function PricingPage() {
                         if (plan.name === 'Free') {
                           setLocation('/dashboard');
                         } else {
-                          // Redirect to checkout page with the plan name
-                          setLocation('/checkout/' + plan.name.toLowerCase());
+                          // Redirect to checkout page with the plan tier
+                          const tier = plan.name === 'Pro' ? 'basic' : 
+                                        plan.name === 'Teams' ? 'premium' : 
+                                        plan.name.toLowerCase();
+                          setLocation('/checkout/' + tier);
                         }
                       }}
                     >
