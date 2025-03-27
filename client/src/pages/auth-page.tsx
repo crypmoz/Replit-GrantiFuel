@@ -31,15 +31,25 @@ const registerSchema = z.object({
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("login");
   const [location, navigate] = useLocation();
-  const { user, isLoading, loginMutation, registerMutation } = useAuth();
+  const { user, isLoading, loginMutation, registerMutation, logoutMutation } = useAuth();
 
-  // Redirect to home if already logged in
+  // Get query parameters
+  const params = new URLSearchParams(window.location.search);
+  const logoutStatus = params.get('status') === 'loggedout';
+  
+  // Only redirect if logged in and NOT coming from logout
   useEffect(() => {
-    if (user && !isLoading) {
+    if (user && !isLoading && !logoutStatus) {
       // Use window.location for a full page refresh
       window.location.href = "/";
     }
-  }, [user, isLoading]);
+
+    // If we detect the user just logged out, force a clean state
+    if (logoutStatus && user) {
+      // Manually trigger logout again to ensure clean state
+      logoutMutation.mutate();
+    }
+  }, [user, isLoading, logoutStatus, logoutMutation]);
 
   // Setup login form
   const loginForm = useForm<LoginData>({

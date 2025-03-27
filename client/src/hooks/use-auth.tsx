@@ -127,8 +127,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "You have been successfully logged out."
       });
       
-      // Force a page reload to ensure all state is reset properly
-      window.location.href = '/auth';
+      // Add a query parameter to indicate logout status
+      window.location.href = '/auth?status=loggedout';
     },
     onError: (error: Error) => {
       toast({
