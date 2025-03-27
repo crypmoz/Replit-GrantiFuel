@@ -32,7 +32,7 @@ export default function Dashboard() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          Welcome to Grantaroo Music Assist, your grant application management platform
+          Welcome to GrantiFuel Music Assist, your grant application management platform
         </p>
       </div>
 
@@ -41,34 +41,34 @@ export default function Dashboard() {
         <UpcomingDeadlines />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {/* Stats Cards - Improved for mobile */}
+      <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <StatsCard
           title="Active Grants"
           value={stats.activeGrants}
           icon={<DollarSign className="h-5 w-5" />}
-          description="Total active grants available"
+          description="Available grants"
           variant="default"
         />
         <StatsCard
-          title="Applications In Progress"
+          title="In Progress"
           value={stats.pendingApplications}
           icon={<Clock className="h-5 w-5" />}
-          description="Applications being worked on"
+          description="Being worked on"
           variant="secondary"
         />
         <StatsCard
-          title="Approved Applications"
+          title="Approved"
           value={stats.approvedApplications}
           icon={<CheckCircle className="h-5 w-5" />}
-          description="Applications approved"
+          description="Successfully approved"
           variant="success"
         />
         <StatsCard
-          title="Rejected Applications"
+          title="Rejected"
           value={stats.rejectedApplications}
           icon={<XCircle className="h-5 w-5" />}
-          description="Applications not approved"
+          description="Not approved"
           variant="destructive"
         />
       </div>
@@ -80,17 +80,11 @@ export default function Dashboard() {
           <ApplicationProgress />
         </div>
 
-        {/* Right Column - AI Assistant */}
+        {/* Right Column - AI Assistant (minimal design) */}
         <div>
           <Card className="shadow-sm border-muted">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Lightbulb className="h-5 w-5 text-primary" />
-                AI Assistant
-              </CardTitle>
-              <CardDescription>
-                Get intelligent help with your applications
-              </CardDescription>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">AI Assistant</CardTitle>
             </CardHeader>
             <CardContent>
               <AIAssistant />

@@ -35,11 +35,11 @@ export default function Footer() {
   ];
   
   const socialLinks = [
-    { icon: <Twitter className="h-5 w-5" />, href: 'https://twitter.com/grantaroo', label: 'Twitter' },
-    { icon: <Facebook className="h-5 w-5" />, href: 'https://facebook.com/grantaroo', label: 'Facebook' },
-    { icon: <Instagram className="h-5 w-5" />, href: 'https://instagram.com/grantaroo', label: 'Instagram' },
-    { icon: <Linkedin className="h-5 w-5" />, href: 'https://linkedin.com/company/grantaroo', label: 'LinkedIn' },
-    { icon: <Youtube className="h-5 w-5" />, href: 'https://youtube.com/c/grantaroo', label: 'YouTube' },
+    { icon: <Twitter className="h-5 w-5" />, href: 'https://twitter.com/grantifuel', label: 'Twitter' },
+    { icon: <Facebook className="h-5 w-5" />, href: 'https://facebook.com/grantifuel', label: 'Facebook' },
+    { icon: <Instagram className="h-5 w-5" />, href: 'https://instagram.com/grantifuel', label: 'Instagram' },
+    { icon: <Linkedin className="h-5 w-5" />, href: 'https://linkedin.com/company/grantifuel', label: 'LinkedIn' },
+    { icon: <Youtube className="h-5 w-5" />, href: 'https://youtube.com/c/grantifuel', label: 'YouTube' },
   ];
 
   return (
@@ -50,7 +50,7 @@ export default function Footer() {
           <div className="lg:col-span-2">
             <div className="flex items-center mb-4">
               <div className="h-8 w-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-lg mr-2">G</div>
-              <span className="text-xl font-bold">Grantaroo</span>
+              <span className="text-xl font-bold">GrantiFuel</span>
             </div>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
               Empowering musicians and artists to secure funding for their creative endeavors through innovative technology.
@@ -139,7 +139,7 @@ export default function Footer() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="mb-4 md:mb-0">
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                © {currentYear} Grantaroo, Inc. All rights reserved.
+                © {currentYear} GrantiFuel, Inc. All rights reserved.
               </p>
             </div>
             
