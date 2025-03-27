@@ -6,7 +6,7 @@ import { z } from "zod";
 import { setupAuth } from "./auth";
 import Stripe from "stripe";
 import { db } from "./db";
-import { users } from "@shared/schema";
+import { users, subscriptions } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 // Initialize Stripe with secret key
@@ -378,12 +378,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Check if the plan has a Stripe price ID
+      if (!plan.stripePriceId) {
+        return res.status(400).json({ 
+          error: "This plan doesn't have a Stripe price ID configured. Please contact support." 
+        });
+      }
+      
       // Create the subscription
       const subscription = await stripe.subscriptions.create({
         customer: customerId,
         items: [
           {
-            price: plan.stripePriceId, // This should be added when you set up plans in Stripe
+            price: plan.stripePriceId,
             quantity: 1,
           },
         ],
@@ -435,9 +442,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update the subscription in the database
       await storage.updateSubscription(subscription.id, {
-        status: 'canceled',
-        canceledAt: new Date()
+        status: 'canceled'
       });
+      
+      // Update the canceledAt field using the storage method
+      await storage.updateSubscriptionCanceledAt(subscription.id, new Date());
       
       return res.json({ message: "Subscription canceled successfully" });
     } catch (error: any) {
@@ -519,10 +528,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (userId) {
           const userSubscription = await storage.getUserSubscription(userId);
           if (userSubscription) {
+            // Update status
             await storage.updateSubscription(userSubscription.id, {
-              status: 'canceled',
-              canceledAt: new Date()
+              status: 'canceled'
             });
+            
+            // Update the canceledAt field using the storage method
+            await storage.updateSubscriptionCanceledAt(userSubscription.id, new Date());
           }
         }
         break;
@@ -549,9 +561,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // If not in metadata, try to find by customer ID in the database
-      const users = await db.select().from(usersTable).where(eq(usersTable.stripeCustomerId, customerId));
-      if (users.length > 0) {
-        return users[0].id;
+      const usersFound = await db.select().from(users).where(eq(users.stripeCustomerId, customerId));
+      if (usersFound.length > 0) {
+        return usersFound[0].id;
       }
       
       return null;

@@ -229,6 +229,14 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return subscription;
   }
+  
+  // Update canceledAt field directly since it's not in InsertSubscription
+  async updateSubscriptionCanceledAt(id: number, canceledAt: Date): Promise<void> {
+    await db
+      .update(subscriptions)
+      .set({ canceledAt })
+      .where(eq(subscriptions.id, id));
+  }
 }
 
 // Initialize a database instance automatically
