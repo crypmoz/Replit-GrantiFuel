@@ -1,13 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, CheckCircle, Clock, XCircle, Lightbulb, Activity } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { DollarSign, CheckCircle, Clock, XCircle, Lightbulb } from 'lucide-react';
 import { Link } from 'wouter';
 import StatsCard, { StatsCardProps } from '@/components/dashboard/StatsCard';
 import UpcomingDeadlines from '@/components/dashboard/UpcomingDeadlines';
-import RecentActivities from '@/components/dashboard/RecentActivities';
 import AIAssistant from '@/components/dashboard/AIAssistant';
 import ApplicationProgress from '@/components/dashboard/ApplicationProgress';
-import { OnboardingProgress } from '@/components/dashboard/OnboardingProgress';
 import { Grant, Application } from '@shared/schema';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -31,7 +28,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
+    <div className="container mx-auto p-6 max-w-6xl">
       <div className="mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
@@ -39,8 +36,13 @@ export default function Dashboard() {
         </p>
       </div>
 
+      {/* Upcoming Deadlines - Top Priority */}
+      <div className="mb-8">
+        <UpcomingDeadlines />
+      </div>
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <StatsCard
           title="Active Grants"
           value={stats.activeGrants}
@@ -71,10 +73,15 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Main Content Grid - 3 column on large screens */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column - AI Assistant */}
-        <div className="lg:col-span-4 xl:col-span-3 space-y-6">
+      {/* Main Content - Two columns layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left Column - Application Progress */}
+        <div>
+          <ApplicationProgress />
+        </div>
+
+        {/* Right Column - AI Assistant */}
+        <div>
           <Card className="shadow-sm border-muted">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-xl">
@@ -89,53 +96,6 @@ export default function Dashboard() {
               <AIAssistant />
             </CardContent>
           </Card>
-          
-          <OnboardingProgress />
-        </div>
-
-        {/* Middle Column - Applications */}
-        <div className="lg:col-span-4 xl:col-span-5 space-y-6">
-          <ApplicationProgress />
-          
-          {/* Add Quick Actions */}
-          <Card className="shadow-sm border-muted">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl">Quick Actions</CardTitle>
-              <CardDescription>Common tasks to help you get started</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              <Button asChild variant="outline" className="h-auto py-4 px-3 flex flex-col items-center justify-center">
-                <Link to="/applications/new">
-                  <Clock className="h-8 w-8 mb-2 text-primary" />
-                  <span className="text-sm font-medium">New Application</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto py-4 px-3 flex flex-col items-center justify-center">
-                <Link to="/grants">
-                  <DollarSign className="h-8 w-8 mb-2 text-primary" />
-                  <span className="text-sm font-medium">Browse Grants</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto py-4 px-3 flex flex-col items-center justify-center">
-                <Link to="/templates">
-                  <CheckCircle className="h-8 w-8 mb-2 text-primary" />
-                  <span className="text-sm font-medium">Templates</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto py-4 px-3 flex flex-col items-center justify-center">
-                <Link to="/documents">
-                  <Activity className="h-8 w-8 mb-2 text-primary" />
-                  <span className="text-sm font-medium">Documents</span>
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column - Deadlines and Activities */}
-        <div className="lg:col-span-4 space-y-6">
-          <UpcomingDeadlines />
-          <RecentActivities />
         </div>
       </div>
     </div>
