@@ -6,7 +6,7 @@ import { Link, useLocation } from 'wouter';
 
 export default function AIAssistant() {
   const [location, navigate] = useLocation();
-  
+
   const handleGenerateProposal = () => {
     navigate('/ai-assistant?action=generate-proposal');
   };
