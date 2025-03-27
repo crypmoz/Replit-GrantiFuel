@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { DollarSign, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Link, useLocation } from 'wouter';
 import StatsCard from '@/components/dashboard/StatsCard';
 import UpcomingDeadlines from '@/components/dashboard/UpcomingDeadlines';
 import RecentActivities from '@/components/dashboard/RecentActivities';
@@ -28,27 +29,23 @@ export default function Dashboard() {
     rejectedApplications: applications?.filter(app => app.status === 'rejected').length || 0,
   };
 
-  const handleNewGrant = () => {
-    window.location.href = '/grants/new';
-  };
-
-  const handleFilter = () => {
-    // Filter functionality would be implemented here
-  };
+  // Filter functionality will be implemented later
 
   return (
     <div>
-      <div className="mb-8">
+      <div className="mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
           <div className="mt-3 sm:mt-0 flex space-x-3">
-            <Button onClick={handleNewGrant} className="inline-flex items-center" size="sm">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              New Grant
+            <Button className="inline-flex items-center" size="sm" asChild>
+              <Link to="/grants/new">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                New Grant
+              </Link>
             </Button>
-            <Button onClick={handleFilter} variant="outline" className="inline-flex items-center" size="sm">
+            <Button variant="outline" className="inline-flex items-center" size="sm">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
@@ -97,18 +94,22 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Upcoming Deadlines */}
-      <UpcomingDeadlines />
-
-      {/* Application Progress, Onboarding & Recent Activities */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2">
-          <RecentActivities />
-        </div>
-        <div className="space-y-6">
-          <OnboardingProgress />
-          <ApplicationProgress />
+      {/* Main Dashboard Content - Reorganized for better priority */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
+        {/* Left Column - High Priority Items (AI Assistant, Application Progress) */}
+        <div className="lg:col-span-3 lg:order-1 space-y-6">
           <AIAssistant />
+          <ApplicationProgress />
+          <OnboardingProgress />
+        </div>
+        
+        {/* Center & Right - Core Content */}
+        <div className="lg:col-span-9 lg:order-2 space-y-6">
+          {/* Upcoming Deadlines - Most time-sensitive information first */}
+          <UpcomingDeadlines />
+          
+          {/* Recent Activities - Activity feed */}
+          <RecentActivities />
         </div>
       </div>
     </div>

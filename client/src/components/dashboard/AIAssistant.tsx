@@ -2,14 +2,17 @@ import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Zap, HelpCircle } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
 
 export default function AIAssistant() {
+  const [location, navigate] = useLocation();
+  
   const handleGenerateProposal = () => {
-    window.location.href = '/ai-assistant?action=generate-proposal';
+    navigate('/ai-assistant?action=generate-proposal');
   };
 
   const handleAskQuestion = () => {
-    window.location.href = '/ai-assistant?action=ask-question';
+    navigate('/ai-assistant?action=ask-question');
   };
 
   return (
