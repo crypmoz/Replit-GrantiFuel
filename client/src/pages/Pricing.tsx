@@ -157,7 +157,7 @@ export default function PricingPage() {
                         if (plan.name === 'Free') {
                           setLocation('/dashboard');
                         } else {
-                          // In a real app, this would redirect to checkout
+                          // Redirect to checkout page with the plan name
                           setLocation('/checkout/' + plan.name.toLowerCase());
                         }
                       }}

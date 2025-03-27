@@ -19,6 +19,7 @@ import Pricing from "@/pages/Pricing";
 import AuthPage from "@/pages/auth-page";
 import ProfilePage from "@/pages/ProfilePage";
 import SettingsPage from "@/pages/SettingsPage";
+import Checkout from "@/pages/checkout";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import { ThemeProvider } from "@/hooks/use-theme";
@@ -37,7 +38,8 @@ function AppContent() {
     location === "/auth" ||
     location === "/contact" ||
     location === "/success-stories" ||
-    location === "/blog";
+    location === "/blog" ||
+    location.startsWith("/checkout");
     
   // Dashboard/app layout
   if (!isPublicPage) {
@@ -75,6 +77,7 @@ function AppContent() {
       <Route path="/about" component={About} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/checkout/:planName" component={Checkout} />
       <Route component={NotFound} />
     </Switch>
   );

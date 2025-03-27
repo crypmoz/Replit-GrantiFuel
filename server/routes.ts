@@ -454,6 +454,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ error: error.message || "Failed to cancel subscription" });
     }
   });
+  
+  // One-time payment
+  app.post("/api/create-payment-intent", requireAuth, async (req, res) => {
+    try {
+      const { amount, planId } = req.body;
+      
+      // Validate input
+      if (!amount || isNaN(amount) || amount <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+      
+      // Get the plan if planId is provided
+      let plan;
+      if (planId) {
+        plan = await storage.getSubscriptionPlan(parseInt(planId));
+        if (!plan) {
+          return res.status(404).json({ message: "Subscription plan not found" });
+        }
+      }
+      
+      // Create a PaymentIntent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: "usd",
+        metadata: {
+          userId: req.user!.id.toString(),
+          planId: planId ? planId.toString() : undefined
+        },
+      });
+      
+      // Return the client secret
+      return res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error: any) {
+      console.error('Error creating payment intent:', error);
+      return res.status(500).json({ error: error.message || "Failed to create payment intent" });
+    }
+  });
 
   // Stripe webhook handler for subscription events
   app.post("/api/stripe-webhook", async (req, res) => {
