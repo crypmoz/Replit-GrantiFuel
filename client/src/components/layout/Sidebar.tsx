@@ -101,17 +101,19 @@ export default function Sidebar() {
         <nav className="flex-1 px-2 py-4 space-y-1">
           {navItems.map((item) => {
             const isActive = location === item.href || 
-                            (item.href === '/dashboard' && location === '/');
+                           (item.href === '/dashboard' && location === '/');
             return (
-              <Link key={item.href} href={item.href}>
-                <a className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+              <Link 
+                key={item.href} 
+                href={item.href}
+                className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
                   isActive 
                     ? 'bg-primary-50 text-primary-700 dark:bg-primary-900 dark:text-primary-100' 
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
-                }`}>
-                  {item.icon}
-                  {item.label}
-                </a>
+                }`}
+              >
+                {item.icon}
+                {item.label}
               </Link>
             );
           })}

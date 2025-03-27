@@ -149,7 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: 1, // Default user ID
         action: "GENERATED",
         entityType: "PROPOSAL",
-        entityId: 0, // Placeholder
+        // No need to specify entityId if it's nullable in the schema
         details: {
           projectDescription: projectDescription.substring(0, 100),
           grantName,
@@ -190,7 +190,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: 1, // Default user ID
         action: "ASKED",
         entityType: "QUESTION",
-        entityId: 0, // Placeholder
+        // No need to specify entityId if it's nullable in the schema
         details: {
           question: question.substring(0, 100),
           answer: answer.substring(0, 100)

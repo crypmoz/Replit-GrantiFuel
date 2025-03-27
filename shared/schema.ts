@@ -73,7 +73,7 @@ export const activities = pgTable("activities", {
   userId: integer("user_id").notNull(),
   action: text("action").notNull(),
   entityType: text("entity_type").notNull(),
-  entityId: integer("entity_id").notNull(),
+  entityId: integer("entity_id"),
   details: json("details"),
   createdAt: timestamp("created_at").defaultNow(),
 });
