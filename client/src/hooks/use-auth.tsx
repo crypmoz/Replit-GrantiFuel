@@ -8,6 +8,7 @@ import { insertUserSchema, User as SelectUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import { useLocation } from "wouter";
 
 type AuthContextType = {
   user: SelectUser | null;
@@ -39,6 +40,7 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const [location, navigate] = useLocation();
   const {
     data: user,
     error,
@@ -64,8 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: `Welcome back, ${user.name || user.username}!`,
       });
       
-      // Force a page refresh to ensure all state is properly initialized
-      window.location.href = '/dashboard';
+      // Navigate to dashboard
+      navigate('/dashboard');
     },
     onError: (error: Error) => {
       toast({
@@ -95,8 +97,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: `Welcome, ${user.name || user.username}!`,
       });
 
-      // Force a page refresh to ensure all state is properly initialized
-      window.location.href = '/dashboard';
+      // Navigate to dashboard
+      navigate('/dashboard');
     },
     onError: (error: Error) => {
       toast({
@@ -128,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       // Add a query parameter to indicate logout status
-      window.location.href = '/auth?status=loggedout';
+      navigate('/auth?status=loggedout');
     },
     onError: (error: Error) => {
       toast({

@@ -42,8 +42,8 @@ export default function AuthPage() {
   // Only redirect if logged in and NOT coming from logout
   useEffect(() => {
     if (user && !isLoading && !logoutStatus) {
-      // Use window.location for a full page refresh
-      window.location.href = "/";
+      // Use navigate for a client-side navigation
+      navigate("/dashboard");
     }
 
     // If we detect the user just logged out, force a clean state
@@ -51,7 +51,7 @@ export default function AuthPage() {
       // Manually trigger logout again to ensure clean state
       logoutMutation.mutate();
     }
-  }, [user, isLoading, logoutStatus, logoutMutation]);
+  }, [user, isLoading, logoutStatus, logoutMutation, navigate]);
 
   // Setup login form
   const loginForm = useForm<LoginData>({
@@ -117,7 +117,7 @@ export default function AuthPage() {
     } else if (registerMutation.isError) {
       setStatusMessage(`Registration failed: ${registerMutation.error?.message || "Please check your information"}`);
     } else if (user) {
-      setStatusMessage("Success! You are now logged in and will be redirected to the dashboard.");
+      setStatusMessage("Success! You have been logged in and will be redirected to your dashboard.");
     } else {
       setStatusMessage("");
     }
