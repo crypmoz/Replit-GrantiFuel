@@ -1,16 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { Application, Grant } from '@shared/schema';
-import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { format, formatDistance } from 'date-fns';
-import { Plus } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+import { Plus, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
 
 interface ApplicationWithGrant extends Application {
   grant?: Grant;
 }
 
 export default function ApplicationProgress() {
+  const { user } = useAuth();
   const { data: applications, isLoading: isLoadingApplications } = useQuery<Application[]>({
     queryKey: ['/api/applications'],
   });
@@ -23,12 +26,12 @@ export default function ApplicationProgress() {
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader className="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Application Progress</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Track your current applications.</p>
+      <Card className="shadow mb-6">
+        <CardHeader>
+          <CardTitle className="text-xl">Application Progress</CardTitle>
+          <CardDescription>Track your current applications</CardDescription>
         </CardHeader>
-        <CardContent className="px-4 py-5 sm:p-6">
+        <CardContent>
           <div className="animate-pulse space-y-8">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="space-y-2">
@@ -57,23 +60,35 @@ export default function ApplicationProgress() {
       }))
     : [];
 
-  // Sort by progress (incomplete first)
-  const sortedApplications = [...applicationsWithGrants].sort((a, b) => a.progress - b.progress);
+  // Sort by deadline (closest deadlines first) and then by progress (incomplete first)
+  const sortedApplications = [...applicationsWithGrants].sort((a, b) => {
+    // If we have deadlines, sort by those first
+    if (a.grant?.deadline && b.grant?.deadline) {
+      return new Date(a.grant.deadline).getTime() - new Date(b.grant.deadline).getTime();
+    }
+    // Then sort by progress
+    return a.progress - b.progress;
+  });
 
+  // Filter applications in progress (not 100% complete)
+  const inProgressApplications = sortedApplications.filter(app => app.progress < 100);
+  
   // Limit to top 3 for display
-  const displayApplications = sortedApplications.slice(0, 3);
+  const displayApplications = inProgressApplications.slice(0, 3);
 
   // Mock applications when real data isn't available yet
   const mockApplications = [
     {
       id: 1,
+      userId: user?.id || 1,
       grantId: 1,
+      status: 'inProgress',
       progress: 75,
-      startedAt: new Date('2023-06-15'),
+      startedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000), // 14 days ago
       grant: {
         id: 1,
         name: 'Music Creation Grant',
-        deadline: new Date('2023-06-30'),
+        deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // 10 days from now
         organization: 'National Arts Foundation',
         amount: '$10,000 - $25,000',
         description: '',
@@ -83,13 +98,15 @@ export default function ApplicationProgress() {
     },
     {
       id: 2,
+      userId: user?.id || 1,
       grantId: 2,
+      status: 'draft',
       progress: 15,
-      startedAt: new Date('2023-06-26'),
+      startedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
       grant: {
         id: 2, 
         name: 'Recording Studio Fund',
-        deadline: new Date('2023-07-11'),
+        deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
         organization: 'Music Industry Association',
         amount: 'Up to $30,000',
         description: '',
@@ -99,13 +116,15 @@ export default function ApplicationProgress() {
     },
     {
       id: 3,
+      userId: user?.id || 1,
       grantId: 3,
-      progress: 100,
-      startedAt: new Date('2023-06-10'),
+      status: 'inProgress',
+      progress: 45,
+      startedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
       grant: {
         id: 3,
         name: 'Touring Support Program',
-        deadline: new Date('2023-07-04'),
+        deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
         organization: 'City Arts Council',
         amount: '$5,000 - $15,000',
         description: '',
@@ -113,50 +132,122 @@ export default function ApplicationProgress() {
         createdAt: new Date()
       }
     }
-  ];
+  ] as ApplicationWithGrant[];
 
   // Use real or mock data
   const activeApplications = displayApplications.length > 0 ? displayApplications : mockApplications;
 
-  // Function to get the appropriate color class based on progress
-  const getProgressColorClass = (progress: number) => {
-    if (progress === 100) return "bg-green-500";
-    if (progress >= 50) return "bg-primary-500";
-    return "bg-blue-500";
+  // Function to get the appropriate color class based on progress and deadline proximity
+  const getProgressColor = (app: ApplicationWithGrant) => {
+    // First check deadlines - if within 7 days, use warning colors
+    if (app.grant?.deadline) {
+      const daysToDeadline = Math.ceil((new Date(app.grant.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      
+      if (daysToDeadline <= 3) {
+        return "bg-red-600"; // Critical - less than 3 days
+      }
+      
+      if (daysToDeadline <= 7) {
+        return "bg-amber-500"; // Warning - less than a week
+      }
+    }
+    
+    // Then check progress
+    if (app.progress >= 75) return "bg-green-500"; // Almost done
+    if (app.progress >= 50) return "bg-primary-500"; // Good progress
+    if (app.progress >= 25) return "bg-blue-500"; // Getting started
+    return "bg-gray-500"; // Just started
+  };
+
+  // Get time remaining display with appropriate formatting
+  const getTimeRemaining = (deadline: Date) => {
+    const now = new Date();
+    const daysRemaining = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysRemaining <= 0) {
+      return <span className="text-red-500 font-medium">Past deadline</span>;
+    }
+    
+    if (daysRemaining <= 3) {
+      return <span className="text-red-500 font-medium">
+        <AlertCircle className="inline h-3 w-3 mr-1" />
+        {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
+      </span>;
+    }
+    
+    if (daysRemaining <= 7) {
+      return <span className="text-amber-500 font-medium">
+        {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
+      </span>;
+    }
+    
+    return <span>{daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left</span>;
   };
 
   return (
-    <Card>
-      <CardHeader className="px-4 py-5 sm:px-6 border-b border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Application Progress</h3>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Track your current applications.</p>
+    <Card className="shadow mb-6">
+      <CardHeader>
+        <CardTitle className="text-xl flex items-center justify-between">
+          Application Progress
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-sm font-normal"
+            asChild
+          >
+            <Link to="/grants">View grants</Link>
+          </Button>
+        </CardTitle>
+        <CardDescription>Track your in-progress applications</CardDescription>
       </CardHeader>
-      <CardContent className="px-4 py-5 sm:p-6">
-        {activeApplications.map((app) => (
-          <div key={app.id} className="mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white">{app.grant?.name}</h4>
-              <span className="text-sm text-gray-500 dark:text-gray-400">{app.progress}%</span>
-            </div>
-            <Progress value={app.progress} className="w-full h-2.5" />
-            <div className="flex justify-between mt-2">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                Started: {format(new Date(app.startedAt), 'MMM d, yyyy')}
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                Deadline: {format(new Date(app.grant?.deadline || new Date()), 'MMM d, yyyy')}
-              </span>
-            </div>
+      <CardContent>
+        {activeApplications.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            <p>No active applications. Start by creating one!</p>
           </div>
-        ))}
+        ) : (
+          activeApplications.map((app) => (
+            <div key={app.id} className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-sm font-medium">
+                  <Link to={`/applications/${app.id}`} className="hover:text-primary hover:underline">
+                    {app.grant?.name}
+                  </Link>
+                </h4>
+                <span className="text-sm">
+                  {app.progress}% complete
+                </span>
+              </div>
+              <Progress 
+                value={app.progress} 
+                className={`w-full h-2.5 ${getProgressColor(app)}`} 
+                aria-label={`${app.progress}% complete on ${app.grant?.name}`}
+              />
+              <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                <span>
+                  Started {formatDistanceToNow(new Date(typeof app.startedAt === 'string' ? app.startedAt : (app.startedAt instanceof Date ? app.startedAt : Date.now())), { addSuffix: true })}
+                </span>
+                <span>
+                  {app.grant?.deadline ? (
+                    getTimeRemaining(new Date(app.grant.deadline))
+                  ) : (
+                    "No deadline set"
+                  )}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
 
         <div className="mt-6">
           <Button 
-            onClick={() => window.location.href = "/applications/new"}
-            className="inline-flex items-center"
+            className="w-full inline-flex items-center justify-center"
+            asChild
           >
-            <Plus className="h-4 w-4 mr-2" />
-            New Application
+            <Link to="/applications/new">
+              <Plus className="h-4 w-4 mr-2" />
+              New Application
+            </Link>
           </Button>
         </div>
       </CardContent>
