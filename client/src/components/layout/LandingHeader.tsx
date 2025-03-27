@@ -56,12 +56,12 @@ export default function LandingHeader() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/">
-              <a className="flex items-center">
+              <div className="flex items-center cursor-pointer">
                 <div className="h-8 w-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-lg mr-2">
                   G
                 </div>
                 <span className="text-xl font-bold">Grantaroo</span>
-              </a>
+              </div>
             </Link>
           </div>
 
@@ -69,9 +69,9 @@ export default function LandingHeader() {
           <nav className="hidden md:flex items-center space-x-8">
             {navItems.map((item, index) => (
               <Link key={index} href={item.href}>
-                <a className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition-colors">
+                <div className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition-colors cursor-pointer">
                   {item.label}
-                </a>
+                </div>
               </Link>
             ))}
           </nav>
@@ -138,9 +138,9 @@ export default function LandingHeader() {
             <nav className="flex flex-col space-y-4">
               {navItems.map((item, index) => (
                 <Link key={index} href={item.href}>
-                  <a className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2 transition-colors">
+                  <div className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2 transition-colors cursor-pointer">
                     {item.label}
-                  </a>
+                  </div>
                 </Link>
               ))}
               <div className="pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">

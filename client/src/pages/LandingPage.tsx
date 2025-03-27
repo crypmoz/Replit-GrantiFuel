@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import LandingHeader from '@/components/layout/LandingHeader';
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
@@ -93,6 +94,7 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <LandingHeader />
       {/* Hero Section */}
       <section className="relative py-20 md:py-28 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary-50 to-slate-100 dark:from-gray-900 dark:to-gray-950 -z-10"></div>

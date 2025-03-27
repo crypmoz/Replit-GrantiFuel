@@ -330,9 +330,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/create-subscription", requireAuth, async (req, res) => {
     try {
-      const { planId, paymentMethodId } = req.body;
-      if (!planId || !paymentMethodId) {
-        return res.status(400).json({ error: "Missing required fields" });
+      const { planId } = req.body;
+      if (!planId) {
+        return res.status(400).json({ error: "Missing required plan ID" });
       }
       
       // Get the user
@@ -354,10 +354,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const customer = await stripe.customers.create({
           email: user.email || undefined,
           name: user.username,
-          payment_method: paymentMethodId,
-          invoice_settings: {
-            default_payment_method: paymentMethodId,
-          },
           metadata: {
             userId: user.id.toString()
           }
@@ -365,36 +361,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         customerId = customer.id;
         await storage.updateStripeCustomerId(user.id, customerId);
-      } else {
-        // Update the customer's payment method
-        await stripe.paymentMethods.attach(paymentMethodId, {
-          customer: customerId,
-        });
-        
-        await stripe.customers.update(customerId, {
-          invoice_settings: {
-            default_payment_method: paymentMethodId,
-          },
-        });
       }
       
-      // Check if the plan has a Stripe price ID
-      if (!plan.stripePriceId) {
-        return res.status(400).json({ 
-          error: "This plan doesn't have a Stripe price ID configured. Please contact support." 
-        });
-      }
+      // Check if the plan has a Stripe price ID - you'd need to set this in your plans table
+      // For testing, we'll use a test price ID
+      const priceId = plan.stripePriceId || 'price_1OXGlwEfqdugH2cDSN4kUB6f'; // Test price ID - remove in production
       
       // Create the subscription
       const subscription = await stripe.subscriptions.create({
         customer: customerId,
         items: [
           {
-            price: plan.stripePriceId,
-            quantity: 1,
+            price: priceId,
           },
         ],
         payment_behavior: 'default_incomplete',
+        payment_settings: {
+          save_default_payment_method: 'on_subscription',
+        },
         expand: ['latest_invoice.payment_intent'],
       });
       

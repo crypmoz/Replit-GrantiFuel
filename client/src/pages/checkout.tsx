@@ -163,13 +163,16 @@ function CheckoutContainer() {
       
       // Then create the subscription
       const subscriptionResponse = await apiRequest("POST", "/api/create-subscription", { 
-        planId: plan.id,
-        paymentMethodId: "pm_card_visa" // This is a test payment method - in production, you'd collect this from the user
+        planId: plan.id
       });
       
       const data = await subscriptionResponse.json();
       if (!subscriptionResponse.ok) {
         throw new Error(data.error || "Failed to create subscription");
+      }
+      
+      if (!data.clientSecret) {
+        throw new Error("No client secret returned from server");
       }
       
       setClientSecret(data.clientSecret);
