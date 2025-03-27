@@ -30,6 +30,7 @@ import { ThemeProvider } from "@/hooks/use-theme";
 import { ChatbotProvider } from "@/context/ChatbotContext";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
+import { SkipToContent, LiveRegion } from "@/components/ui/a11y-utils";
 
 function AppContent() {
   const [location] = useLocation();
@@ -49,10 +50,28 @@ function AppContent() {
   if (!isPublicPage) {
     return (
       <div className="flex h-screen overflow-hidden">
-        <Sidebar />
+        <SkipToContent contentId="main-content" />
+        <LiveRegion ariaLive="polite">
+          {location.replace('/', '').length > 0 
+            ? `You are now on the ${location.replace('/', '')} page` 
+            : 'You are now on the dashboard page'}
+        </LiveRegion>
+        
+        <nav aria-label="Main navigation">
+          <Sidebar />
+        </nav>
+        
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header />
-          <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
+          <header role="banner">
+            <Header />
+          </header>
+          
+          <main 
+            id="main-content"
+            tabIndex={-1}
+            className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-8"
+            aria-label="Main content"
+          >
             <Switch>
               <ProtectedRoute path="/dashboard" component={Dashboard} />
               <ProtectedRoute path="/grants" component={Grants} />
@@ -77,17 +96,28 @@ function AppContent() {
   
   // Public pages layout (no sidebar)
   return (
-    <Switch>
-      <Route path="/" component={LandingPage} />
-      <Route path="/about" component={About} />
-      <Route path="/pricing" component={Pricing} />
-      <Route path="/auth" component={AuthPage} />
-      <Route path="/checkout/:planName" component={Checkout} />
-      <Route path="/success-stories" component={SuccessStories} />
-      <Route path="/blog" component={Blog} />
-      <Route path="/contact" component={Contact} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <SkipToContent contentId="main-content" />
+      <LiveRegion ariaLive="polite">
+        {location === '/' 
+          ? 'You are now on the home page' 
+          : `You are now on the ${location.replace('/', '')} page`}
+      </LiveRegion>
+      
+      <main id="main-content" tabIndex={-1}>
+        <Switch>
+          <Route path="/" component={LandingPage} />
+          <Route path="/about" component={About} />
+          <Route path="/pricing" component={Pricing} />
+          <Route path="/auth" component={AuthPage} />
+          <Route path="/checkout/:planName" component={Checkout} />
+          <Route path="/success-stories" component={SuccessStories} />
+          <Route path="/blog" component={Blog} />
+          <Route path="/contact" component={Contact} />
+          <Route component={NotFound} />
+        </Switch>
+      </main>
+    </>
   );
 }
 

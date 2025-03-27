@@ -83,10 +83,16 @@ export default function Sidebar() {
     <div 
       id="sidebar"
       className={`${isOpen ? 'flex' : 'hidden'} md:flex flex-col w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out`}
+      role="navigation"
+      aria-label="Main navigation"
     >
       <div className="flex items-center justify-between px-4 py-5 border-b border-gray-200 dark:border-gray-700">
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="bg-primary text-white p-2 rounded-lg">
+        <Link 
+          href="/" 
+          className="flex items-center space-x-2"
+          aria-label="Go to home page"
+        >
+          <div className="bg-primary text-white p-2 rounded-lg" aria-hidden="true">
             <Music className="h-6 w-6" />
           </div>
           <span className="text-xl font-bold text-gray-900 dark:text-white">Grantaroo</span>
@@ -94,42 +100,56 @@ export default function Sidebar() {
         <button 
           onClick={() => setIsOpen(false)}
           className="md:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          aria-label="Close sidebar"
+          aria-expanded={isOpen}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
       
       <div className="flex flex-col overflow-y-auto">
-        <nav className="flex-1 px-2 py-4 space-y-1">
-          {navItems.map((item) => {
-            const isActive = location === item.href || 
-                           (item.href === '/dashboard' && location === '/');
-            return (
-              <Link 
-                key={item.href} 
-                href={item.href}
-                className={`flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                  isActive 
-                    ? 'bg-primary-50 text-primary-700 dark:bg-primary-900 dark:text-primary-100' 
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 px-2 py-4 space-y-1" aria-label="Application">
+          <ul className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = location === item.href || 
+                            (item.href === '/dashboard' && location === '/');
+              return (
+                <li key={item.href}>
+                  <Link 
+                    href={item.href}
+                    className={`flex items-center px-3 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
+                      isActive 
+                        ? 'bg-primary-50 text-primary-700 dark:bg-primary-900 dark:text-primary-100' 
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white'
+                    }`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <span aria-hidden="true">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </nav>
 
-        <div className="px-4 py-2 mt-auto border-t border-gray-200 dark:border-gray-700">
+        <div className="px-4 py-2 mt-auto border-t border-gray-200 dark:border-gray-700" role="contentinfo">
           <div className="flex items-center space-x-3 py-2">
             <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
               {currentUser?.avatar ? (
-                <img src={currentUser.avatar} alt="User avatar" className="h-full w-full object-cover" />
+                <img 
+                  src={currentUser.avatar} 
+                  alt={`${currentUser.name || 'User'}'s avatar`} 
+                  className="h-full w-full object-cover" 
+                />
               ) : (
-                <div className="h-full w-full flex items-center justify-center bg-primary text-white">
+                <div 
+                  className="h-full w-full flex items-center justify-center bg-primary text-white"
+                  role="img"
+                  aria-label={`${currentUser?.name || 'User'}'s avatar`}
+                >
                   {currentUser?.name?.charAt(0) || 'U'}
                 </div>
               )}
@@ -148,8 +168,9 @@ export default function Sidebar() {
               onClick={handleSignOut}
               className="w-full flex items-center justify-center"
               variant="default"
+              aria-label="Sign out of your account"
             >
-              <LogOut className="h-4 w-4 mr-2" />
+              <span aria-hidden="true"><LogOut className="h-4 w-4 mr-2" /></span>
               Sign Out
             </Button>
           </div>
