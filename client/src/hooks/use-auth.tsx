@@ -4,8 +4,7 @@ import {
   useMutation,
   UseMutationResult,
 } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient } from '../lib/queryClient';
 
 interface User {
   id: number;
@@ -41,7 +40,10 @@ type AuthContextType = {
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { toast } = useToast();
+  // Simple minimal toast implementation
+  const toast = ({ title, description, variant }: { title: string, description: string, variant?: string }) => {
+    console.log(`${variant}: ${title} - ${description}`);
+  };
   
   const {
     data: user,

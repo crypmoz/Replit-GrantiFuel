@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { useLocation } from 'wouter';
-import { useAuth } from '@/hooks/use-auth';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '../hooks/use-auth';
+
+// Simple toast function for auth page
+const useSimpleToast = () => {
+  return {
+    toast: ({ title, description, variant }: { title: string, description: string, variant?: string }) => {
+      console.log(`${variant}: ${title} - ${description}`);
+      alert(`${title}: ${description}`);
+    }
+  };
+};
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -11,7 +20,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const { loginMutation, registerMutation, user } = useAuth();
   const [location, setLocation] = useLocation();
-  const { toast } = useToast();
+  const { toast } = useSimpleToast();
 
   // Redirect if already logged in
   React.useEffect(() => {

@@ -1,11 +1,124 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { Check, X } from 'lucide-react';
-import LandingHeader from '@/components/layout/LandingHeader';
-import Footer from '@/components/layout/Footer';
+// Replace with simpler components since we don't have shadcn UI imported yet
+const Button = ({ className, variant, onClick, children }) => (
+  <button 
+    className={`px-4 py-2 rounded-md font-medium ${
+      variant === 'default' ? 'bg-blue-600 text-white hover:bg-blue-700' : 
+      variant === 'outline' ? 'border border-gray-300 bg-transparent hover:bg-gray-50' : 
+      'bg-gray-100 text-gray-800'
+    } ${className}`} 
+    onClick={onClick}
+  >
+    {children}
+  </button>
+);
+
+const Card = ({ className, children }) => (
+  <div className={`border rounded-lg overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
+
+const CardHeader = ({ className, children }) => (
+  <div className={`p-6 ${className}`}>
+    {children}
+  </div>
+);
+
+const CardTitle = ({ className, children }) => (
+  <h3 className={`text-xl font-bold ${className}`}>
+    {children}
+  </h3>
+);
+
+const CardDescription = ({ children }) => (
+  <p className="text-gray-500 mt-1">
+    {children}
+  </p>
+);
+
+const CardContent = ({ className, children }) => (
+  <div className={`px-6 py-2 ${className}`}>
+    {children}
+  </div>
+);
+
+const CardFooter = ({ children }) => (
+  <div className="p-6 pt-0">
+    {children}
+  </div>
+);
+
+const Switch = ({ checked, onCheckedChange }) => (
+  <button 
+    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-gray-200'}`}
+    onClick={() => onCheckedChange(!checked)}
+  >
+    <span 
+      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} 
+    />
+  </button>
+);
+
+// Simple header component
+const LandingHeader = () => (
+  <header className="fixed w-full bg-white shadow z-50">
+    <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <div className="text-2xl font-bold">GrantiFuel</div>
+      <nav>
+        <ul className="flex space-x-6">
+          <li><a href="/" className="text-gray-600 hover:text-gray-900">Home</a></li>
+          <li><a href="/pricing" className="text-gray-900 font-medium">Pricing</a></li>
+          <li><a href="/auth" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Sign In</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+);
+
+// Simple footer component
+const Footer = () => (
+  <footer className="bg-gray-100 py-12">
+    <div className="container mx-auto px-4">
+      <div className="flex flex-col md:flex-row justify-between">
+        <div className="mb-8 md:mb-0">
+          <h3 className="text-xl font-bold mb-4">GrantiFuel</h3>
+          <p className="text-gray-600 max-w-xs">
+            Empowering artists to find and secure the funding they need to create amazing work.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
+          <div>
+            <h4 className="font-semibold mb-3">Product</h4>
+            <ul className="space-y-2">
+              <li><a href="#" className="text-gray-600 hover:text-gray-900">Features</a></li>
+              <li><a href="/pricing" className="text-gray-600 hover:text-gray-900">Pricing</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-3">Company</h4>
+            <ul className="space-y-2">
+              <li><a href="#" className="text-gray-600 hover:text-gray-900">About</a></li>
+              <li><a href="#" className="text-gray-600 hover:text-gray-900">Contact</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-3">Legal</h4>
+            <ul className="space-y-2">
+              <li><a href="#" className="text-gray-600 hover:text-gray-900">Privacy</a></li>
+              <li><a href="#" className="text-gray-600 hover:text-gray-900">Terms</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div className="mt-8 pt-8 border-t border-gray-200 text-center text-gray-500">
+        <p>© 2025 GrantiFuel. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+);
 
 export default function PricingPage() {
   const [, setLocation] = useLocation();
