@@ -7,6 +7,7 @@ import { useAuth } from "./hooks/use-auth";
 import SimpleDashboard from "./pages/SimpleDashboard";
 import AuthPage from "./pages/auth-page";
 import NotFound from "./pages/not-found";
+import LandingPage from "./pages/LandingPage";
 
 // Simplified Toast Context for minimal app functionality
 const ToastContext = React.createContext<{
@@ -415,7 +416,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Public layout without footer
+// Layout component for public pages like landing page
 function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col min-h-screen">
@@ -454,7 +455,17 @@ function AppContent() {
           );
         }}
       </Route>
-      <SimpleProtectedRoute path="/" component={SimpleDashboard} />
+      <Route path="/landing">
+        <PublicLayout>
+          <LandingPage />
+        </PublicLayout>
+      </Route>
+      <SimpleProtectedRoute path="/dashboard" component={SimpleDashboard} />
+      <Route path="/">
+        <PublicLayout>
+          <LandingPage />
+        </PublicLayout>
+      </Route>
       <Route>
         <Layout>
           <NotFound />

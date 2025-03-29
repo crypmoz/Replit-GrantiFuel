@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Menu, X, Sun, Moon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useTheme } from '@/hooks/use-theme';
+import { Button } from '../ui/button';
+import { useTheme } from '../../hooks/use-theme';
 
 export default function LandingHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

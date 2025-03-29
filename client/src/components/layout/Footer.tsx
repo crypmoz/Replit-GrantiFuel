@@ -1,7 +1,8 @@
+import React from 'react';
 import { Link } from 'wouter';
 import { Twitter, Linkedin, Instagram, Youtube, Mail, Facebook } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();

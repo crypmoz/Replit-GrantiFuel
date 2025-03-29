@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Button } from '@/components/ui/button';
+import { Button } from '../components/ui/button';
 import { 
   ChevronRight, 
   Award, 
@@ -11,10 +11,10 @@ import {
   Users,
   Brain
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import LandingHeader from '@/components/layout/LandingHeader';
-import Footer from '@/components/layout/Footer';
+import { Card, CardContent } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import LandingHeader from '../components/layout/LandingHeader';
+import Footer from '../components/layout/Footer';
 
 export default function LandingPage() {
   const [, setLocation] = useLocation();
