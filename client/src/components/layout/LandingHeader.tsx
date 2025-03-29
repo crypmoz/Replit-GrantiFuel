@@ -61,7 +61,7 @@ export default function LandingHeader() {
                 <div className="h-8 w-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-lg mr-2">
                   G
                 </div>
-                <span className="text-xl font-bold">Grantaroo</span>
+                <span className="text-xl font-bold gradient-text">GrantiFuel</span>
               </div>
             </Link>
           </div>

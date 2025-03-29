@@ -4,6 +4,7 @@ import { Route, Switch, Link, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { AuthProvider } from "./hooks/use-auth";
 import { useAuth } from "./hooks/use-auth";
+import { ThemeProvider } from "./hooks/use-theme";
 import SimpleDashboard from "./pages/SimpleDashboard";
 import AuthPage from "./pages/auth-page";
 import NotFound from "./pages/not-found";
@@ -479,9 +480,11 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SimpleToastProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </ThemeProvider>
       </SimpleToastProvider>
     </QueryClientProvider>
   );
