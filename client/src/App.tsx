@@ -9,6 +9,7 @@ import SimpleDashboard from "./pages/SimpleDashboard";
 import AuthPage from "./pages/auth-page";
 import NotFound from "./pages/not-found";
 import LandingPage from "./pages/LandingPage";
+import AboutPage from "./pages/About";
 
 // Simplified Toast Context for minimal app functionality
 const ToastContext = React.createContext<{
@@ -168,26 +169,26 @@ function NavigationBar() {
             <div className="hidden sm:ml-6 sm:flex sm:space-x-2">
               {navLinks.map((link) => (
                 <Link key={link.href} href={link.href}>
-                  <a className={`${location === link.href ? 'nav-link-active' : 'nav-link'}`}>
+                  <div className={`${location === link.href ? 'nav-link-active' : 'nav-link'} cursor-pointer`}>
                     {link.name}
-                  </a>
+                  </div>
                 </Link>
               ))}
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
             <Link href="/pricing">
-              <a className="nav-link">Pricing</a>
+              <div className="nav-link cursor-pointer">Pricing</div>
             </Link>
             {user ? (
               <>
                 <Link href="/profile">
-                  <a className="flex items-center space-x-2 nav-link">
+                  <div className="flex items-center space-x-2 nav-link cursor-pointer">
                     <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-semibold">
                       {user.name?.charAt(0) || user.username?.charAt(0) || 'U'}
                     </div>
                     <span className="hidden md:inline">{user.name || user.username}</span>
-                  </a>
+                  </div>
                 </Link>
                 <button 
                   onClick={handleLogout} 
@@ -199,7 +200,7 @@ function NavigationBar() {
               </>
             ) : (
               <Link href="/auth">
-                <a className="btn-primary">Sign In</a>
+                <div className="btn-primary cursor-pointer">Sign In</div>
               </Link>
             )}
           </div>
@@ -232,8 +233,8 @@ function NavigationBar() {
         <div className="pt-2 pb-3 space-y-1">
           {navLinks.map((link) => (
             <Link key={link.href} href={link.href}>
-              <a
-                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+              <div
+                className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium cursor-pointer ${
                   location === link.href
                     ? 'border-purple-500 text-purple-700 bg-purple-50'
                     : 'border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700'
@@ -241,16 +242,16 @@ function NavigationBar() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {link.name}
-              </a>
+              </div>
             </Link>
           ))}
           <Link href="/pricing">
-            <a
-              className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700"
+            <div
+              className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 cursor-pointer"
               onClick={() => setMobileMenuOpen(false)}
             >
               Pricing
-            </a>
+            </div>
           </Link>
         </div>
         {user ? (
@@ -268,12 +269,12 @@ function NavigationBar() {
             </div>
             <div className="mt-3 space-y-1">
               <Link href="/profile">
-                <a
-                  className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                <div
+                  className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 cursor-pointer"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Your Profile
-                </a>
+                </div>
               </Link>
               <button
                 onClick={() => {
@@ -290,12 +291,12 @@ function NavigationBar() {
           <div className="pt-4 pb-3 border-t border-gray-200">
             <div className="px-4 flex flex-col gap-2">
               <Link href="/auth">
-                <a
-                  className="block text-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600"
+                <div
+                  className="block text-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 cursor-pointer"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Sign In
-                </a>
+                </div>
               </Link>
             </div>
           </div>
@@ -352,27 +353,27 @@ function Footer() {
             <ul className="space-y-2">
               <li>
                 <Link href="/">
-                  <a className="text-gray-600 hover:text-purple-600">Home</a>
+                  <div className="text-gray-600 hover:text-purple-600 cursor-pointer">Home</div>
                 </Link>
               </li>
               <li>
                 <Link href="/grants">
-                  <a className="text-gray-600 hover:text-purple-600">Grants</a>
+                  <div className="text-gray-600 hover:text-purple-600 cursor-pointer">Grants</div>
                 </Link>
               </li>
               <li>
                 <Link href="/applications">
-                  <a className="text-gray-600 hover:text-purple-600">Applications</a>
+                  <div className="text-gray-600 hover:text-purple-600 cursor-pointer">Applications</div>
                 </Link>
               </li>
               <li>
                 <Link href="/pricing">
-                  <a className="text-gray-600 hover:text-purple-600">Pricing</a>
+                  <div className="text-gray-600 hover:text-purple-600 cursor-pointer">Pricing</div>
                 </Link>
               </li>
               <li>
                 <Link href="/assistant">
-                  <a className="text-gray-600 hover:text-purple-600">AI Assistant</a>
+                  <div className="text-gray-600 hover:text-purple-600 cursor-pointer">AI Assistant</div>
                 </Link>
               </li>
             </ul>
@@ -455,6 +456,11 @@ function AppContent() {
             </Layout>
           );
         }}
+      </Route>
+      <Route path="/about">
+        <Layout>
+          <AboutPage />
+        </Layout>
       </Route>
       <Route path="/landing">
         <PublicLayout>
