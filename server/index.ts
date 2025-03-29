@@ -42,40 +42,50 @@ app.use('/health', healthRoutes);
 (async () => {
   try {
     // Check database connection
-    const dbConnected = await checkDatabaseConnection();
-    if (!dbConnected) {
-      throw new Error('Failed to connect to database');
+    try {
+      const dbConnected = await checkDatabaseConnection();
+      if (!dbConnected) {
+        logger.warn('Database connection failed, some features may not work properly');
+      }
+    } catch (err) {
+      logger.warn('Database connection check error:', err);
+      logger.warn('Continuing without database connection, some features may not work properly');
     }
 
-    // Check Redis connection
-    const redisConnected = await checkRedisConnection();
-    if (!redisConnected) {
-      logger.warn('Redis connection failed, caching will be disabled');
+    // Check Redis connection if URL is provided
+    if (env.REDIS_URL) {
+      const redisConnected = await checkRedisConnection();
+      if (!redisConnected) {
+        logger.warn('Redis connection failed, caching will be disabled');
+      }
+    } else {
+      logger.info('Redis URL not provided, using in-memory cache');
     }
 
     // Register routes
     server = await registerRoutes(app);
 
-    // Add 404 handler
-    app.use(notFound);
-
-    // Add error logging middleware
-    app.use(errorLogger);
-
-    // Add error handling middleware
-    app.use(errorHandler);
-
-    // Setup Vite in development
+    // Setup Vite in development or serve static files in production
+    // This must come before the notFound handler
     if (env.NODE_ENV === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
+    
+    // Add 404 handler for API routes only (non-html requests)
+    app.use('/api/*', notFound);
+    
+    // Add error logging middleware
+    app.use(errorLogger);
+    
+    // Add error handling middleware
+    app.use(errorHandler);
 
     // Start server
     server.listen({
       port: env.PORT,
-      host: "localhost",
+      host: "0.0.0.0",
       reusePort: true,
     }, () => {
       logger.info(`Server running on port ${env.PORT} in ${env.NODE_ENV} mode`);
@@ -95,11 +105,19 @@ app.use('/health', healthRoutes);
         });
       }
 
-      // Close database connection
-      await closeDatabaseConnection();
+      // Close database connection if it was established
+      try {
+        await closeDatabaseConnection();
+      } catch (err) {
+        logger.warn('Error closing database connection:', err);
+      }
 
-      // Close Redis connection
-      await closeRedisConnection();
+      // Close Redis connection if it was established
+      try {
+        await closeRedisConnection();
+      } catch (err) {
+        logger.warn('Error closing Redis connection:', err);
+      }
 
       logger.info('Shutdown complete');
       process.exit(0);

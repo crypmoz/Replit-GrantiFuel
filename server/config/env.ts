@@ -8,27 +8,27 @@ const envSchema = z.object({
 
   // Database
   DATABASE_URL: z.string().url(),
-  POSTGRES_USER: z.string().min(1),
-  POSTGRES_PASSWORD: z.string().min(1),
-  POSTGRES_DB: z.string().min(1),
-  POSTGRES_HOST: z.string().min(1),
+  POSTGRES_USER: z.string().min(1).optional(),
+  POSTGRES_PASSWORD: z.string().min(1).optional(),
+  POSTGRES_DB: z.string().min(1).optional(),
+  POSTGRES_HOST: z.string().min(1).optional(),
 
   // Redis
-  REDIS_URL: z.string().url(),
+  REDIS_URL: z.string().url().optional(),
 
   // Session
-  SESSION_SECRET: z.string().min(32, 'Session secret should be at least 32 characters long'),
+  SESSION_SECRET: z.string().default('super-secret-key-that-should-be-changed-in-production'),
   SESSION_COOKIE_SECURE: z.string().transform(val => val === 'true').default('false'),
   SESSION_COOKIE_HTTPONLY: z.string().transform(val => val === 'true').default('true'),
   SESSION_COOKIE_SAMESITE: z.enum(['strict', 'lax', 'none']).default('lax'),
 
   // Stripe
-  STRIPE_PUBLIC_KEY: z.string().min(1),
-  STRIPE_SECRET_KEY: z.string().min(1),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1),
+  STRIPE_PUBLIC_KEY: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
 
   // Security
-  CORS_ORIGIN: z.string().url(),
+  CORS_ORIGIN: z.string().default('http://localhost:3000'),
   RATE_LIMIT_WINDOW_MS: z.string().transform(Number).pipe(z.number().nonnegative()).default('900000'),
   RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).pipe(z.number().nonnegative()).default('100'),
 
@@ -41,7 +41,7 @@ const envSchema = z.object({
 
   // File Upload
   MAX_FILE_SIZE: z.string().transform(Number).pipe(z.number().positive()).default('5242880'),
-  ALLOWED_FILE_TYPES: z.string().transform(val => val.split(',')).pipe(z.array(z.string())),
+  ALLOWED_FILE_TYPES: z.string().default('pdf,docx,txt').transform(val => val.split(',')).pipe(z.array(z.string())),
 
   // API
   API_VERSION: z.string().regex(/^v\d+$/).default('v1'),

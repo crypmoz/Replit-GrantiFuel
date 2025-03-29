@@ -10,8 +10,8 @@ const dbConfig = {
   connectionString: env.DATABASE_URL,
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
-  connectionTimeoutMillis: 2000, // How long to wait for a connection
-  ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
+  connectionTimeoutMillis: 5000, // How long to wait for a connection
+  ssl: env.DATABASE_URL.includes('sslmode=require') ? { rejectUnauthorized: true } : false,
 };
 
 // Create connection pool with error handling

@@ -3,47 +3,73 @@ import Redis from 'ioredis';
 import { logger } from './logger';
 import env from '../config/env';
 
-// Redis connection configuration
-const redisConfig = {
-  host: new URL(env.REDIS_URL).hostname,
-  port: parseInt(new URL(env.REDIS_URL).port),
-  password: new URL(env.REDIS_URL).password,
-  retryStrategy: (times: number): number => {
-    const delay = Math.min(times * 50, 2000);
-    return delay;
-  },
-  maxRetriesPerRequest: 3,
-  enableReadyCheck: true,
-  connectTimeout: 10000,
-  commandTimeout: 5000,
-  keepAlive: 30000,
-  family: 4,
-  db: 0,
-};
+// Create a mock Redis client if REDIS_URL is not defined
+class MockRedis {
+  status: string = 'ready';
+  
+  async get() { return null; }
+  async setex() { return 'OK'; }
+  async keys() { return []; }
+  async del() { return 0; }
+  async ping() { return 'PONG'; }
+  async quit() { return 'OK'; }
+  on() { return this; }
+}
 
-// Initialize Redis client with error handling
-const redis = new Redis(redisConfig);
+let redis: Redis | MockRedis;
 
-// Handle Redis connection events
-redis.on('connect', () => {
-  logger.info('Redis client connected');
-});
+// Initialize Redis only if URL is available
+if (env.REDIS_URL) {
+  try {
+    // Redis connection configuration
+    const redisConfig = {
+      host: new URL(env.REDIS_URL).hostname,
+      port: parseInt(new URL(env.REDIS_URL).port),
+      password: new URL(env.REDIS_URL).password,
+      retryStrategy: (times: number): number => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      maxRetriesPerRequest: 3,
+      enableReadyCheck: true,
+      connectTimeout: 10000,
+      commandTimeout: 5000,
+      keepAlive: 30000,
+      family: 4,
+      db: 0,
+    };
 
-redis.on('ready', () => {
-  logger.info('Redis client ready');
-});
+    // Initialize Redis client with error handling
+    redis = new Redis(redisConfig);
 
-redis.on('error', (err) => {
-  logger.error('Redis client error:', err);
-});
+    // Handle Redis connection events
+    redis.on('connect', () => {
+      logger.info('Redis client connected');
+    });
 
-redis.on('close', () => {
-  logger.warn('Redis client closed');
-});
+    redis.on('ready', () => {
+      logger.info('Redis client ready');
+    });
 
-redis.on('reconnecting', (times: number) => {
-  logger.warn(`Redis client reconnecting (attempt ${times})`);
-});
+    redis.on('error', (err) => {
+      logger.error('Redis client error:', err);
+    });
+
+    redis.on('close', () => {
+      logger.warn('Redis client closed');
+    });
+
+    redis.on('reconnecting', (times: number) => {
+      logger.warn(`Redis client reconnecting (attempt ${times})`);
+    });
+  } catch (error) {
+    logger.error('Failed to initialize Redis client:', error);
+    redis = new MockRedis();
+  }
+} else {
+  logger.warn('REDIS_URL not provided, using mock Redis client');
+  redis = new MockRedis();
+}
 
 // Default cache duration (5 minutes)
 const DEFAULT_CACHE_DURATION = 300;
