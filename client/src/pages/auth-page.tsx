@@ -1,278 +1,294 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Redirect } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Redirect } from "wouter";
+import { z } from "zod";
 
+// Create a simple form validation schema
 const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 const registerSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
-  name: z.string().min(2, "Full name is required"),
-  email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Must be a valid email address"),
 });
 
+type LoginFormValues = z.infer<typeof loginSchema>;
+type RegisterFormValues = z.infer<typeof registerSchema>;
+
 export default function AuthPage() {
+  const { user, loginMutation, registerMutation } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const { loginMutation, registerMutation, user } = useAuth();
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
-  const loginForm = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
+  // Form state
+  const [loginFormData, setLoginFormData] = useState<LoginFormValues>({
+    username: "",
+    password: "",
+  });
+  
+  const [registerFormData, setRegisterFormData] = useState<RegisterFormValues>({
+    username: "",
+    password: "",
+    name: "",
+    email: "",
   });
 
-  const registerForm = useForm<z.infer<typeof registerSchema>>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      username: "",
-      name: "",
-      email: "",
-      password: "",
-    },
-  });
-
-  const onLoginSubmit = (values: z.infer<typeof loginSchema>) => {
-    loginMutation.mutate(values);
-  };
-
-  const onRegisterSubmit = (values: z.infer<typeof registerSchema>) => {
-    registerMutation.mutate({
-      ...values,
-      role: "user", // Default role for new users
-      avatar: "", // Empty avatar by default
-      bio: "", // Empty bio by default
-    });
-  };
-
-  // Redirect if already logged in
+  // If user is already logged in, redirect to home
   if (user) {
     return <Redirect to="/" />;
   }
 
-  return (
-    <div className="flex min-h-screen">
-      {/* Form Section */}
-      <div className="flex items-center justify-center w-full lg:w-1/2 p-8">
-        <div className="w-full max-w-md">
-          <div className="mb-8 text-center">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-              GrantiFuel
-            </h1>
-            <p className="mt-2 text-muted-foreground">
-              Music grant application platform for artists
-            </p>
-          </div>
+  const onLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form
+    try {
+      loginSchema.parse(loginFormData);
+      setFormErrors({});
+      loginMutation.mutate(loginFormData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors: Record<string, string> = {};
+        error.errors.forEach(err => {
+          if (err.path) {
+            errors[err.path[0]] = err.message;
+          }
+        });
+        setFormErrors(errors);
+      }
+    }
+  };
 
-          {isLogin ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Welcome back</CardTitle>
-                <CardDescription>
-                  Sign in to your GrantiFuel account
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...loginForm}>
-                  <form
-                    onSubmit={loginForm.handleSubmit(onLoginSubmit)}
-                    className="space-y-4"
-                  >
-                    <FormField
-                      control={loginForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input placeholder="username" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={loginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="********"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={loginMutation.isPending}
-                    >
-                      {loginMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : null}
-                      Sign In
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-              <CardFooter className="flex flex-col space-y-4">
-                <div className="text-sm text-center">
-                  Don't have an account?{" "}
-                  <Button
-                    variant="link"
-                    className="p-0"
-                    onClick={() => setIsLogin(false)}
-                  >
-                    Create one
-                  </Button>
+  const onRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form
+    try {
+      registerSchema.parse(registerFormData);
+      setFormErrors({});
+      registerMutation.mutate({
+        ...registerFormData,
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors: Record<string, string> = {};
+        error.errors.forEach(err => {
+          if (err.path) {
+            errors[err.path[0]] = err.message;
+          }
+        });
+        setFormErrors(errors);
+      }
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col md:flex-row">
+      {/* Form Section */}
+      <div className="w-full md:w-2/5 p-8 flex flex-col justify-center">
+        <div className="max-w-md mx-auto w-full">
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold">GrantiFuel</h1>
+              <p className="text-muted-foreground mt-2">
+                Simplify your grant application process
+              </p>
+            </div>
+
+            {/* Tab Selection */}
+            <div className="flex border-b mb-6">
+              <button
+                className={`pb-2 px-4 ${
+                  isLogin
+                    ? "border-b-2 border-primary font-medium text-primary"
+                    : "text-muted-foreground"
+                }`}
+                onClick={() => setIsLogin(true)}
+              >
+                Login
+              </button>
+              <button
+                className={`pb-2 px-4 ${
+                  !isLogin
+                    ? "border-b-2 border-primary font-medium text-primary"
+                    : "text-muted-foreground"
+                }`}
+                onClick={() => setIsLogin(false)}
+              >
+                Register
+              </button>
+            </div>
+
+            {isLogin ? (
+              <form onSubmit={onLoginSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="username" className="text-sm font-medium">
+                    Username
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={loginFormData.username}
+                    onChange={(e) =>
+                      setLoginFormData({
+                        ...loginFormData,
+                        username: e.target.value,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  {formErrors.username && (
+                    <p className="text-sm text-red-500">{formErrors.username}</p>
+                  )}
                 </div>
-              </CardFooter>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Create an account</CardTitle>
-                <CardDescription>
-                  Sign up to start using GrantiFuel
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...registerForm}>
-                  <form
-                    onSubmit={registerForm.handleSubmit(onRegisterSubmit)}
-                    className="space-y-4"
-                  >
-                    <FormField
-                      control={registerForm.control}
-                      name="username"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Username</FormLabel>
-                          <FormControl>
-                            <Input placeholder="username" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Full Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="John Doe" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="john@example.com"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={registerForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="********"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={registerMutation.isPending}
-                    >
-                      {registerMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : null}
-                      Create Account
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-              <CardFooter className="flex flex-col space-y-4">
-                <div className="text-sm text-center">
-                  Already have an account?{" "}
-                  <Button
-                    variant="link"
-                    className="p-0"
-                    onClick={() => setIsLogin(true)}
-                  >
-                    Sign in
-                  </Button>
+                <div className="space-y-2">
+                  <label htmlFor="password" className="text-sm font-medium">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={loginFormData.password}
+                    onChange={(e) =>
+                      setLoginFormData({
+                        ...loginFormData,
+                        password: e.target.value,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  {formErrors.password && (
+                    <p className="text-sm text-red-500">{formErrors.password}</p>
+                  )}
                 </div>
-              </CardFooter>
-            </Card>
-          )}
+                <button
+                  type="submit"
+                  disabled={loginMutation.isPending}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none bg-primary text-primary-foreground hover:bg-primary/90 h-10 py-2 px-4 w-full"
+                >
+                  {loginMutation.isPending ? "Logging in..." : "Login"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={onRegisterSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="name" className="text-sm font-medium">
+                    Full Name
+                  </label>
+                  <input
+                    id="name"
+                    type="text"
+                    value={registerFormData.name}
+                    onChange={(e) =>
+                      setRegisterFormData({
+                        ...registerFormData,
+                        name: e.target.value,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  {formErrors.name && (
+                    <p className="text-sm text-red-500">{formErrors.name}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="reg-username" className="text-sm font-medium">
+                    Username
+                  </label>
+                  <input
+                    id="reg-username"
+                    type="text"
+                    value={registerFormData.username}
+                    onChange={(e) =>
+                      setRegisterFormData({
+                        ...registerFormData,
+                        username: e.target.value,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  {formErrors.username && (
+                    <p className="text-sm text-red-500">{formErrors.username}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="email" className="text-sm font-medium">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={registerFormData.email}
+                    onChange={(e) =>
+                      setRegisterFormData({
+                        ...registerFormData,
+                        email: e.target.value,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  {formErrors.email && (
+                    <p className="text-sm text-red-500">{formErrors.email}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="reg-password" className="text-sm font-medium">
+                    Password
+                  </label>
+                  <input
+                    id="reg-password"
+                    type="password"
+                    value={registerFormData.password}
+                    onChange={(e) =>
+                      setRegisterFormData({
+                        ...registerFormData,
+                        password: e.target.value,
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  {formErrors.password && (
+                    <p className="text-sm text-red-500">{formErrors.password}</p>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={registerMutation.isPending}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none bg-primary text-primary-foreground hover:bg-primary/90 h-10 py-2 px-4 w-full"
+                >
+                  {registerMutation.isPending
+                    ? "Creating account..."
+                    : "Create Account"}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Hero Section - Hidden on mobile */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/90 to-blue-600/90 p-12 flex-col justify-center">
-        <div className="max-w-xl mx-auto text-white">
-          <h2 className="text-5xl font-bold mb-6">
-            Fuel Your Music Career with Grants
-          </h2>
-          <p className="text-xl mb-8">
-            GrantiFuel simplifies the grant application process with AI-powered assistance, application tracking, and expert guidance for music artists.
+      {/* Hero Section */}
+      <div className="w-full md:w-3/5 bg-gradient-to-br from-primary/90 to-primary p-8 flex items-center justify-center text-white">
+        <div className="max-w-lg">
+          <h1 className="text-4xl font-bold mb-6">
+            Streamline Your Grant Applications
+          </h1>
+          <p className="text-lg mb-8">
+            GrantiFuel helps musicians and artists manage grant applications,
+            track deadlines, and increase success rates with AI-assisted proposal
+            writing.
           </p>
+
           <div className="space-y-4">
-            <div className="flex items-start">
-              <div className="mr-4 p-3 bg-white/10 rounded-full">
+            <div className="flex items-start gap-2">
+              <div className="rounded-full bg-white/20 p-1.5 backdrop-blur">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
+                  width="18"
+                  height="18"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -280,21 +296,23 @@ export default function AuthPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                  <path d="m9 12 2 2 4-4" />
+                  <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold">AI Grant Assistant</h3>
-                <p>Get personalized help with your grant applications.</p>
+                <h3 className="font-medium">AI-Assisted Writing</h3>
+                <p className="text-white/80">
+                  Get intelligent suggestions for your grant proposals
+                </p>
               </div>
             </div>
-            <div className="flex items-start">
-              <div className="mr-4 p-3 bg-white/10 rounded-full">
+
+            <div className="flex items-start gap-2">
+              <div className="rounded-full bg-white/20 p-1.5 backdrop-blur">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
+                  width="18"
+                  height="18"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -302,27 +320,23 @@ export default function AuthPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <path d="M12 2v4" />
-                  <path d="M12 18v4" />
-                  <path d="M4.93 4.93l2.83 2.83" />
-                  <path d="M16.24 16.24l2.83 2.83" />
-                  <path d="M2 12h4" />
-                  <path d="M18 12h4" />
-                  <path d="M4.93 19.07l2.83-2.83" />
-                  <path d="M16.24 7.76l2.83-2.83" />
+                  <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Deadline Tracking</h3>
-                <p>Never miss an important grant application deadline.</p>
+                <h3 className="font-medium">Deadline Management</h3>
+                <p className="text-white/80">
+                  Never miss an important application deadline again
+                </p>
               </div>
             </div>
-            <div className="flex items-start">
-              <div className="mr-4 p-3 bg-white/10 rounded-full">
+
+            <div className="flex items-start gap-2">
+              <div className="rounded-full bg-white/20 p-1.5 backdrop-blur">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
+                  width="18"
+                  height="18"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -330,14 +344,14 @@ export default function AuthPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <path d="M4 11v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8" />
-                  <path d="M4 11a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" />
-                  <path d="M8 9V5c0-1.105.902-2 2.009-2h4c1.102 0 2.009.895 2.009 2v4" />
+                  <polyline points="20 6 9 17 4 12" />
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Templates & Resources</h3>
-                <p>Access expert templates and examples for successful applications.</p>
+                <h3 className="font-medium">Artist Profiles</h3>
+                <p className="text-white/80">
+                  Maintain artist info ready for any application
+                </p>
               </div>
             </div>
           </div>

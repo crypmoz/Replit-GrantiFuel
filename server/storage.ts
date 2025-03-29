@@ -26,6 +26,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateStripeCustomerId(userId: number, stripeCustomerId: string): Promise<User>;
+  updateLastLogin(userId: number, lastLogin: Date): Promise<User>;
   
   // Onboarding
   getUserOnboardingTasks(userId: number): Promise<UserOnboarding[]>;
@@ -112,6 +113,15 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .update(users)
       .set({ stripeCustomerId })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+  
+  async updateLastLogin(userId: number, lastLogin: Date): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ lastLogin })
       .where(eq(users.id, userId))
       .returning();
     return user;
