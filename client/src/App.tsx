@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Route, Switch, Link, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -10,6 +10,25 @@ import AuthPage from "./pages/auth-page";
 import NotFound from "./pages/not-found";
 import LandingPage from "./pages/LandingPage";
 import AboutPage from "./pages/About";
+
+// Lazy-load components
+const BlogPage = lazy(() => import('./pages/Blog'));
+const SuccessStoriesPage = lazy(() => import('./pages/SuccessStories'));
+const ContactPage = lazy(() => import('./pages/Contact'));
+const GrantsPage = lazy(() => import('./pages/Grants'));
+const ApplicationsPage = lazy(() => import('./pages/Applications'));
+const ArtistsPage = lazy(() => import('./pages/Artists'));
+const DocumentsPage = lazy(() => import('./pages/Documents'));
+const AIAssistantPage = lazy(() => import('./pages/AIAssistant'));
+const ApplicationDetailPage = lazy(() => import('./pages/ApplicationDetail'));
+const ArtistDetailPage = lazy(() => import('./pages/ArtistDetail'));
+const TemplateDetailPage = lazy(() => import('./pages/TemplateDetail'));
+const TemplateEditPage = lazy(() => import('./pages/TemplateEdit'));
+const TemplatesPage = lazy(() => import('./pages/Templates'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const PricingPage = lazy(() => import('./pages/Pricing'));
+const CheckoutPage = lazy(() => import('./pages/checkout'));
 
 // Simplified Toast Context for minimal app functionality
 const ToastContext = React.createContext<{
@@ -427,58 +446,90 @@ function PublicLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Loading component for Suspense fallback
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="h-12 w-12 animate-spin rounded-full border-4 border-purple-600 border-t-transparent"></div>
+    </div>
+  );
+}
+
 function AppContent() {
   return (
-    <Switch>
-      <Route path="/auth">
-        <PublicLayout>
-          <AuthPage />
-        </PublicLayout>
-      </Route>
-      <Route path="/pricing">
-        {() => {
-          // Dynamically import the Pricing component
-          const PricingPage = require('./pages/Pricing').default;
-          return (
-            <Layout>
-              <PricingPage />
-            </Layout>
-          );
-        }}
-      </Route>
-      <Route path="/checkout/:planName">
-        {(params) => {
-          // Dynamically import the Checkout component
-          const CheckoutPage = require('./pages/checkout').default;
-          return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <Switch>
+        <Route path="/auth">
+          <PublicLayout>
+            <AuthPage />
+          </PublicLayout>
+        </Route>
+        <Route path="/pricing">
+          <Layout>
+            <PricingPage />
+          </Layout>
+        </Route>
+        <Route path="/checkout/:planName">
+          {(params) => (
             <Layout>
               <CheckoutPage planName={params.planName} />
             </Layout>
-          );
-        }}
-      </Route>
-      <Route path="/about">
-        <Layout>
-          <AboutPage />
-        </Layout>
-      </Route>
-      <Route path="/landing">
-        <PublicLayout>
-          <LandingPage />
-        </PublicLayout>
-      </Route>
-      <SimpleProtectedRoute path="/dashboard" component={SimpleDashboard} />
-      <Route path="/">
-        <PublicLayout>
-          <LandingPage />
-        </PublicLayout>
-      </Route>
-      <Route>
-        <Layout>
-          <NotFound />
-        </Layout>
-      </Route>
-    </Switch>
+          )}
+        </Route>
+        <Route path="/about">
+          <Layout>
+            <AboutPage />
+          </Layout>
+        </Route>
+        {/* Blog page */}
+        <Route path="/blog">
+          <Layout>
+            <BlogPage />
+          </Layout>
+        </Route>
+        {/* Success Stories page */}
+        <Route path="/success-stories">
+          <Layout>
+            <SuccessStoriesPage />
+          </Layout>
+        </Route>
+        {/* Contact page */}
+        <Route path="/contact">
+          <Layout>
+            <ContactPage />
+          </Layout>
+        </Route>
+        {/* Add protected routes for app functionality */}
+        <SimpleProtectedRoute path="/dashboard" component={SimpleDashboard} />
+        <SimpleProtectedRoute path="/grants" component={GrantsPage} />
+        <SimpleProtectedRoute path="/applications" component={ApplicationsPage} />
+        <SimpleProtectedRoute path="/artists" component={ArtistsPage} />
+        <SimpleProtectedRoute path="/documents" component={DocumentsPage} />
+        <SimpleProtectedRoute path="/assistant" component={AIAssistantPage} />
+        <SimpleProtectedRoute path="/application/:id" component={(params: any) => <ApplicationDetailPage id={params.id} />} />
+        <SimpleProtectedRoute path="/artist/:id" component={(params: any) => <ArtistDetailPage id={params.id} />} />
+        <SimpleProtectedRoute path="/template/:id" component={(params: any) => <TemplateDetailPage id={params.id} />} />
+        <SimpleProtectedRoute path="/template/:id/edit" component={(params: any) => <TemplateEditPage id={params.id} />} />
+        <SimpleProtectedRoute path="/templates" component={TemplatesPage} />
+        <SimpleProtectedRoute path="/profile" component={ProfilePage} />
+        <SimpleProtectedRoute path="/settings" component={SettingsPage} />
+        <Route path="/landing">
+          <PublicLayout>
+            <LandingPage />
+          </PublicLayout>
+        </Route>
+        <Route path="/">
+          <PublicLayout>
+            <LandingPage />
+          </PublicLayout>
+        </Route>
+        <Route>
+          <Layout>
+            <NotFound />
+          </Layout>
+        </Route>
+      </Switch>
+    </Suspense>
   );
 }
 
