@@ -15,7 +15,7 @@ const scryptAsync = promisify(scrypt);
 
 declare global {
   namespace Express {
-    interface User extends Omit<User, "password"> {}
+    interface User extends Omit<import('@shared/schema').User, "password"> {}
   }
 }
 
@@ -114,7 +114,6 @@ export function setupAuth(app: Express) {
         name,
         email,
         role: "user",
-        createdAt: new Date(),
       });
 
       req.login(user, (err) => {

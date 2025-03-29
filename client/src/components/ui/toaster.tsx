@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 export function Toaster() {
@@ -14,7 +14,7 @@ export function Toaster() {
               ? 'bg-red-100 border-l-4 border-red-500 text-red-700'
               : toast.variant === 'success'
               ? 'bg-green-100 border-l-4 border-green-500 text-green-700'
-              : 'bg-white border-l-4 border-blue-500 text-gray-700'
+              : 'bg-white border-l-4 border-blue-500 text-gray-700' // default
           }`}
           onClick={() => dismiss(toast.id)}
         >

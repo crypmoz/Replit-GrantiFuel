@@ -12,7 +12,9 @@ export function Toaster() {
           className={`p-4 rounded-md shadow-md max-w-md transform transition-all duration-300 ${
             toast.variant === 'destructive'
               ? 'bg-red-100 border-l-4 border-red-500 text-red-700'
-              : 'bg-white border-l-4 border-blue-500 text-gray-700'
+              : toast.variant === 'success'
+              ? 'bg-green-100 border-l-4 border-green-500 text-green-700'
+              : 'bg-white border-l-4 border-blue-500 text-gray-700' // default
           }`}
           onClick={() => dismiss(toast.id)}
         >
