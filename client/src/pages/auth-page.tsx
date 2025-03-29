@@ -1,359 +1,270 @@
-import { useAuth } from "@/hooks/use-auth";
-import { useState } from "react";
-import { Redirect } from "wouter";
-import { z } from "zod";
-
-// Create a simple form validation schema
-const loginSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-const registerSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Must be a valid email address"),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
-type RegisterFormValues = z.infer<typeof registerSchema>;
+import React, { useState } from 'react';
+import { useLocation } from 'wouter';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  
-  // Form state
-  const [loginFormData, setLoginFormData] = useState<LoginFormValues>({
-    username: "",
-    password: "",
-  });
-  
-  const [registerFormData, setRegisterFormData] = useState<RegisterFormValues>({
-    username: "",
-    password: "",
-    name: "",
-    email: "",
-  });
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const { loginMutation, registerMutation, user } = useAuth();
+  const [location, setLocation] = useLocation();
+  const { toast } = useToast();
 
-  // If user is already logged in, redirect to home
-  if (user) {
-    return <Redirect to="/" />;
-  }
-
-  const onLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate form
-    try {
-      loginSchema.parse(loginFormData);
-      setFormErrors({});
-      loginMutation.mutate(loginFormData);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errors: Record<string, string> = {};
-        error.errors.forEach(err => {
-          if (err.path) {
-            errors[err.path[0]] = err.message;
-          }
-        });
-        setFormErrors(errors);
-      }
+  // Redirect if already logged in
+  React.useEffect(() => {
+    if (user) {
+      setLocation('/');
     }
-  };
+  }, [user, setLocation]);
 
-  const onRegisterSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
-    try {
-      registerSchema.parse(registerFormData);
-      setFormErrors({});
-      registerMutation.mutate({
-        ...registerFormData,
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errors: Record<string, string> = {};
-        error.errors.forEach(err => {
-          if (err.path) {
-            errors[err.path[0]] = err.message;
-          }
+    if (isLogin) {
+      loginMutation.mutate(
+        { username, password },
+        {
+          onError: (error) => {
+            toast({
+              title: 'Login failed',
+              description: error.message,
+              variant: 'destructive',
+            });
+          },
+        }
+      );
+    } else {
+      if (!name || !email) {
+        toast({
+          title: 'Registration failed',
+          description: 'Please fill in all fields',
+          variant: 'destructive',
         });
-        setFormErrors(errors);
+        return;
       }
+      
+      registerMutation.mutate(
+        { username, password, name, email },
+        {
+          onError: (error) => {
+            toast({
+              title: 'Registration failed',
+              description: error.message,
+              variant: 'destructive',
+            });
+          },
+        }
+      );
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Form Section */}
-      <div className="w-full md:w-2/5 p-8 flex flex-col justify-center">
-        <div className="max-w-md mx-auto w-full">
-          <div className="space-y-6">
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold">GrantiFuel</h1>
-              <p className="text-muted-foreground mt-2">
-                Simplify your grant application process
-              </p>
-            </div>
-
-            {/* Tab Selection */}
-            <div className="flex border-b mb-6">
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Form section */}
+      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
+        <div className="mx-auto w-full max-w-sm lg:w-96">
+          <div>
+            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+              {isLogin ? 'Sign in to your account' : 'Create your account'}
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              {isLogin ? "Don't have an account? " : 'Already have an account? '}
               <button
-                className={`pb-2 px-4 ${
-                  isLogin
-                    ? "border-b-2 border-primary font-medium text-primary"
-                    : "text-muted-foreground"
-                }`}
-                onClick={() => setIsLogin(true)}
+                onClick={() => setIsLogin(!isLogin)}
+                className="font-medium text-blue-600 hover:text-blue-500"
               >
-                Login
+                {isLogin ? 'Create one' : 'Sign in'}
               </button>
-              <button
-                className={`pb-2 px-4 ${
-                  !isLogin
-                    ? "border-b-2 border-primary font-medium text-primary"
-                    : "text-muted-foreground"
-                }`}
-                onClick={() => setIsLogin(false)}
-              >
-                Register
-              </button>
-            </div>
+            </p>
+          </div>
 
-            {isLogin ? (
-              <form onSubmit={onLoginSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="username" className="text-sm font-medium">
-                    Username
-                  </label>
+          <div className="mt-8">
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <div>
+                <label
+                  htmlFor="username"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Username
+                </label>
+                <div className="mt-1">
                   <input
                     id="username"
+                    name="username"
                     type="text"
-                    value={loginFormData.username}
-                    onChange={(e) =>
-                      setLoginFormData({
-                        ...loginFormData,
-                        username: e.target.value,
-                      })
-                    }
-                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
-                  {formErrors.username && (
-                    <p className="text-sm text-red-500">{formErrors.username}</p>
-                  )}
                 </div>
-                <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium">
-                    Password
-                  </label>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Password
+                </label>
+                <div className="mt-1">
                   <input
                     id="password"
+                    name="password"
                     type="password"
-                    value={loginFormData.password}
-                    onChange={(e) =>
-                      setLoginFormData({
-                        ...loginFormData,
-                        password: e.target.value,
-                      })
-                    }
-                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   />
-                  {formErrors.password && (
-                    <p className="text-sm text-red-500">{formErrors.password}</p>
-                  )}
                 </div>
+              </div>
+
+              {!isLogin && (
+                <>
+                  <div>
+                    <label
+                      htmlFor="name"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      Full Name
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      Email
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div>
                 <button
                   type="submit"
-                  disabled={loginMutation.isPending}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none bg-primary text-primary-foreground hover:bg-primary/90 h-10 py-2 px-4 w-full"
+                  disabled={loginMutation.isPending || registerMutation.isPending}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                 >
-                  {loginMutation.isPending ? "Logging in..." : "Login"}
+                  {loginMutation.isPending || registerMutation.isPending ? (
+                    <span>Loading...</span>
+                  ) : isLogin ? (
+                    'Sign in'
+                  ) : (
+                    'Create account'
+                  )}
                 </button>
-              </form>
-            ) : (
-              <form onSubmit={onRegisterSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="name" className="text-sm font-medium">
-                    Full Name
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    value={registerFormData.name}
-                    onChange={(e) =>
-                      setRegisterFormData({
-                        ...registerFormData,
-                        name: e.target.value,
-                      })
-                    }
-                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                  {formErrors.name && (
-                    <p className="text-sm text-red-500">{formErrors.name}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="reg-username" className="text-sm font-medium">
-                    Username
-                  </label>
-                  <input
-                    id="reg-username"
-                    type="text"
-                    value={registerFormData.username}
-                    onChange={(e) =>
-                      setRegisterFormData({
-                        ...registerFormData,
-                        username: e.target.value,
-                      })
-                    }
-                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                  {formErrors.username && (
-                    <p className="text-sm text-red-500">{formErrors.username}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={registerFormData.email}
-                    onChange={(e) =>
-                      setRegisterFormData({
-                        ...registerFormData,
-                        email: e.target.value,
-                      })
-                    }
-                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                  {formErrors.email && (
-                    <p className="text-sm text-red-500">{formErrors.email}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="reg-password" className="text-sm font-medium">
-                    Password
-                  </label>
-                  <input
-                    id="reg-password"
-                    type="password"
-                    value={registerFormData.password}
-                    onChange={(e) =>
-                      setRegisterFormData({
-                        ...registerFormData,
-                        password: e.target.value,
-                      })
-                    }
-                    className="flex h-10 w-full rounded-md border border-gray-300 px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                  {formErrors.password && (
-                    <p className="text-sm text-red-500">{formErrors.password}</p>
-                  )}
-                </div>
-                <button
-                  type="submit"
-                  disabled={registerMutation.isPending}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none bg-primary text-primary-foreground hover:bg-primary/90 h-10 py-2 px-4 w-full"
-                >
-                  {registerMutation.isPending
-                    ? "Creating account..."
-                    : "Create Account"}
-                </button>
-              </form>
-            )}
+              </div>
+            </form>
           </div>
         </div>
       </div>
 
-      {/* Hero Section */}
-      <div className="w-full md:w-3/5 bg-gradient-to-br from-primary/90 to-primary p-8 flex items-center justify-center text-white">
-        <div className="max-w-lg">
-          <h1 className="text-4xl font-bold mb-6">
-            Streamline Your Grant Applications
-          </h1>
-          <p className="text-lg mb-8">
-            GrantiFuel helps musicians and artists manage grant applications,
-            track deadlines, and increase success rates with AI-assisted proposal
-            writing.
-          </p>
-
-          <div className="space-y-4">
-            <div className="flex items-start gap-2">
-              <div className="rounded-full bg-white/20 p-1.5 backdrop-blur">
+      {/* Info section */}
+      <div className="hidden lg:block relative w-0 flex-1">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-800">
+          <div className="absolute inset-0 flex flex-col justify-center items-center p-12 text-white">
+            <h1 className="text-4xl font-bold mb-4">GrantiFuel</h1>
+            <p className="text-xl mb-8 max-w-md text-center">
+              Your all-in-one platform for managing music grant applications and getting funded.
+            </p>
+            <ul className="space-y-4">
+              <li className="flex items-center">
                 <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
+                  className="h-6 w-6 mr-2 text-blue-300"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-medium">AI-Assisted Writing</h3>
-                <p className="text-white/80">
-                  Get intelligent suggestions for your grant proposals
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2">
-              <div className="rounded-full bg-white/20 p-1.5 backdrop-blur">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
                   viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span>AI-powered application assistance</span>
+              </li>
+              <li className="flex items-center">
+                <svg
+                  className="h-6 w-6 mr-2 text-blue-300"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-medium">Deadline Management</h3>
-                <p className="text-white/80">
-                  Never miss an important application deadline again
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2">
-              <div className="rounded-full bg-white/20 p-1.5 backdrop-blur">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
                   viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span>Track multiple applications easily</span>
+              </li>
+              <li className="flex items-center">
+                <svg
+                  className="h-6 w-6 mr-2 text-blue-300"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <polyline points="20 6 9 17 4 12" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
-              </div>
-              <div>
-                <h3 className="font-medium">Artist Profiles</h3>
-                <p className="text-white/80">
-                  Maintain artist info ready for any application
-                </p>
-              </div>
-            </div>
+                <span>Stay informed about grant deadlines</span>
+              </li>
+              <li className="flex items-center">
+                <svg
+                  className="h-6 w-6 mr-2 text-blue-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span>Organize your music artist profile</span>
+              </li>
+            </ul>
           </div>
         </div>
       </div>

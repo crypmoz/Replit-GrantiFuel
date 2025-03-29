@@ -1,304 +1,270 @@
-import { useState, useEffect } from "react";
-import { useLocation, useRoute } from "wouter";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
-
-// Form validation schemas
-const loginSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-const registerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
-type RegisterFormValues = z.infer<typeof registerSchema>;
+import React, { useState } from 'react';
+import { useLocation } from 'wouter';
+import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const [, navigate] = useLocation();
-  const { user, loginMutation, registerMutation } = useAuth();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const { loginMutation, registerMutation, user } = useAuth();
+  const [location, setLocation] = useLocation();
+  const { toast } = useToast();
 
   // Redirect if already logged in
-  useEffect(() => {
+  React.useEffect(() => {
     if (user) {
-      navigate("/");
+      setLocation('/');
     }
-  }, [user, navigate]);
+  }, [user, setLocation]);
 
-  const loginForm = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: "",
-      password: "",
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (isLogin) {
+      loginMutation.mutate(
+        { username, password },
+        {
+          onError: (error) => {
+            toast({
+              title: 'Login failed',
+              description: error.message,
+              variant: 'destructive',
+            });
+          },
+        }
+      );
+    } else {
+      if (!name || !email) {
+        toast({
+          title: 'Registration failed',
+          description: 'Please fill in all fields',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      registerMutation.mutate(
+        { username, password, name, email },
+        {
+          onError: (error) => {
+            toast({
+              title: 'Registration failed',
+              description: error.message,
+              variant: 'destructive',
+            });
+          },
+        }
+      );
     }
-  });
-
-  const registerForm = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      username: "",
-      password: "",
-      confirmPassword: "",
-    }
-  });
-
-  const onLoginSubmit = (data: LoginFormValues) => {
-    loginMutation.mutate(data);
-  };
-
-  const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Strip out confirmPassword as it's not needed for the API call
-    const { confirmPassword, ...registerData } = data;
-    registerMutation.mutate(registerData);
-  };
-
-  const toggleForm = () => {
-    setIsLogin(!isLogin);
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Left Column - Form */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-background">
-        <div className="w-full max-w-md">
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-              GrantiFuel
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              {isLogin 
-                ? "Sign in to manage your music grant applications" 
-                : "Create an account to get started with GrantiFuel"}
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Form section */}
+      <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-20 xl:px-24">
+        <div className="mx-auto w-full max-w-sm lg:w-96">
+          <div>
+            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+              {isLogin ? 'Sign in to your account' : 'Create your account'}
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              {isLogin ? "Don't have an account? " : 'Already have an account? '}
+              <button
+                onClick={() => setIsLogin(!isLogin)}
+                className="font-medium text-blue-600 hover:text-blue-500"
+              >
+                {isLogin ? 'Create one' : 'Sign in'}
+              </button>
             </p>
           </div>
 
-          {isLogin ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Sign In</CardTitle>
-                <CardDescription>
-                  Enter your credentials to access your account
-                </CardDescription>
-              </CardHeader>
-              <form onSubmit={loginForm.handleSubmit(onLoginSubmit)}>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login-username">Username</Label>
-                    <Input
-                      id="login-username"
-                      type="text"
-                      placeholder="Your username"
-                      {...loginForm.register("username")}
-                    />
-                    {loginForm.formState.errors.username && (
-                      <p className="text-sm text-destructive">
-                        {loginForm.formState.errors.username.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password">Password</Label>
-                    <Input
-                      id="login-password"
-                      type="password"
-                      placeholder="Your password"
-                      {...loginForm.register("password")}
-                    />
-                    {loginForm.formState.errors.password && (
-                      <p className="text-sm text-destructive">
-                        {loginForm.formState.errors.password.message}
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-                <CardFooter className="flex flex-col">
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={loginMutation.isPending}
-                  >
-                    {loginMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Sign In
-                  </Button>
-                  <p className="mt-4 text-sm text-center text-muted-foreground">
-                    Don't have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={toggleForm}
-                      className="text-primary hover:underline"
+          <div className="mt-8">
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <div>
+                <label
+                  htmlFor="username"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Username
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Password
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              {!isLogin && (
+                <>
+                  <div>
+                    <label
+                      htmlFor="name"
+                      className="block text-sm font-medium text-gray-700"
                     >
-                      Create an account
-                    </button>
-                  </p>
-                </CardFooter>
-              </form>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Create Account</CardTitle>
-                <CardDescription>
-                  Sign up to start managing your grant applications
-                </CardDescription>
-              </CardHeader>
-              <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)}>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="register-name">Full Name</Label>
-                    <Input
-                      id="register-name"
-                      type="text"
-                      placeholder="Your full name"
-                      {...registerForm.register("name")}
-                    />
-                    {registerForm.formState.errors.name && (
-                      <p className="text-sm text-destructive">
-                        {registerForm.formState.errors.name.message}
-                      </p>
-                    )}
+                      Full Name
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-email">Email</Label>
-                    <Input
-                      id="register-email"
-                      type="email"
-                      placeholder="your.email@example.com"
-                      {...registerForm.register("email")}
-                    />
-                    {registerForm.formState.errors.email && (
-                      <p className="text-sm text-destructive">
-                        {registerForm.formState.errors.email.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-username">Username</Label>
-                    <Input
-                      id="register-username"
-                      type="text"
-                      placeholder="Choose a username"
-                      {...registerForm.register("username")}
-                    />
-                    {registerForm.formState.errors.username && (
-                      <p className="text-sm text-destructive">
-                        {registerForm.formState.errors.username.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-password">Password</Label>
-                    <Input
-                      id="register-password"
-                      type="password"
-                      placeholder="Create a password"
-                      {...registerForm.register("password")}
-                    />
-                    {registerForm.formState.errors.password && (
-                      <p className="text-sm text-destructive">
-                        {registerForm.formState.errors.password.message}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-confirm-password">Confirm Password</Label>
-                    <Input
-                      id="register-confirm-password"
-                      type="password"
-                      placeholder="Confirm your password"
-                      {...registerForm.register("confirmPassword")}
-                    />
-                    {registerForm.formState.errors.confirmPassword && (
-                      <p className="text-sm text-destructive">
-                        {registerForm.formState.errors.confirmPassword.message}
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-                <CardFooter className="flex flex-col">
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={registerMutation.isPending}
-                  >
-                    {registerMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Create Account
-                  </Button>
-                  <p className="mt-4 text-sm text-center text-muted-foreground">
-                    Already have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={toggleForm}
-                      className="text-primary hover:underline"
+
+                  <div>
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-medium text-gray-700"
                     >
-                      Sign in
-                    </button>
-                  </p>
-                </CardFooter>
-              </form>
-            </Card>
-          )}
+                      Email
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div>
+                <button
+                  type="submit"
+                  disabled={loginMutation.isPending || registerMutation.isPending}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {loginMutation.isPending || registerMutation.isPending ? (
+                    <span>Loading...</span>
+                  ) : isLogin ? (
+                    'Sign in'
+                  ) : (
+                    'Create account'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
 
-      {/* Right Column - Hero Section */}
-      <div className="flex-1 bg-gradient-to-br from-primary to-blue-700 p-12 flex flex-col justify-center">
-        <div className="max-w-lg mx-auto text-white">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Simplify Your Music Grant Applications
-          </h2>
-          <p className="text-lg mb-8 opacity-90">
-            GrantiFuel helps musicians streamline the grant application process.
-            Track deadlines, manage documents, and get AI-powered assistance to
-            improve your chances of success.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm">
-              <h3 className="font-semibold text-xl mb-2">Deadline Tracking</h3>
-              <p className="opacity-80">
-                Never miss an application deadline again with our advanced tracking system.
-              </p>
-            </div>
-            <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm">
-              <h3 className="font-semibold text-xl mb-2">AI Assistant</h3>
-              <p className="opacity-80">
-                Get personalized help optimizing your grant applications for success.
-              </p>
-            </div>
-            <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm">
-              <h3 className="font-semibold text-xl mb-2">Artist Profiles</h3>
-              <p className="opacity-80">
-                Maintain reusable artist information for faster application submissions.
-              </p>
-            </div>
-            <div className="bg-white/10 p-4 rounded-lg backdrop-blur-sm">
-              <h3 className="font-semibold text-xl mb-2">Grant Database</h3>
-              <p className="opacity-80">
-                Access a curated database of music grants tailored to your needs.
-              </p>
-            </div>
+      {/* Info section */}
+      <div className="hidden lg:block relative w-0 flex-1">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-800">
+          <div className="absolute inset-0 flex flex-col justify-center items-center p-12 text-white">
+            <h1 className="text-4xl font-bold mb-4">GrantiFuel</h1>
+            <p className="text-xl mb-8 max-w-md text-center">
+              Your all-in-one platform for managing music grant applications and getting funded.
+            </p>
+            <ul className="space-y-4">
+              <li className="flex items-center">
+                <svg
+                  className="h-6 w-6 mr-2 text-blue-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span>AI-powered application assistance</span>
+              </li>
+              <li className="flex items-center">
+                <svg
+                  className="h-6 w-6 mr-2 text-blue-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span>Track multiple applications easily</span>
+              </li>
+              <li className="flex items-center">
+                <svg
+                  className="h-6 w-6 mr-2 text-blue-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span>Stay informed about grant deadlines</span>
+              </li>
+              <li className="flex items-center">
+                <svg
+                  className="h-6 w-6 mr-2 text-blue-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <span>Organize your music artist profile</span>
+              </li>
+            </ul>
           </div>
         </div>
       </div>

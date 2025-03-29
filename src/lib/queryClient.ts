@@ -1,113 +1,65 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { QueryClient, QueryKey } from "@tanstack/react-query";
 
-// Define a type-safe default query function
-const defaultQueryFn: QueryFunction = async ({ queryKey }) => {
-  // Convert the query key to a string
-  const url = Array.isArray(queryKey) ? queryKey[0] as string : queryKey as string;
-  
-  const res = await fetch(url, { 
-    credentials: "include" 
-  });
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      throw new Error("Unauthorized");
-    }
-    throw new Error(`API error: ${res.statusText}`);
-  }
-
-  if (res.headers.get('content-type')?.includes('application/json')) {
-    return res.json();
-  }
-
-  return res.text();
-};
-
-type QueryFnOptions = {
-  on401?: "throw" | "returnNull";
-};
-
-export function getQueryFn({ on401 = "throw" }: QueryFnOptions = {}) {
-  // Return a type-safe query function
-  const queryFn: QueryFunction = async ({ queryKey }) => {
-    try {
-      // Convert the query key to a string
-      const url = Array.isArray(queryKey) ? queryKey[0] as string : queryKey as string;
-      
-      const res = await fetch(url, { 
-        credentials: "include" 
-      });
-  
-      if (!res.ok) {
-        if (res.status === 401 && on401 === "returnNull") {
-          return undefined;
-        }
-        if (res.status === 401) {
-          throw new Error("Unauthorized");
-        }
-        throw new Error(`API error: ${res.statusText}`);
-      }
-  
-      if (res.headers.get('content-type')?.includes('application/json')) {
-        return res.json();
-      }
-  
-      return res.text();
-    } catch (err) {
-      if (err instanceof Error && err.message === "Unauthorized" && on401 === "returnNull") {
-        return undefined;
-      }
-      throw err;
-    }
-  };
-  
-  return queryFn;
-}
-
+// Query client instance for React Query
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: defaultQueryFn,
-      retry: false,
       refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 1000 * 60 * 5, // 5 minutes
     },
   },
 });
 
-type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+// Types for API requests
+export interface RequestOptions {
+  headers?: Record<string, string>;
+}
 
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+// Common API request function
 export async function apiRequest(
   method: HttpMethod,
-  url: string,
-  data?: any,
-  options: RequestInit = {}
-): Promise<Response> {
-  const isFormData = data instanceof FormData;
-  
-  // Create a headers object properly
-  const headers = new Headers(options.headers);
-  
-  if (!isFormData) {
-    headers.set("Content-Type", "application/json");
-  }
+  endpoint: string,
+  data?: unknown,
+  options: RequestOptions = {}
+) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
 
   const config: RequestInit = {
     method,
-    credentials: "include",
     headers,
-    ...options,
+    credentials: "include",
   };
 
-  if (data !== undefined) {
-    config.body = isFormData ? data : JSON.stringify(data);
+  if (data && method !== "GET") {
+    config.body = JSON.stringify(data);
   }
 
-  const response = await fetch(url, config);
+  return fetch(endpoint, config);
+}
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(error || response.statusText);
-  }
+// QueryFn generator with error handling options
+export function getQueryFn({ on401 = "throw" }: { on401?: "throw" | "returnNull" } = {}) {
+  return async ({ queryKey }: { queryKey: QueryKey }) => {
+    const [endpoint] = queryKey as [string, ...unknown[]];
+    const response = await fetch(String(endpoint), { credentials: "include" });
 
-  return response;
+    if (response.status === 401) {
+      if (on401 === "returnNull") {
+        return null;
+      }
+      throw new Error("Unauthorized");
+    }
+
+    if (!response.ok) {
+      throw new Error(`API error ${response.status}: ${await response.text()}`);
+    }
+
+    return response.json();
+  };
 }

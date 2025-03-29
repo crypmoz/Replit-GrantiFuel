@@ -1,9 +1,6 @@
-// This hook provides a simple toast notification system
-// We're using a simplified version until we implement the full UI components
+import { createContext, useContext, ReactNode, useState, useCallback } from 'react';
 
-import { useState } from 'react';
-
-type ToastVariant = 'default' | 'destructive' | 'success';
+export type ToastVariant = 'default' | 'destructive' | 'success';
 
 export interface Toast {
   id: string;
@@ -12,43 +9,49 @@ export interface Toast {
   variant?: ToastVariant;
 }
 
-interface ToastOptions {
-  title?: string;
-  description?: string;
-  variant?: ToastVariant;
-  duration?: number;
+interface ToastContextType {
+  toasts: Toast[];
+  toast: (toast: Omit<Toast, 'id'>) => void;
+  dismiss: (id?: string) => void;
 }
 
-export function useToast() {
+export const ToastContext = createContext<ToastContextType | undefined>(undefined);
+
+export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const toast = ({ title, description, variant = 'default', duration = 5000 }: ToastOptions) => {
-    const id = Math.random().toString(36).substring(2, 9);
-    
-    // Add the toast to the array
-    setToasts((prevToasts) => [...prevToasts, { id, title, description, variant }]);
-    
-    // Remove the toast after the duration
-    setTimeout(() => {
-      setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
-    }, duration);
-    
-    return id;
-  };
+  const toast = useCallback(
+    ({ title, description, variant = 'default' }: Omit<Toast, 'id'>) => {
+      const id = Math.random().toString(36).substring(2, 9);
+      setToasts((prev) => [...prev, { id, title, description, variant }]);
 
-  const dismiss = (toastId?: string) => {
-    if (toastId) {
-      setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== toastId));
+      // Auto dismiss after 5 seconds
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 5000);
+    },
+    []
+  );
+
+  const dismiss = useCallback((id?: string) => {
+    if (id) {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
     } else {
       setToasts([]);
     }
-  };
+  }, []);
 
-  return {
-    toast,
-    dismiss,
-    toasts,
-  };
+  return (
+    <ToastContext.Provider value={{ toasts, toast, dismiss }}>
+      {children}
+    </ToastContext.Provider>
+  );
 }
 
-// When we implement proper UI components, this will be replaced with a more comprehensive solution
+export function useToast() {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast must be used within a ToastProvider');
+  }
+  return context;
+}
