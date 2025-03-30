@@ -105,7 +105,7 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row items-center max-w-6xl mx-auto">
             <div className="md:w-1/2 mb-12 md:mb-0 md:pr-12">
               <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">Revolutionizing music grant applications</Badge>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight bg-gradient-to-r from-primary to-primary-600 bg-clip-text text-transparent mb-6">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight gradient-text mb-6">
                 Fund Your Musical Vision
               </h1>
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
