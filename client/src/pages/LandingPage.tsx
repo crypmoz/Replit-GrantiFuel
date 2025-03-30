@@ -108,7 +108,7 @@ export default function LandingPage() {
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight gradient-text mb-6">
                 Fund Your Musical Vision
               </h1>
-              <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+              <p className="text-lg md:text-xl text-gray-800 dark:text-gray-100 mb-8 leading-relaxed">
                 GrantiFuel helps musicians and artists navigate the complex world of grants with AI-powered tools, smart templates, and expert guidance.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
@@ -147,7 +147,7 @@ export default function LandingPage() {
           <div className="text-center max-w-3xl mx-auto mb-16">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">Features</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Everything You Need to Secure Funding</h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300">
+            <p className="text-lg text-gray-800 dark:text-gray-100">
               Our comprehensive suite of tools is designed to make the grant application process easier, more efficient, and more successful.
             </p>
           </div>
@@ -167,7 +167,7 @@ export default function LandingPage() {
                     {feature.icon}
                   </div>
                   <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-300">{feature.description}</p>
+                  <p className="text-gray-800 dark:text-gray-100">{feature.description}</p>
                 </CardContent>
               </Card>
             ))}
@@ -182,7 +182,7 @@ export default function LandingPage() {
             {stats.map((stat, index) => (
               <div key={index} className="text-center">
                 <div className="text-3xl md:text-4xl font-bold text-primary mb-2">{stat.value}</div>
-                <div className="text-sm md:text-base text-gray-600 dark:text-gray-300">{stat.label}</div>
+                <div className="text-sm md:text-base text-gray-800 dark:text-gray-100">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -195,7 +195,7 @@ export default function LandingPage() {
           <div className="text-center max-w-3xl mx-auto mb-16">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">Testimonials</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Success Stories from Artists Like You</h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300">
+            <p className="text-lg text-gray-800 dark:text-gray-100">
               Hear from musicians and artists who have transformed their grant application process with GrantiFuel.
             </p>
           </div>
@@ -212,10 +212,10 @@ export default function LandingPage() {
                     />
                   </div>
                   <div className="p-6">
-                    <p className="text-gray-600 dark:text-gray-300 mb-4 italic">"{testimonial.quote}"</p>
+                    <p className="text-gray-800 dark:text-gray-100 mb-4 italic">"{testimonial.quote}"</p>
                     <div>
                       <p className="font-semibold">{testimonial.author}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{testimonial.role}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">{testimonial.role}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -230,7 +230,7 @@ export default function LandingPage() {
         <div className="container px-4 mx-auto">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Grant Applications?</h2>
-            <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
+            <p className="text-lg text-gray-800 dark:text-gray-100 mb-8">
               Join thousands of artists who are using GrantiFuel to fund their creative projects.
             </p>
             <Button size="lg" onClick={() => setLocation('/dashboard')} className="font-medium">
