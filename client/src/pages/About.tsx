@@ -1,9 +1,8 @@
-import React from 'react';
 import { useLocation } from 'wouter';
-import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
-import LandingHeader from '../components/layout/LandingHeader';
-import Footer from '../components/layout/Footer';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import LandingHeader from '@/components/layout/LandingHeader';
+import Footer from '@/components/layout/Footer';
 import { 
   Twitter, 
   Linkedin, 
@@ -118,7 +117,7 @@ export default function AboutPage() {
     {
       year: '2019',
       title: 'The Idea',
-      description: 'Sarah and Michael conceive GrantiFuel after experiencing the challenges of grant applications firsthand.'
+      description: 'Sarah and Michael conceive Grantaroo after experiencing the challenges of grant applications firsthand.'
     },
     {
       year: '2020',
@@ -164,7 +163,7 @@ export default function AboutPage() {
               <div className="md:w-1/2 mb-12 md:mb-0 md:pr-12">
                 <h1 className="text-4xl md:text-5xl font-bold mb-6">Our Mission</h1>
                 <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
-                  GrantiFuel was founded with a clear mission: to democratize access to arts funding by empowering artists with technology.
+                  Grantaroo was founded with a clear mission: to democratize access to arts funding by empowering artists with technology.
                 </p>
                 <p className="text-gray-600 dark:text-gray-300 mb-8">
                   We believe that talent should be the only prerequisite for securing funding, not grant-writing expertise or industry connections. Our platform leverages AI, data, and community knowledge to level the playing field.
@@ -192,7 +191,7 @@ export default function AboutPage() {
             <div className="text-center max-w-3xl mx-auto mb-16">
               <h2 className="text-3xl md:text-4xl font-bold mb-6">Our Values</h2>
               <p className="text-lg text-gray-600 dark:text-gray-300">
-                These core principles guide everything we do at GrantiFuel, from product development to customer support.
+                These core principles guide everything we do at Grantaroo, from product development to customer support.
               </p>
             </div>
             
@@ -311,7 +310,7 @@ export default function AboutPage() {
         <section className="py-16 bg-primary/10 dark:bg-gray-800">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto text-center">
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">Join the GrantiFuel Community</h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-6">Join the Grantaroo Community</h2>
               <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
                 Connect with like-minded artists, share your success stories, and transform your approach to grant funding.
               </p>

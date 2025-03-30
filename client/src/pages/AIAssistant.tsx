@@ -7,16 +7,16 @@ import {
   CardFooter, 
   CardTitle, 
   CardDescription 
-} from '../components/ui/card';
+} from '@/components/ui/card';
 import { 
   Tabs, 
   TabsContent, 
   TabsList, 
   TabsTrigger 
-} from '../components/ui/tabs';
-import { Button } from '../components/ui/button';
-import { Textarea } from '../components/ui/textarea';
-import { Input } from '../components/ui/input';
+} from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { 
   Select,
   SelectContent,
@@ -24,9 +24,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '../components/ui/select';
-import { Badge } from '../components/ui/badge';
-import { Label } from '../components/ui/label';
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { 
   Zap,
   Send, 
@@ -38,13 +38,13 @@ import {
   MessageSquare,
   Loader
 } from 'lucide-react';
-import { useToast } from '../hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
-import { queryClient } from '../lib/queryClient';
+import { queryClient } from '@/lib/queryClient';
 import { Grant, Template, Artist } from '@shared/schema';
-import ChatInterface from '../components/chat/ChatInterface';
-import ProfileSelector from '../components/chat/ProfileSelector';
-import { useChatbot, GrantProfileType } from '../context/ChatbotContext';
+import ChatInterface from '@/components/chat/ChatInterface';
+import ProfileSelector from '@/components/chat/ProfileSelector';
+import { useChatbot, GrantProfileType } from '@/context/ChatbotContext';
 
 export default function AIAssistant() {
   const [location] = useLocation();

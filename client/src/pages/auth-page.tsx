@@ -1,294 +1,456 @@
-import React, { useState } from 'react';
-import { useLocation } from 'wouter';
-import { useAuth } from '../hooks/use-auth';
-import { useToast } from '../App';
+import { useState, useEffect, useRef } from "react";
+import { Redirect, useLocation } from "wouter";
+import { useAuth, LoginData, RegisterData } from "../hooks/use-auth";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
+import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
+import { Loader2 } from "lucide-react";
+import { VisuallyHidden, LiveRegion } from "../components/ui/a11y-utils";
+import { AccessibleButton } from "../components/ui/accessible-button";
+
+// Form schemas
+const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
+const registerSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Please enter a valid email address"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const { loginMutation, registerMutation, user } = useAuth();
-  const [location, setLocation] = useLocation();
-  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<string>("login");
+  const [location, navigate] = useLocation();
+  const { user, isLoading, loginMutation, registerMutation, logoutMutation } = useAuth();
 
-  // Redirect if already logged in
-  React.useEffect(() => {
-    if (user) {
-      setLocation('/');
+  // Get query parameters
+  const params = new URLSearchParams(window.location.search);
+  const logoutStatus = params.get('status') === 'loggedout';
+  
+  // Only redirect if logged in and NOT coming from logout
+  useEffect(() => {
+    if (user && !isLoading && !logoutStatus) {
+      // Use navigate for a client-side navigation
+      navigate("/dashboard");
     }
-  }, [user, setLocation]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (isLogin) {
-      loginMutation.mutate(
-        { username, password },
-        {
-          onError: (error) => {
-            toast({
-              title: 'Login failed',
-              description: error.message,
-              variant: 'destructive',
-            });
-          },
-        }
-      );
-    } else {
-      if (!name || !email) {
-        toast({
-          title: 'Registration failed',
-          description: 'Please fill in all fields',
-          variant: 'destructive',
-        });
-        return;
-      }
-      
-      registerMutation.mutate(
-        { username, password, name, email },
-        {
-          onError: (error) => {
-            toast({
-              title: 'Registration failed',
-              description: error.message,
-              variant: 'destructive',
-            });
-          },
-        }
-      );
+    // If we detect the user just logged out, force a clean state
+    if (logoutStatus && user) {
+      // Manually trigger logout again to ensure clean state
+      logoutMutation.mutate();
     }
+  }, [user, isLoading, logoutStatus, logoutMutation, navigate]);
+
+  // Setup login form
+  const loginForm = useForm<LoginData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+    },
+  });
+
+  // Setup register form
+  const registerForm = useForm<RegisterData>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+      confirmPassword: "",
+      name: "",
+      email: "",
+    },
+  });
+
+  const onLoginSubmit = (data: LoginData) => {
+    loginMutation.mutate(data);
   };
 
+  const onRegisterSubmit = (data: RegisterData) => {
+    registerMutation.mutate(data);
+  };
+
+  // We handle the redirect in the useEffect hook above
+  // Remove this duplicate check to avoid race conditions
+
+  // States for controlling focus
+  const [focusLoginInput, setFocusLoginInput] = useState(false);
+  const [focusRegisterInput, setFocusRegisterInput] = useState(false);
+  
+  // Handle tab change and status announcements
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    // Set focus flags based on the active tab
+    if (value === "login") {
+      setFocusLoginInput(true);
+      setFocusRegisterInput(false);
+    } else if (value === "register") {
+      setFocusLoginInput(false);
+      setFocusRegisterInput(true);
+    }
+  };
+  
+  // Used for screen reader announcements
+  const [statusMessage, setStatusMessage] = useState<string>("");
+  
+  // Update status message for form submissions
+  useEffect(() => {
+    if (loginMutation.isPending) {
+      setStatusMessage("Logging in, please wait...");
+    } else if (registerMutation.isPending) {
+      setStatusMessage("Creating your account, please wait...");
+    } else if (loginMutation.isError) {
+      setStatusMessage(`Login failed: ${loginMutation.error?.message || "Please check your credentials"}`);
+    } else if (registerMutation.isError) {
+      setStatusMessage(`Registration failed: ${registerMutation.error?.message || "Please check your information"}`);
+    } else if (user) {
+      setStatusMessage("Success! You have been logged in and will be redirected to your dashboard.");
+    } else {
+      setStatusMessage("");
+    }
+  }, [loginMutation, registerMutation, user]);
+
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Info section - Full height on mobile, half width on desktop */}
-      <div className="bg-gradient-to-br from-purple-600 to-indigo-700 md:w-1/2 py-10 px-6 md:p-12 flex justify-center items-center text-white">
-        <div className="max-w-md text-center md:text-left">
-          <div className="mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 gradient-text-white">GrantiFuel</h1>
-            <div className="h-1 w-24 bg-purple-300 mx-auto md:mx-0 mb-6"></div>
-            <p className="text-xl text-purple-100 mb-8 leading-relaxed">
-              Elevate your music career with our intelligent grant application platform designed for artists.
-            </p>
-          </div>
+    <div 
+      className="min-h-screen flex flex-col md:flex-row items-center justify-center p-4 md:p-8 bg-gradient-to-br from-background to-secondary/20"
+      role="main"
+      aria-labelledby="auth-heading"
+    >
+      {/* Screen reader announcements */}
+      <LiveRegion ariaLive="assertive">{statusMessage}</LiveRegion>
+      
+      {/* Left Side - Forms */}
+      <div className="w-full md:w-1/2 md:pr-8 mb-8 md:mb-0">
+        <Tabs 
+          defaultValue={activeTab} 
+          onValueChange={handleTabChange} 
+          className="w-full max-w-md mx-auto"
+          aria-label="Authentication options"
+        >
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger 
+              value="login"
+              aria-controls="login-tab"
+              id="login-tab-trigger"
+            >
+              Login
+            </TabsTrigger>
+            <TabsTrigger 
+              value="register"
+              aria-controls="register-tab"
+              id="register-tab-trigger"
+            >
+              Register
+            </TabsTrigger>
+          </TabsList>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-            <div className="flex flex-col items-center md:items-start">
-              <div className="p-3 bg-white/10 rounded-lg mb-3">
-                <svg 
-                  className="h-7 w-7 text-purple-200" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-1">AI Assistant</h3>
-              <p className="text-purple-200 text-sm">Get intelligent help with application writing</p>
-            </div>
-            
-            <div className="flex flex-col items-center md:items-start">
-              <div className="p-3 bg-white/10 rounded-lg mb-3">
-                <svg 
-                  className="h-7 w-7 text-purple-200" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-1">Templates</h3>
-              <p className="text-purple-200 text-sm">Use proven formats for faster applications</p>
-            </div>
-            
-            <div className="flex flex-col items-center md:items-start">
-              <div className="p-3 bg-white/10 rounded-lg mb-3">
-                <svg 
-                  className="h-7 w-7 text-purple-200" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-1">Deadlines</h3>
-              <p className="text-purple-200 text-sm">Never miss important grant dates</p>
-            </div>
-            
-            <div className="flex flex-col items-center md:items-start">
-              <div className="p-3 bg-white/10 rounded-lg mb-3">
-                <svg 
-                  className="h-7 w-7 text-purple-200" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24" 
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-1">Analytics</h3>
-              <p className="text-purple-200 text-sm">Track your application success rates</p>
-            </div>
-          </div>
+          <TabsContent 
+            value="login" 
+            id="login-tab"
+            aria-labelledby="login-tab-trigger"
+            tabIndex={0}
+            role="tabpanel"
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold" id="login-heading">Welcome Back</CardTitle>
+                <CardDescription>
+                  Log in to your account to continue your music grant journey
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...loginForm}>
+                  <form 
+                    onSubmit={loginForm.handleSubmit(onLoginSubmit)} 
+                    className="space-y-4"
+                    aria-labelledby="login-heading"
+                    noValidate
+                  >
+                    <FormField
+                      control={loginForm.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="login-username">Username</FormLabel>
+                          <FormControl>
+                            <Input 
+                              id="login-username"
+                              placeholder="Enter your username" 
+                              autoComplete="username" 
+                              required
+                              aria-required="true"
+                              autoFocus={focusLoginInput}
+                              onFocus={() => setFocusLoginInput(false)}
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage aria-live="polite" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={loginForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="login-password">Password</FormLabel>
+                          <FormControl>
+                            <Input 
+                              id="login-password"
+                              type="password" 
+                              placeholder="Enter your password" 
+                              autoComplete="current-password"
+                              required
+                              aria-required="true"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage aria-live="polite" />
+                        </FormItem>
+                      )}
+                    />
+                    <AccessibleButton 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={loginMutation.isPending}
+                      isLoading={loginMutation.isPending}
+                      loadingIcon={<Loader2 className="h-4 w-4 animate-spin" />}
+                      loadingText="Logging in..."
+                      aria-describedby="login-submit-status"
+                    >
+                      Log in
+                    </AccessibleButton>
+                    <div id="login-submit-status" className="sr-only" aria-live="polite">
+                      {loginMutation.isError && 
+                        `Login error: ${loginMutation.error?.message || "Please check your credentials"}`
+                      }
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+              <CardFooter className="flex flex-col items-center justify-center text-sm">
+                <p>
+                  Don't have an account? 
+                  <Button 
+                    variant="link" 
+                    className="p-0 ml-1" 
+                    onClick={() => handleTabChange("register")}
+                    aria-controls="register-tab"
+                  >
+                    Register now
+                  </Button>
+                </p>
+              </CardFooter>
+            </Card>
+          </TabsContent>
           
-          <div className="hidden md:block text-center md:text-left">
-            <span className="inline-block bg-purple-500/20 text-purple-200 px-4 py-2 rounded-full text-sm font-medium">
-              Join musicians who've secured over $2M in funding
-            </span>
-          </div>
-        </div>
+          <TabsContent 
+            value="register" 
+            id="register-tab"
+            aria-labelledby="register-tab-trigger"
+            tabIndex={0}
+            role="tabpanel"
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl font-bold" id="register-heading">Create an Account</CardTitle>
+                <CardDescription>
+                  Join Grantaroo Music Assist to simplify your grant applications
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...registerForm}>
+                  <form 
+                    onSubmit={registerForm.handleSubmit(onRegisterSubmit)} 
+                    className="space-y-4"
+                    aria-labelledby="register-heading"
+                    noValidate
+                  >
+                    <FormField
+                      control={registerForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="register-name">Full Name</FormLabel>
+                          <FormControl>
+                            <Input 
+                              id="register-name"
+                              placeholder="Enter your full name" 
+                              autoComplete="name"
+                              required
+                              aria-required="true"
+                              autoFocus={focusRegisterInput}
+                              onFocus={() => setFocusRegisterInput(false)}
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage aria-live="polite" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="register-email">Email</FormLabel>
+                          <FormControl>
+                            <Input 
+                              id="register-email"
+                              type="email" 
+                              placeholder="your.email@example.com" 
+                              autoComplete="email"
+                              required
+                              aria-required="true"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage aria-live="polite" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="username"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="register-username">Username</FormLabel>
+                          <FormControl>
+                            <Input 
+                              id="register-username"
+                              placeholder="Choose a username" 
+                              autoComplete="username"
+                              required
+                              aria-required="true"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage aria-live="polite" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="register-password">Password</FormLabel>
+                          <FormControl>
+                            <Input 
+                              id="register-password"
+                              type="password" 
+                              placeholder="Create a password" 
+                              autoComplete="new-password"
+                              required
+                              aria-required="true"
+                              aria-describedby="password-requirements"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage aria-live="polite" />
+                          <div id="password-requirements" className="text-xs text-muted-foreground">
+                            Password must be at least 6 characters long
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="register-confirm-password">Confirm Password</FormLabel>
+                          <FormControl>
+                            <Input 
+                              id="register-confirm-password"
+                              type="password" 
+                              placeholder="Confirm your password" 
+                              autoComplete="new-password"
+                              required
+                              aria-required="true"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage aria-live="polite" />
+                        </FormItem>
+                      )}
+                    />
+                    <AccessibleButton 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={registerMutation.isPending}
+                      isLoading={registerMutation.isPending}
+                      loadingIcon={<Loader2 className="h-4 w-4 animate-spin" />}
+                      loadingText="Creating account..."
+                      aria-describedby="register-submit-status"
+                    >
+                      Register
+                    </AccessibleButton>
+                    <div id="register-submit-status" className="sr-only" aria-live="polite">
+                      {registerMutation.isError && 
+                        `Registration error: ${registerMutation.error?.message || "Please check your information"}`
+                      }
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+              <CardFooter className="flex flex-col items-center justify-center text-sm">
+                <p>
+                  Already have an account? 
+                  <Button 
+                    variant="link" 
+                    className="p-0 ml-1" 
+                    onClick={() => handleTabChange("login")}
+                    aria-controls="login-tab"
+                  >
+                    Log in
+                  </Button>
+                </p>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-
-      {/* Form section */}
-      <div className="md:w-1/2 flex justify-center items-center py-10 px-6 bg-white">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold gradient-text">
-              {isLogin ? 'Welcome Back' : 'Create Account'}
-            </h2>
-            <p className="mt-2 text-gray-600">
-              {isLogin 
-                ? "Access your grant applications and tools" 
-                : "Start your journey to music funding success"}
-            </p>
+      
+      {/* Right Side - Hero Section */}
+      <div className="w-full md:w-1/2 p-6 md:pl-8">
+        <div className="text-center md:text-left">
+          <h1 
+            id="auth-heading"
+            className="text-4xl md:text-5xl font-extrabold mb-4 bg-gradient-to-r from-primary to-primary-foreground bg-clip-text text-transparent"
+          >
+            Grantaroo Music Assist
+          </h1>
+          <p className="text-xl mb-6 text-muted-foreground">
+            Your intelligent companion for music grant applications
+          </p>
+          <div className="space-y-6" aria-label="Key features">
+            <div className="bg-card rounded-lg p-4 shadow" role="region" aria-labelledby="feature-1">
+              <h3 id="feature-1" className="text-lg font-bold mb-2">AI-Powered Assistance</h3>
+              <p>Get intelligent suggestions and improvements for your grant proposals with our advanced AI tools.</p>
+            </div>
+            <div className="bg-card rounded-lg p-4 shadow" role="region" aria-labelledby="feature-2">
+              <h3 id="feature-2" className="text-lg font-bold mb-2">Streamlined Applications</h3>
+              <p>Manage all your applications in one place, with intuitive tracking and progress monitoring.</p>
+            </div>
+            <div className="bg-card rounded-lg p-4 shadow" role="region" aria-labelledby="feature-3">
+              <h3 id="feature-3" className="text-lg font-bold mb-2">Grant Discovery</h3>
+              <p>Discover grants that match your profile and artistic vision, with personalized recommendations.</p>
+            </div>
           </div>
-
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            <div>
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Username
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                placeholder="Your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                placeholder="Your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-              />
-            </div>
-
-            {!isLogin && (
-              <>
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Full Name
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    required
-                    placeholder="Your full name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    placeholder="Your email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition"
-                  />
-                </div>
-              </>
-            )}
-
-            <div className="pt-2">
-              <button
-                type="submit"
-                disabled={loginMutation.isPending || registerMutation.isPending}
-                className="w-full py-3 px-4 rounded-lg shadow-md text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 transition-all duration-200 font-medium"
-              >
-                {loginMutation.isPending || registerMutation.isPending ? (
-                  <div className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Processing...</span>
-                  </div>
-                ) : isLogin ? (
-                  'Sign in'
-                ) : (
-                  'Create account'
-                )}
-              </button>
-            </div>
-
-            <div className="mt-4 text-center">
-              <p className="text-sm text-gray-600">
-                {isLogin ? "Don't have an account? " : 'Already have an account? '}
-                <button
-                  type="button"
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="font-semibold text-purple-600 hover:text-purple-800 transition-colors"
-                >
-                  {isLogin ? 'Sign up now' : 'Sign in'}
-                </button>
-              </p>
-            </div>
-          </form>
-          
-          {isLogin && (
-            <div className="mt-8 text-center">
-              <button 
-                type="button"
-                className="text-sm text-gray-500 hover:text-purple-600 transition-colors"
-              >
-                Forgot your password?
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </div>

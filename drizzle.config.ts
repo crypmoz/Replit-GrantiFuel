@@ -1,19 +1,14 @@
-import { defineConfig } from 'drizzle-kit';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import { defineConfig } from "drizzle-kit";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL, ensure the database is provisioned");
+}
 
-const config = defineConfig({
-  schema: resolve(__dirname, './shared/schema.ts'),
-  out: resolve(__dirname, './migrations'),
-  driver: 'pg',
+export default defineConfig({
+  out: "./migrations",
+  schema: "./shared/schema.ts",
+  dialect: "postgresql",
   dbCredentials: {
-    connectionString: 'postgresql://grantifuel:grantifuel@localhost:5432/grantifuel',
+    url: process.env.DATABASE_URL,
   },
-  verbose: true,
-  strict: true,
 });
-
-export default config;

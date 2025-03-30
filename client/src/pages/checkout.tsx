@@ -3,99 +3,21 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { apiRequest } from "../lib/queryClient";
-import { useToast } from "../hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
-import { useAuth } from '../hooks/use-auth';
-
-// Simple Button component
-const Button = ({ 
-  className = '',
-  variant = 'default',
-  type = 'button',
-  disabled = false,
-  onClick,
-  children
-}) => (
-  <button 
-    type={type} 
-    className={`px-4 py-2 rounded-md font-medium ${
-      variant === 'default' ? 'bg-blue-600 text-white hover:bg-blue-700' : 
-      variant === 'outline' ? 'border border-gray-300 bg-transparent hover:bg-gray-50' :
-      variant === 'ghost' ? 'text-gray-600 hover:bg-gray-100' :
-      'bg-gray-100 text-gray-800'
-    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
-    disabled={disabled}
-    onClick={onClick}
-  >
-    {children}
-  </button>
-);
-
-// Card components
-const Card = ({ className, children }) => (
-  <div className={`border rounded-lg overflow-hidden bg-white ${className}`}>
-    {children}
-  </div>
-);
-
-const CardHeader = ({ children }) => (
-  <div className="p-6">
-    {children}
-  </div>
-);
-
-const CardTitle = ({ children }) => (
-  <h3 className="text-xl font-bold">
-    {children}
-  </h3>
-);
-
-const CardDescription = ({ children }) => (
-  <p className="text-gray-500 mt-1">
-    {children}
-  </p>
-);
-
-const CardContent = ({ children }) => (
-  <div className="px-6 py-2">
-    {children}
-  </div>
-);
-
-const CardFooter = ({ className, children }) => (
-  <div className={`p-6 pt-0 ${className}`}>
-    {children}
-  </div>
-);
-
-// Simple header component
-const Header = () => (
-  <header className="bg-white shadow">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-      <h1 className="text-2xl font-bold text-gray-900">GrantiFuel</h1>
-    </div>
-  </header>
-);
-
-// Type for SubscriptionPlan
-interface SubscriptionPlan {
-  id: number;
-  name: string;
-  tier: string;
-  price: number;
-  features: string[];
-  maxApplications: number;
-  maxArtists: number;
-}
+import { SubscriptionPlan } from '@shared/schema';
+import { useAuth } from '@/hooks/use-auth';
+import Header from '@/components/layout/Header';
 
 // Make sure to call `loadStripe` outside of a component's render to avoid
 // recreating the `Stripe` object on every render.
-const stripeKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-if (!stripeKey) {
+if (!import.meta.env.VITE_STRIPE_PUBLIC_KEY) {
   throw new Error('Missing required Stripe key: VITE_STRIPE_PUBLIC_KEY');
 }
-const stripePromise = loadStripe(stripeKey);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 const CheckoutForm = ({ planId }: { planId: number }) => {
   const stripe = useStripe();

@@ -1,8 +1,7 @@
-import React from 'react';
 import { Link } from 'wouter';
 import { Twitter, Linkedin, Instagram, Youtube, Mail, Facebook } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -51,7 +50,7 @@ export default function Footer() {
           <div className="lg:col-span-2">
             <div className="flex items-center mb-4">
               <div className="h-8 w-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-lg mr-2">G</div>
-              <span className="text-xl font-bold gradient-text">GrantiFuel</span>
+              <span className="text-xl font-bold">GrantiFuel</span>
             </div>
             <p className="text-gray-600 dark:text-gray-300 mb-4">
               Empowering musicians and artists to secure funding for their creative endeavors through innovative technology.
