@@ -100,7 +100,7 @@ export default function Contact() {
                     </div>
                     <div>
                       <h3 className="text-lg font-medium mb-1">Email</h3>
-                      <p className="text-gray-600 dark:text-gray-300">support@grantaroo.com</p>
+                      <p className="text-gray-600 dark:text-gray-300">support@grantifuel.com</p>
                     </div>
                   </div>
                   

@@ -67,13 +67,13 @@ export default function LandingPage() {
 
   const testimonials = [
     {
-      quote: "Grantaroo helped me secure my first major commission. The AI assistant guided me through the entire process.",
+      quote: "GrantiFuel helped me secure my first major commission. The AI assistant guided me through the entire process.",
       author: "Sarah Lee",
       role: "Composer, New York Philharmonic Resident Artist",
       image: "https://images.unsplash.com/photo-1509460913899-515f1df34fea?q=80&w=2940&auto=format&fit=crop&ixlib=rb-4.0.3"
     },
     {
-      quote: "I was struggling with grant applications until I found Grantaroo. Their templates helped me articulate my artistic vision clearly.",
+      quote: "I was struggling with grant applications until I found GrantiFuel. Their templates helped me articulate my artistic vision clearly.",
       author: "Marcus Chen",
       role: "Jazz Pianist & Educator",
       image: "https://images.unsplash.com/photo-1522556189639-b150ed9c4330?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3"
@@ -109,7 +109,7 @@ export default function LandingPage() {
                 Fund Your Musical Vision
               </h1>
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
-                Grantaroo helps musicians and artists navigate the complex world of grants with AI-powered tools, smart templates, and expert guidance.
+                GrantiFuel helps musicians and artists navigate the complex world of grants with AI-powered tools, smart templates, and expert guidance.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" onClick={() => setLocation('/dashboard')} className="font-medium">
