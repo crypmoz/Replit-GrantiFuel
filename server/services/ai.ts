@@ -278,64 +278,65 @@ function getFallbackRecommendations(artistProfile: {
   // Common grants that are available to various musicians
   const recommendations: GrantRecommendation[] = [
     {
-      id: "nsf-1",
-      name: "Artist Development Grant",
-      organization: "National Foundation for the Arts",
-      amount: "$5,000 - $15,000",
-      deadline: "March 15, 2025",
-      description: "Supports the creative development of artists across all musical genres to advance their careers through recordings, performances, or new works.",
+      id: "nea-grants-for-arts-projects",
+      name: "Grants for Arts Projects",
+      organization: "National Endowment for the Arts",
+      amount: "$10,000 - $100,000",
+      deadline: "February 8, 2025",
+      description: "Supports projects that include the creation of art, public engagement, learning, and strengthening the cultural infrastructure of communities.",
       requirements: [
-        "Project proposal with timeline", 
-        "Budget breakdown", 
-        "Work samples"
+        "Detailed project description", 
+        "Project budget", 
+        "Work samples",
+        "3-year history of arts programming"
       ],
       eligibility: [
-        "Professional musicians with established work history", 
-        "U.S. citizens or permanent residents", 
-        "Not enrolled in degree program"
+        "Nonprofit 501(c)(3) organizations", 
+        "Units of state or local government", 
+        "Federally recognized tribes"
       ],
-      url: "https://www.arts.gov/grants",
+      url: "https://www.arts.gov/grants/grants-for-arts-projects",
       matchScore: 85
     },
     {
-      id: "mcf-1",
-      name: "Music Creation Fund",
+      id: "cma-classical-commissioning",
+      name: "Classical Commissioning Program",
       organization: "Chamber Music America",
-      amount: "$10,000 - $20,000",
-      deadline: "October 1, 2025",
-      description: "Commissioning grants to support the creation of new chamber works and assist with the costs of rehearsing and performing these works.",
+      amount: "$5,000 - $20,000",
+      deadline: "April 5, 2025",
+      description: "Provides funds to U.S.-based professional classical/contemporary chamber music ensembles for commissioning and premiering new works.",
       requirements: [
-        "Detailed project description", 
-        "Composer's resume", 
-        "Sample recordings", 
-        "Performance plan"
+        "Detailed commissioning proposal", 
+        "Composer information and previous work", 
+        "Performance plan", 
+        "Budget"
       ],
       eligibility: [
-        "Professional ensembles and composers", 
-        "Organizations with 501(c)(3) status", 
-        "Demonstrated commitment to chamber music"
+        "Professional ensembles with a commitment to chamber music", 
+        "501(c)(3) organizations or fiscally sponsored ensembles", 
+        "Must be CMA members at time of application"
       ],
-      url: "https://www.chamber-music.org/programs/grant-programs",
-      matchScore: 75
+      url: "https://www.chamber-music.org/programs/classical/grants",
+      matchScore: 78
     },
     {
-      id: "mpf-2",
-      name: "Touring & Professional Development Grant",
-      organization: "Music Performance Fund",
-      amount: "$2,000 - $7,500",
+      id: "mpf-performance-grant",
+      name: "Performance Grant Program",
+      organization: "Music Performance Trust Fund",
+      amount: "$500 - $5,000",
       deadline: "Rolling",
-      description: "Provides funding for live music performances in public spaces, schools, and places where traditional funding is not readily available.",
+      description: "Supports free live music performances that are open to the public, as well as educational programs that introduce audiences to different types of music.",
       requirements: [
-        "Performance schedule and venues", 
-        "Public engagement component", 
-        "Marketing plan"
+        "Event details and venue information", 
+        "Public engagement plan", 
+        "Budget for performer compensation"
       ],
       eligibility: [
-        "Professional musicians", 
-        "Community-focused projects", 
-        "Projects that provide free performances to the public"
+        "Must involve professional musicians", 
+        "Events must be free and open to the public", 
+        "Educational or community-focused performances"
       ],
-      url: "https://musicpf.org/grants/",
+      url: "https://musicpf.org/application-process/",
       matchScore: 80
     }
   ];
@@ -343,73 +344,116 @@ function getFallbackRecommendations(artistProfile: {
   // Add genre-specific recommendations
   if (artistProfile.genre.toLowerCase().includes('jazz')) {
     recommendations.push({
-      id: "jazz-1",
-      name: "Jazz Performance Grant",
-      organization: "Jazz Forward Coalition",
-      amount: "$3,000 - $8,000",
-      deadline: "September 30, 2025",
-      description: "Supports jazz artists in creating and presenting original work through performances, workshops, and community engagement.",
+      id: "south-arts-jazz-road",
+      name: "Jazz Road Tours",
+      organization: "South Arts",
+      amount: "$5,000 - $15,000",
+      deadline: "June 1, 2025",
+      description: "Supports touring opportunities for jazz artists to build audiences and careers across the United States through tour planning and performance opportunities.",
       requirements: [
-        "Project narrative", 
-        "Performance history", 
+        "Tour itinerary with confirmed or prospective dates", 
+        "Marketing plan", 
         "Budget", 
-        "Marketing plan"
+        "Work samples"
       ],
       eligibility: [
-        "Professional jazz musicians", 
-        "Original composition component", 
-        "Public performance component"
+        "U.S. jazz ensembles and individual artists", 
+        "Tours must include at least three performances", 
+        "Performances in multiple states are encouraged"
       ],
-      url: "https://jazzforward.org/grants",
+      url: "https://www.southarts.org/artist-grants-fellowships/jazz-road/jazz-road-tours",
       matchScore: 95
     });
   } else if (artistProfile.genre.toLowerCase().includes('classical')) {
     recommendations.push({
-      id: "classical-1",
-      name: "Classical Commissioning Program",
+      id: "newmusicusa-project-grants",
+      name: "New Music USA Project Grants",
       organization: "New Music USA",
-      amount: "$5,000 - $15,000",
-      deadline: "May 1, 2025",
-      description: "Supports the creation of new classical music compositions and their premiere performances.",
+      amount: "$1,000 - $10,000",
+      deadline: "April 15, 2025",
+      description: "Supports the creation and performance of new classical and contemporary music, including commissions, recordings, and concerts.",
       requirements: [
-        "Commissioning contract", 
-        "Composer biography", 
-        "Project timeline", 
-        "Performance plans"
+        "Project description", 
+        "Timeline", 
+        "Budget", 
+        "Work samples of previous compositions"
       ],
       eligibility: [
-        "U.S.-based performers commissioning new work", 
-        "Established composers", 
-        "Planned public performance"
+        "U.S.-based composers and performers", 
+        "Projects must involve the creation or performance of new work", 
+        "Individual artists or 501(c)(3) organizations"
       ],
-      url: "https://newmusicusa.org/grants/",
+      url: "https://newmusicusa.org/grants/project-grants/",
       matchScore: 92
+    });
+  } else if (artistProfile.genre.toLowerCase().includes('folk') || artistProfile.genre.toLowerCase().includes('traditional')) {
+    recommendations.push({
+      id: "folk-alliance-touring-fund",
+      name: "Cultural Equity Fund",
+      organization: "Folk Alliance International",
+      amount: "$2,000 - $7,500",
+      deadline: "October 15, 2025",
+      description: "Provides financial assistance to folk musicians from underrepresented communities for creating new work, touring, or professional development.",
+      requirements: [
+        "Project narrative", 
+        "Budget", 
+        "Work samples", 
+        "Marketing plan"
+      ],
+      eligibility: [
+        "Folk musicians from historically marginalized communities", 
+        "FAI membership (either existing or join upon receiving grant)", 
+        "U.S. or Canadian citizens or residents"
+      ],
+      url: "https://folk.org/programs/cultural-equity/",
+      matchScore: 88
     });
   }
   
   // Add career stage specific recommendations
   if (artistProfile.careerStage.toLowerCase().includes('emerging')) {
     recommendations.push({
-      id: "emerging-1",
-      name: "Emerging Artist Fellowship",
+      id: "creative-capital-award",
+      name: "Creative Capital Award",
       organization: "Creative Capital",
-      amount: "$10,000 - $25,000",
-      deadline: "February 28, 2025",
-      description: "Supports innovative projects from emerging artists working at the intersection of musical performance, technology, and social practice.",
+      amount: "Up to $50,000",
+      deadline: "January 31, 2025",
+      description: "Funds innovative, risk-taking projects that push boundaries and incorporate new approaches in all artistic disciplines, including experimental music.",
       requirements: [
         "Project proposal", 
-        "Timeline", 
-        "Budget", 
+        "Artist statement", 
         "Work samples", 
-        "Artist statement"
+        "Project timeline and budget"
       ],
       eligibility: [
-        "Artists in early career stages", 
-        "Innovative or boundary-pushing work", 
-        "U.S. citizen or permanent resident"
+        "U.S. citizens, permanent residents, or O-1 visa holders", 
+        "Innovative, boundary-pushing artistic projects", 
+        "Projects at early stages of development"
       ],
-      url: "https://creative-capital.org/grants",
+      url: "https://creative-capital.org/apply/",
       matchScore: 90
+    });
+  } else if (artistProfile.careerStage.toLowerCase().includes('mid') || artistProfile.careerStage.toLowerCase().includes('established')) {
+    recommendations.push({
+      id: "guggenheim-fellowship",
+      name: "Guggenheim Fellowship",
+      organization: "John Simon Guggenheim Memorial Foundation",
+      amount: "Varies based on project needs",
+      deadline: "September 17, 2025",
+      description: "Prestigious fellowship that provides funding for mid-career artists with significant accomplishments to pursue creative work with maximum freedom.",
+      requirements: [
+        "Work samples", 
+        "Career narrative", 
+        "Project statement", 
+        "Professional reference letters"
+      ],
+      eligibility: [
+        "Mid-career artists with established body of work", 
+        "U.S. or Canadian citizens", 
+        "Demonstrated exceptional capacity for productive scholarship or exceptional creative ability"
+      ],
+      url: "https://www.gf.org/applicants/apply/",
+      matchScore: 87
     });
   }
   
