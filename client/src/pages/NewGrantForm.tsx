@@ -71,7 +71,7 @@ export default function NewGrantForm() {
       return await response.json();
     },
     onSuccess: () => {
-      // After successful creation, invalidate grants list query
+      // Invalidate and refetch grants query
       queryClient.invalidateQueries({ queryKey: ['/api/grants'] });
       toast({
         title: "Grant created",
@@ -91,14 +91,14 @@ export default function NewGrantForm() {
   // Form submission handler
   const onSubmit = (data: CreateGrantValues) => {
     setIsSubmitting(true);
-    
+
     // The userId will be added by the server from the authenticated user
     // We use JSON to pass the date string, which will be parsed on the server
     const formattedData = {
       ...data,
       deadline: data.deadline, // Keep as string
     };
-    
+
     // Use type assertion to bypass TypeScript's type check
     // This allows us to send a string to the server instead of a Date object
     createGrantMutation.mutate(formattedData as unknown as Omit<InsertGrant, 'userId'>);
@@ -117,7 +117,7 @@ export default function NewGrantForm() {
         </Button>
         <h1 className="text-2xl font-bold">Create New Grant</h1>
       </div>
-      
+
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
           <CardTitle>Grant Details</CardTitle>
@@ -142,7 +142,7 @@ export default function NewGrantForm() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="organization"
@@ -156,7 +156,7 @@ export default function NewGrantForm() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="amount"
@@ -170,7 +170,7 @@ export default function NewGrantForm() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="deadline"
@@ -184,7 +184,7 @@ export default function NewGrantForm() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="website"
@@ -198,7 +198,7 @@ export default function NewGrantForm() {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="contactEmail"
@@ -213,7 +213,7 @@ export default function NewGrantForm() {
                   )}
                 />
               </div>
-              
+
               <FormField
                 control={form.control}
                 name="description"
@@ -231,7 +231,7 @@ export default function NewGrantForm() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="requirements"
@@ -249,7 +249,7 @@ export default function NewGrantForm() {
                   </FormItem>
                 )}
               />
-              
+
               <CardFooter className="flex justify-between px-0 pb-0">
                 <Button 
                   type="button" 
