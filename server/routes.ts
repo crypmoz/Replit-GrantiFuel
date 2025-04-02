@@ -274,6 +274,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(req.user);
   });
   
+  // Admin user management routes
+  app.get("/api/users", requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      return res.json(users);
+    } catch (error) {
+      console.error("Error getting users:", error);
+      return res.status(500).json({ message: "Error getting users" });
+    }
+  });
+  
   app.get("/api/users/:id", requireAuth, async (req, res) => {
     // Only allow admin to access other users or users to access their own info
     if (req.user!.id !== parseInt(req.params.id) && req.user!.role !== 'admin') {
@@ -285,6 +296,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "User not found" });
     }
     return res.json(user);
+  });
+  
+  app.patch("/api/users/:id", requireAdmin, async (req, res) => {
+    try {
+      const { role, active } = req.body;
+      
+      // Validate input
+      if (role && !['admin', 'grant_writer', 'manager', 'artist', 'user'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      
+      if (typeof active !== 'undefined' && typeof active !== 'boolean') {
+        return res.status(400).json({ message: "Active status must be boolean" });
+      }
+      
+      const updatedUser = await storage.updateUser(
+        parseInt(req.params.id), 
+        { role, active }
+      );
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      return res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      return res.status(500).json({ message: "Error updating user" });
+    }
   });
   
   // Grants routes

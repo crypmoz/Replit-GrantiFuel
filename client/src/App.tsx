@@ -18,6 +18,7 @@ import TemplateDetail from "./pages/TemplateDetail";
 import TemplateEdit from "./pages/TemplateEdit";
 import AIAssistant from "./pages/AIAssistant";
 import Documents from "./pages/Documents";
+import UserManagement from "./pages/admin/UserManagement";
 import LandingPage from "./pages/LandingPage";
 import About from "./pages/About";
 import Pricing from "./pages/Pricing";
@@ -116,6 +117,9 @@ function AppContent() {
               {/* User profile and settings */}
               <ProtectedRoute path="/profile" component={ProfilePage} />
               <ProtectedRoute path="/settings" component={SettingsPage} />
+              
+              {/* Admin section */}
+              <AdminRoute path="/admin/users" component={UserManagement} />
               
               {/* Access denied page */}
               <Route path="/unauthorized" component={UnauthorizedPage} />
