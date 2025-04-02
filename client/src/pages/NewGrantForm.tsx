@@ -92,11 +92,11 @@ export default function NewGrantForm() {
   const onSubmit = (data: CreateGrantValues) => {
     setIsSubmitting(true);
     
-    // Format date properly if needed
+    // Format date properly - convert to string in ISO format to prevent issues with date serialization
     // The userId will be added by the server from the authenticated user
     const grantData: Omit<InsertGrant, 'userId'> = {
       ...data,
-      deadline: new Date(data.deadline),
+      deadline: new Date(data.deadline).toISOString(),
     };
     
     createGrantMutation.mutate(grantData);
