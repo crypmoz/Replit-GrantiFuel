@@ -10,6 +10,14 @@ import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
 import { useOnboarding } from '@/hooks/use-onboarding';
 
+// Define the personalized grants response type
+interface PersonalizedGrantsResponse {
+  grants: (Grant & { matchScore?: number })[];
+  isPersonalized: boolean;
+  profileComplete: boolean;
+  missingInfo?: 'artistProfile' | 'genres';
+}
+
 interface ApplicationStatus {
   [key: string]: {
     label: string;
@@ -31,9 +39,14 @@ export default function UpcomingDeadlines() {
   const itemsPerPage = 4;
   const { completeTask, hasCompletedTask } = useOnboarding();
 
-  const { data: grants, isLoading } = useQuery<Grant[]>({
+  const { data: grantsResponse, isLoading } = useQuery<PersonalizedGrantsResponse | Grant[]>({
     queryKey: ['/api/grants'],
   });
+
+  // Process the grants data based on the response format
+  const grantsArray = Array.isArray(grantsResponse) 
+    ? grantsResponse 
+    : grantsResponse?.grants || [];
 
   // Safe function to mark first grant viewed
   const safeMarkGrantViewed = (grantId: number) => {
@@ -75,8 +88,8 @@ export default function UpcomingDeadlines() {
     );
   }
 
-  const sortedGrants = grants
-    ? [...grants].sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+  const sortedGrants = grantsArray.length > 0
+    ? [...grantsArray].sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     : [];
 
   // Calculate total pages

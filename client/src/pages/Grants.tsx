@@ -237,9 +237,9 @@ export default function Grants() {
                       </Badge>
                       
                       {/* Show match score for personalized grants */}
-                      {'matchScore' in grant && (
+                      {'matchScore' in grant && typeof grant.matchScore === 'number' && (
                         <Badge variant="outline" className="mt-2 border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-400">
-                          {grant.matchScore}% Match
+                          {`${grant.matchScore}% Match`}
                         </Badge>
                       )}
                     </div>
