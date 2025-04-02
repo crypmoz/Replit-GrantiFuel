@@ -39,19 +39,20 @@ export default function AuthPage() {
   const params = new URLSearchParams(window.location.search);
   const logoutStatus = params.get('status') === 'loggedout';
   
-  // Only redirect if logged in and NOT coming from logout
   useEffect(() => {
     if (user && !isLoading && !logoutStatus) {
-      // Use navigate for a client-side navigation
       navigate("/dashboard");
     }
+  }, [user, isLoading, logoutStatus, navigate]);
 
-    // If we detect the user just logged out, force a clean state
-    if (logoutStatus && user) {
-      // Manually trigger logout again to ensure clean state
-      logoutMutation.mutate();
+  // Clear query params after handling logout
+  useEffect(() => {
+    if (logoutStatus) {
+      window.history.replaceState({}, '', '/auth');
+      queryClient.clear();
+      queryClient.setQueryData(["/api/user"], null);
     }
-  }, [user, isLoading, logoutStatus, logoutMutation, navigate]);
+  }, [logoutStatus]);
 
   // Setup login form
   const loginForm = useForm<LoginData>({
