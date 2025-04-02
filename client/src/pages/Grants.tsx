@@ -7,13 +7,27 @@ import { Input } from '../components/ui/input';
 import { Search, Plus, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '../components/ui/badge';
+import { useLocation } from 'wouter';
+import { useToast } from '../hooks/use-toast';
 
 export default function Grants() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [_, navigate] = useLocation();
+  const { toast } = useToast();
   
-  const { data: grants, isLoading } = useQuery<Grant[]>({
+  const { data: grants, isLoading, error } = useQuery<Grant[]>({
     queryKey: ['/api/grants'],
   });
+
+  // Show error toast if data fetching fails
+  if (error) {
+    console.error("Error fetching grants:", error);
+    toast({
+      title: "Error fetching grants",
+      description: "There was a problem loading the grants. Please try again.",
+      variant: "destructive",
+    });
+  }
 
   // Filter grants based on search term
   const filteredGrants = grants?.filter(grant => 
@@ -22,7 +36,7 @@ export default function Grants() {
   );
 
   const handleCreateNew = () => {
-    window.location.href = '/grants/new';
+    navigate('/grants/new');
   };
 
   return (
@@ -99,10 +113,10 @@ export default function Grants() {
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-between pt-2">
-                    <Button variant="outline" size="sm" onClick={() => window.location.href = `/grants/${grant.id}`}>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/grants/${grant.id}`)}>
                       View Details
                     </Button>
-                    <Button size="sm" onClick={() => window.location.href = `/applications/new?grantId=${grant.id}`}>
+                    <Button size="sm" onClick={() => navigate(`/applications/new?grantId=${grant.id}`)}>
                       Apply
                     </Button>
                   </CardFooter>
