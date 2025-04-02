@@ -156,7 +156,7 @@ export default function AuthPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background to-secondary/20">
       <LandingHeader />
       <div 
-        className="flex-1 flex flex-col md:flex-row items-center justify-center p-4 md:p-8"
+        className="flex-1 flex flex-col md:flex-row items-center justify-center p-4 md:p-8 pt-20"
         role="main"
         aria-labelledby="auth-heading"
       >
