@@ -87,22 +87,13 @@ export default function ProfilePage() {
     setFormData(prev => ({ ...prev, genres: genresList }));
   };
 
-  // Create/update user profile and artist profile
+  // Create/update artist profile only
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // First update the user info
-      const userResponse = await apiRequest('PATCH', `/api/users/${user.id}`, {
-        name: data.name,
-        email: data.email,
-        bio: data.bio,
-      });
+      // Skip updating user info as that requires admin permissions
+      // Only update or create artist profile
       
-      if (!userResponse.ok) {
-        const errorData = await userResponse.json();
-        throw new Error(errorData.message || 'Failed to update user profile');
-      }
-      
-      // Then check if artist profile exists and create/update accordingly
+      // Check if artist profile exists and create/update accordingly
       if (artistProfile) {
         // Update existing artist profile
         const artistResponse = await apiRequest('PATCH', `/api/artists/${artistProfile.id}`, {
@@ -148,7 +139,6 @@ export default function ProfilePage() {
         description: "Your profile information has been updated successfully.",
       });
       // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/users/current'] });
       queryClient.invalidateQueries({ queryKey: ['/api/artists/profile'] });
     },
     onError: (error) => {
