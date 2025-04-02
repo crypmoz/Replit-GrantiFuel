@@ -112,12 +112,12 @@ export default function LandingPage() {
                 GrantiFuel helps musicians and artists navigate the complex world of grants with AI-powered tools, smart templates, and expert guidance.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" onClick={() => setLocation('/dashboard')} className="font-medium">
+                <Button size="lg" onClick={() => setLocation('/auth')} className="font-medium">
                   Get Started
                   <ChevronRight className="ml-2 h-5 w-5" />
                 </Button>
-                <Button variant="outline" size="lg" onClick={() => setLocation('/grants')} className="font-medium">
-                  Explore Grants
+                <Button variant="outline" size="lg" onClick={() => setLocation('/about')} className="font-medium">
+                  Learn More
                 </Button>
               </div>
             </div>
@@ -196,7 +196,7 @@ export default function LandingPage() {
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">Testimonials</Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Success Stories from Artists Like You</h2>
             <p className="text-lg text-gray-600 dark:text-gray-300">
-              Hear from musicians and artists who have transformed their grant application process with Grantaroo.
+              Hear from musicians and artists who have transformed their grant application process with GrantiFuel.
             </p>
           </div>
           
@@ -231,9 +231,9 @@ export default function LandingPage() {
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Grant Applications?</h2>
             <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-              Join thousands of artists who are using Grantaroo to fund their creative projects.
+              Join thousands of artists who are using GrantiFuel to fund their creative projects.
             </p>
-            <Button size="lg" onClick={() => setLocation('/dashboard')} className="font-medium">
+            <Button size="lg" onClick={() => setLocation('/auth')} className="font-medium">
               Get Started Now
               <ChevronRight className="ml-2 h-5 w-5" />
             </Button>

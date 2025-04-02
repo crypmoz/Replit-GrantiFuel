@@ -14,7 +14,7 @@ export default function SuccessStories() {
       amount: "$125,000",
       grantName: "National Arts Endowment Fund",
       description: "The Metropolitan Symphony Orchestra secured a major grant to fund their educational outreach program, bringing classical music to underserved schools across the region.",
-      quote: "Grantaroo's AI assistant helped us craft a compelling narrative that perfectly articulated our vision. The templates were invaluable in organizing our budget and timeline sections.",
+      quote: "GrantiFuel's AI assistant helped us craft a compelling narrative that perfectly articulated our vision. The templates were invaluable in organizing our budget and timeline sections.",
       author: "Maria Castillo",
       position: "Executive Director",
       image: "https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fG9yY2hlc3RyYXxlbnwwfHwwfHx8MA%3D%3D"
@@ -102,12 +102,12 @@ export default function SuccessStories() {
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-3xl font-bold mb-6">Ready to Write Your Success Story?</h2>
             <p className="text-xl mb-8 max-w-2xl mx-auto opacity-90">
-              Join thousands of artists and organizations who have successfully secured funding with Grantaroo.
+              Join thousands of artists and organizations who have successfully secured funding with GrantiFuel.
             </p>
             <Button 
               size="lg" 
               variant="secondary" 
-              onClick={() => setLocation('/dashboard')}
+              onClick={() => setLocation('/auth')}
               className="font-medium"
             >
               Get Started Today
