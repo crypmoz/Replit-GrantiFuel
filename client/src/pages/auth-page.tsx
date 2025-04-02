@@ -39,7 +39,9 @@ export default function AuthPage() {
   // Get query parameters
   const params = new URLSearchParams(window.location.search);
   const logoutStatus = params.get('status') === 'loggedout';
-  const redirectPath = params.get('redirect') || '/dashboard';
+  // Priority order for redirect: URL param > sessionStorage > dashboard
+  const storedRedirect = sessionStorage.getItem('auth_redirect');
+  const redirectPath = params.get('redirect') || storedRedirect || '/dashboard';
   
   // Force a refetch of user data when coming from logout
   useEffect(() => {
@@ -61,6 +63,10 @@ export default function AuthPage() {
     // 2. Loading has completed
     // 3. We're not in a post-logout state
     if (user && !isLoading && !logoutStatus) {
+      // Clear any stored redirect paths
+      sessionStorage.removeItem('auth_redirect');
+      sessionStorage.removeItem('auth_redirect_path');
+      
       // Redirect to the originally requested path if available, 
       // otherwise go to dashboard
       navigate(redirectPath);

@@ -145,16 +145,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     },
     onSuccess: () => {
-      // Clear all queries and cache
-      queryClient.clear();
-      queryClient.removeQueries();
-      
-      // Reset user state
-      queryClient.resetQueries({queryKey: ["/api/user"]});
+      // Immediately set user to null to prevent further authenticated requests
       queryClient.setQueryData(["/api/user"], null);
       
-      // Clear any stored auth data
-      localStorage.removeItem('auth-state');
+      // Clear all queries in the cache
+      queryClient.clear();
+      
+      // Properly remove all queries to force refetching
+      queryClient.removeQueries();
+      
+      // Reset all queries with specific important keys
+      queryClient.resetQueries({queryKey: ["/api/user"]});
+      queryClient.resetQueries({queryKey: ["/api/onboarding"]});
+      queryClient.resetQueries({queryKey: ["/api/grants"]});
+      
+      // Clear storage completely
+      localStorage.clear();
       sessionStorage.clear();
       
       // Delete any auth cookies via JS (as a backup)
@@ -168,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "You have been successfully logged out."
       });
       
-      // Force navigation to auth page with complete page reload
+      // Force a hard reload to fully reset the application state
       setTimeout(() => {
         window.location.href = '/auth?status=loggedout&ts=' + Date.now();
       }, 100);
@@ -176,14 +182,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     onError: (error: Error) => {
       toast({
         title: "Logout failed",
-        description: error.message,
+        description: error.message + " - Still logging out locally.",
         variant: "destructive",
       });
       
-      // Even if server logout fails, still clear local state
+      // Even if server logout fails, still clear local state thoroughly
       queryClient.setQueryData(["/api/user"], null);
-      localStorage.removeItem('auth-state');
-      navigate('/auth');
+      queryClient.clear();
+      queryClient.removeQueries();
+      queryClient.resetQueries({queryKey: ["/api/user"]});
+      queryClient.resetQueries({queryKey: ["/api/onboarding"]});
+      
+      // Clear all storage
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Force a hard reload to fully reset the application state
+      setTimeout(() => {
+        window.location.href = '/auth?status=loggedout_locally&ts=' + Date.now();
+      }, 100);
     },
   });
 
