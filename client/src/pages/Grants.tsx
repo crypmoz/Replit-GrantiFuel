@@ -15,14 +15,17 @@ export default function Grants() {
   const [_, navigate] = useLocation();
   const { toast } = useToast();
 
-  const { data: grants, isLoading, error } = useQuery<Grant[]>({
+  const { data: grants = [], isLoading, error } = useQuery<Grant[]>({
     queryKey: ['/api/grants'],
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     retry: 3,
     enabled: true,
-    refetchInterval: 2000
+    refetchInterval: 2000,
+    staleTime: 0,
+    cacheTime: 0,
+    select: (data) => data || []
   });
 
   // Show error toast if data fetching fails
