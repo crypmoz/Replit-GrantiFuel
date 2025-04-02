@@ -19,7 +19,9 @@ export default function Grants() {
     queryKey: ['/api/grants'],
     refetchOnMount: true,
     refetchOnFocus: true,
-    refetchOnWindowFocus: true
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    cacheTime: 0
   });
 
   // Show error toast if data fetching fails
