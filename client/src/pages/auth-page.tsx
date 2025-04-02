@@ -39,21 +39,33 @@ export default function AuthPage() {
   // Get query parameters
   const params = new URLSearchParams(window.location.search);
   const logoutStatus = params.get('status') === 'loggedout';
+  const redirectPath = params.get('redirect') || '/dashboard';
   
-  useEffect(() => {
-    if (user && !isLoading && !logoutStatus) {
-      navigate("/dashboard");
-    }
-  }, [user, isLoading, logoutStatus, navigate]);
-
-  // Clear query params after handling logout
+  // Force a refetch of user data when coming from logout
   useEffect(() => {
     if (logoutStatus) {
-      window.history.replaceState({}, '', '/auth');
+      // Clear cache after logout
       queryClient.clear();
+      queryClient.resetQueries({queryKey: ["/api/user"]});
       queryClient.setQueryData(["/api/user"], null);
+      
+      // Clean URL without reloading page
+      window.history.replaceState({}, '', '/auth');
     }
   }, [logoutStatus]);
+  
+  // Check if user is already logged in
+  useEffect(() => {
+    // Only redirect if:
+    // 1. User data is loaded (not null)
+    // 2. Loading has completed
+    // 3. We're not in a post-logout state
+    if (user && !isLoading && !logoutStatus) {
+      // Redirect to the originally requested path if available, 
+      // otherwise go to dashboard
+      navigate(redirectPath);
+    }
+  }, [user, isLoading, logoutStatus, navigate, redirectPath]);
 
   // Setup login form
   const loginForm = useForm<LoginData>({
@@ -77,10 +89,18 @@ export default function AuthPage() {
   });
 
   const onLoginSubmit = (data: LoginData) => {
+    // Store redirect path in a separate context
+    if (redirectPath && redirectPath !== '/dashboard') {
+      sessionStorage.setItem('auth_redirect', redirectPath);
+    }
     loginMutation.mutate(data);
   };
 
   const onRegisterSubmit = (data: RegisterData) => {
+    // Store redirect path in a separate context
+    if (redirectPath && redirectPath !== '/dashboard') {
+      sessionStorage.setItem('auth_redirect', redirectPath);
+    }
     registerMutation.mutate(data);
   };
 

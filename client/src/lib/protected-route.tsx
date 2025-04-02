@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ path, component: Component }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
-
+  
   return (
     <Route path={path}>
       {() => {
@@ -25,7 +25,8 @@ export function ProtectedRoute({ path, component: Component }: ProtectedRoutePro
 
         // If no user is logged in, redirect to the auth page
         if (!user) {
-          return <Redirect to="/auth" />;
+          // Add a timestamp to force a clean page load
+          return <Redirect to={`/auth?redirect=${encodeURIComponent(path)}&ts=${Date.now()}`} />;
         }
 
         // User is authenticated, render the protected component

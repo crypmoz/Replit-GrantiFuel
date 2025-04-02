@@ -187,10 +187,10 @@ export const getQueryFn: <T>(options: {
 
 // Create categories of cached data with appropriate stale times
 const queryDefaults = {
-  // Critical user data - stays fresh longer
+  // Critical user data - should always be fresh
   user: {
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    gcTime: 60 * 60 * 1000,    // 60 minutes
+    staleTime: 0, // Always refetch user data 
+    gcTime: 5 * 60 * 1000,    // 5 minutes
   },
   // Application and grant data - moderate freshness
   applications: {

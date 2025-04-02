@@ -45,9 +45,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
+    refetch,
   } = useQuery<SelectUser | null, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    staleTime: 0, // Always refetch user data
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
 
   const loginMutation = useMutation({
@@ -66,8 +71,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: `Welcome back, ${user.name || user.username}!`,
       });
       
-      // Navigate to dashboard
-      navigate('/dashboard');
+      // Check if we have a stored redirect path
+      const storedRedirect = sessionStorage.getItem('auth_redirect');
+      if (storedRedirect) {
+        sessionStorage.removeItem('auth_redirect');
+        navigate(storedRedirect);
+      } else {
+        // Navigate to dashboard if no redirect is stored
+        navigate('/dashboard');
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -97,8 +109,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: `Welcome, ${user.name || user.username}!`,
       });
 
-      // Navigate to dashboard
-      navigate('/dashboard');
+      // Check if we have a stored redirect path
+      const storedRedirect = sessionStorage.getItem('auth_redirect');
+      if (storedRedirect) {
+        sessionStorage.removeItem('auth_redirect');
+        navigate(storedRedirect);
+      } else {
+        // Navigate to dashboard if no redirect is stored
+        navigate('/dashboard');
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -111,7 +130,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/logout");
+      const res = await apiRequest("POST", "/api/logout", undefined, {
+        deduplicate: false,
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        }
+      });
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || "Logout failed");
@@ -123,18 +150,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.removeQueries();
       
       // Reset user state
+      queryClient.resetQueries({queryKey: ["/api/user"]});
       queryClient.setQueryData(["/api/user"], null);
       
       // Clear any stored auth data
       localStorage.removeItem('auth-state');
+      sessionStorage.clear();
+      
+      // Delete any auth cookies via JS (as a backup)
+      document.cookie.split(";").forEach(function(c) {
+        document.cookie = c.replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
       
       toast({
         title: "Logged out",
         description: "You have been successfully logged out."
       });
       
-      // Force navigation to auth page
-      window.location.href = '/auth?status=loggedout';
+      // Force navigation to auth page with complete page reload
+      setTimeout(() => {
+        window.location.href = '/auth?status=loggedout&ts=' + Date.now();
+      }, 100);
     },
     onError: (error: Error) => {
       toast({
@@ -142,6 +179,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: error.message,
         variant: "destructive",
       });
+      
+      // Even if server logout fails, still clear local state
+      queryClient.setQueryData(["/api/user"], null);
+      localStorage.removeItem('auth-state');
+      navigate('/auth');
     },
   });
 
