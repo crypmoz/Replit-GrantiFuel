@@ -164,9 +164,13 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     try {
       // Use our optimized apiRequest function instead of direct fetch
-      const res = await apiRequest('GET', queryKey[0] as string, undefined, {
-        cache: 'force-cache', // Enable HTTP caching for better performance
-        deduplicate: true     // Deduplicate identical requests
+      const url = queryKey[0] as string;
+      // Different cache strategies based on endpoint
+      const cache = url.includes('/api/grants') ? 'no-cache' : 'force-cache';
+      
+      const res = await apiRequest('GET', url, undefined, {
+        cache, // Apply appropriate caching strategy
+        deduplicate: true // Deduplicate identical requests
       });
       
       const data = await res.json();
@@ -236,8 +240,8 @@ queryClient.setQueryDefaults(['/api/applications'], {
 });
 
 queryClient.setQueryDefaults(['/api/grants'], {
-  staleTime: queryDefaults.applications.staleTime,
-  gcTime: queryDefaults.applications.gcTime,
+  staleTime: 0, // Always consider grants data stale (forces refresh)
+  gcTime: 5 * 60 * 1000, // Keep cached data for 5 minutes after unused
 });
 
 queryClient.setQueryDefaults(['/api/documents'], {

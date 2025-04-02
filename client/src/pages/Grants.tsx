@@ -4,7 +4,7 @@ import { Grant } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Search, Plus, Filter } from 'lucide-react';
+import { Search, Plus, Filter, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '../components/ui/badge';
 import { useLocation, Link } from 'wouter';
@@ -15,14 +15,14 @@ export default function Grants() {
   const [_, navigate] = useLocation();
   const { toast } = useToast();
 
-  const { data: grants = [], isLoading, error } = useQuery<Grant[]>({
+  const { data: grants = [], isLoading, error, refetch } = useQuery<Grant[]>({
     queryKey: ['/api/grants'],
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     retry: 3,
     enabled: true,
-    staleTime: 0,
-    cacheTime: 0,
+    staleTime: 0, // Don't use cached data
+    gcTime: 1000, // Keep data in cache for 1 second
     refetchInterval: 0
   });
 
@@ -45,13 +45,30 @@ export default function Grants() {
   const handleCreateNew = () => {
     navigate('/grants/new');
   };
+  
+  const handleRefresh = async () => {
+    try {
+      await refetch();
+      toast({
+        title: "Grants Refreshed",
+        description: "The grants list has been updated.",
+      });
+    } catch (err) {
+      console.error("Error refreshing grants:", err);
+      toast({
+        title: "Refresh Failed",
+        description: "There was a problem refreshing the grants list.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-0">Grants</h1>
-        <div className="flex space-x-3 w-full sm:w-auto">
-          <div className="relative flex-grow sm:flex-grow-0 mr-3 sm:mr-0">
+        <div className="flex space-x-2 w-full sm:w-auto">
+          <div className="relative flex-grow sm:flex-grow-0 mr-2 sm:mr-0">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
@@ -63,6 +80,9 @@ export default function Grants() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          <Button variant="outline" onClick={handleRefresh} className="flex items-center" size="icon" title="Refresh grants list">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button onClick={handleCreateNew} className="inline-flex items-center">
             <Plus className="h-4 w-4 mr-2" />
             New Grant
