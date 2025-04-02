@@ -37,7 +37,7 @@ import { SkipToContent, LiveRegion } from "./components/ui/a11y-utils";
 
 function AppContent() {
   const [location] = useLocation();
-  
+
   // Check if the current path is a public page
   const isPublicPage = 
     location === "/" || 
@@ -48,7 +48,7 @@ function AppContent() {
     location === "/success-stories" ||
     location === "/blog" ||
     location.startsWith("/checkout");
-    
+
   // Dashboard/app layout
   if (!isPublicPage) {
     return (
@@ -59,16 +59,16 @@ function AppContent() {
             ? `You are now on the ${location.replace('/', '')} page` 
             : 'You are now on the dashboard page'}
         </LiveRegion>
-        
+
         <nav aria-label="Main navigation">
           <Sidebar />
         </nav>
-        
+
         <div className="flex-1 flex flex-col overflow-hidden">
           <header role="banner">
             <Header />
           </header>
-          
+
           <main 
             id="main-content"
             tabIndex={-1}
@@ -84,6 +84,7 @@ function AppContent() {
               <ProtectedRoute path="/artists/:id" component={ArtistDetail} />
               <ProtectedRoute path="/applications" component={Applications} />
               <ProtectedRoute path="/applications/:id" component={ApplicationDetail} />
+              <ProtectedRoute path="/applications/new" component={() => <div>New Application Form</div>} />
               <ProtectedRoute path="/templates" component={Templates} />
               <ProtectedRoute path="/templates/:id" component={TemplateDetail} />
               <ProtectedRoute path="/templates/:id/edit" component={TemplateEdit} />
@@ -98,7 +99,7 @@ function AppContent() {
       </div>
     );
   }
-  
+
   // Public pages layout (no sidebar)
   return (
     <>
@@ -108,7 +109,7 @@ function AppContent() {
           ? 'You are now on the home page' 
           : `You are now on the ${location.replace('/', '')} page`}
       </LiveRegion>
-      
+
       <main id="main-content" tabIndex={-1}>
         <Switch>
           <Route path="/" component={LandingPage} />
