@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Grant } from '@shared/schema';
-import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardFooter } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { Search, Plus, Filter } from 'lucide-react';
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '../components/ui/badge';
 
 export default function Grants() {
   const [searchTerm, setSearchTerm] = useState('');

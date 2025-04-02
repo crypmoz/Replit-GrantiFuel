@@ -5,6 +5,7 @@ import { Toaster } from "./components/ui/toaster";
 import NotFound from "./pages/not-found";
 import Dashboard from "./pages/Dashboard";
 import Grants from "./pages/Grants";
+import NewGrantForm from "./pages/NewGrantForm";
 import Artists from "./pages/Artists";
 import ArtistDetail from "./pages/ArtistDetail";
 import Applications from "./pages/Applications";
@@ -76,6 +77,7 @@ function AppContent() {
             <Switch>
               <ProtectedRoute path="/dashboard" component={Dashboard} />
               <ProtectedRoute path="/grants" component={Grants} />
+              <ProtectedRoute path="/grants/new" component={NewGrantForm} />
               <ProtectedRoute path="/artists" component={Artists} />
               <ProtectedRoute path="/artists/:id" component={ArtistDetail} />
               <ProtectedRoute path="/applications" component={Applications} />

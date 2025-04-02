@@ -27,6 +27,7 @@ export const users = pgTable("users", {
 
 export const grants = pgTable("grants", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   name: text("name").notNull(),
   organization: text("organization").notNull(),
   amount: text("amount"),
@@ -36,8 +37,12 @@ export const grants = pgTable("grants", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const grantsRelations = relations(grants, ({ many }) => ({
+export const grantsRelations = relations(grants, ({ many, one }) => ({
   applications: many(applications),
+  user: one(users, {
+    fields: [grants.userId],
+    references: [users.id],
+  }),
 }));
 
 export const artists = pgTable("artists", {
@@ -285,6 +290,7 @@ export type UserOnboarding = typeof userOnboarding.$inferSelect;
 export const usersRelations = relations(users, ({ many }) => ({
   activities: many(activities),
   artists: many(artists),
+  grants: many(grants),
   templates: many(templates),
   subscriptions: many(subscriptions),
   documents: many(documents),
