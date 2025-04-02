@@ -199,7 +199,7 @@ Your task is to provide tailored grant recommendations in a structured JSON form
 ${artistProfile.location ? `- Location: ${artistProfile.location}` : ''}
 ${artistProfile.projectType ? `- Project Type: ${artistProfile.projectType}` : ''}
 
-Provide 3-5 grant recommendations in this exact JSON structure:
+Provide 10 grant recommendations in this exact JSON structure:
 [
   {
     "id": "unique-id",
@@ -225,7 +225,7 @@ Make sure all recommendations are real grants with valid URLs and current inform
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.3, // Lower temperature for more consistent, factual responses
-      max_tokens: 1800, // Allowing enough tokens for 5 detailed recommendations
+      max_tokens: 3500, // Allowing enough tokens for 10 detailed recommendations
     };
     
     // Use a timeout to prevent hanging requests

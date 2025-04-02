@@ -1,27 +1,91 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageLayout } from '../components/layout/PageLayout';
 import GrantRecommendationsForm from '@/components/grants/GrantRecommendationsForm';
 import GrantRecommendationsList from '@/components/grants/GrantRecommendationsList';
 import { ArtistProfile, useGrantRecommendations } from '@/hooks/use-grant-recommendations';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Save } from 'lucide-react';
+import { RefreshCw, Save, UserCheck } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
+import { useAuth } from '@/hooks/use-auth';
 
 export default function GrantRecommendationsPage() {
   const [activeTab, setActiveTab] = useState("form");
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
   const {
     recommendations,
-    isLoading,
-    error,
+    isLoading: isLoadingRecommendations,
+    error: recommendationsError,
     profile,
     setProfile,
     fetchRecommendations
   } = useGrantRecommendations();
-  const { toast } = useToast();
+  
+  // Fetch the user's artist profile
+  const { 
+    data: artistProfile,
+    isLoading: isLoadingProfile,
+    error: profileError 
+  } = useQuery({
+    queryKey: ['/api/artists/by-user', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/artists/by-user/${user.id}`);
+      if (!res.ok) {
+        throw new Error('Could not fetch artist profile');
+      }
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+  
+  const isLoading = isLoadingRecommendations || isLoadingProfile;
+  const error = recommendationsError || profileError;
+  
+  // Automatically use the artist profile data when available
+  useEffect(() => {
+    if (artistProfile && !profile && typeof artistProfile === 'object') {
+      // Map artist profile fields to ArtistProfile format
+      const genres = artistProfile.genres || '';
+      const careerStage = artistProfile.careerStage || '';
+      const instrumentOrRole = artistProfile.primaryInstrument || '';
+      
+      const artistProfileData: ArtistProfile = {
+        genre: typeof genres === 'string' ? genres : '',
+        careerStage: typeof careerStage === 'string' ? careerStage : '',
+        instrumentOrRole: typeof instrumentOrRole === 'string' ? instrumentOrRole : '',
+        location: artistProfile.location || '',
+        projectType: artistProfile.projectType || '',
+      };
+      
+      // If we have all required fields, automatically fetch recommendations
+      if (artistProfileData.genre && artistProfileData.careerStage && artistProfileData.instrumentOrRole) {
+        setProfile(artistProfileData);
+        fetchRecommendations(artistProfileData);
+        
+        // Show notification
+        toast({
+          title: "Using your artist profile",
+          description: "We've automatically loaded your profile data to find grant matches.",
+        });
+        
+        // Automatically switch to results tab
+        setActiveTab("results");
+      } else {
+        toast({
+          title: "Profile incomplete",
+          description: "Your artist profile is missing some information. Please complete the form to get recommendations.",
+        });
+      }
+    }
+  }, [artistProfile, profile, setProfile, fetchRecommendations, toast]);
 
   const handleFormSubmit = (values: ArtistProfile) => {
     setProfile(values);
@@ -38,11 +102,72 @@ export default function GrantRecommendationsPage() {
     }
   };
 
+  // Get user's artist ID for saving profile
+  const { 
+    data: userArtist,
+    isLoading: isLoadingUserArtist
+  } = useQuery({
+    queryKey: ['/api/artists/by-user', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/artists/by-user/${user.id}`);
+      if (!res.ok) {
+        throw new Error('Could not fetch artist profile');
+      }
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  const { mutate: updateArtist, isPending: isUpdating } = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      if (!userArtist || typeof userArtist !== 'object' || !('id' in userArtist) || !userArtist.id) {
+        throw new Error('No artist profile found');
+      }
+      
+      const artistId = String(userArtist.id);
+      const response = await fetch(`/api/artists/${artistId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update artist profile');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Profile saved",
+        description: "Your artist profile has been saved successfully.",
+      });
+      
+      // Invalidate the artist profile query to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['/api/artists/by-user', user?.id] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to save profile",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   const handleSaveProfile = () => {
-    // For future implementation: save profile to user account
-    toast({
-      title: "Profile saved",
-      description: "Your artist profile has been saved successfully.",
+    if (!profile) return;
+    
+    // Map from recommendation profile format to artist profile format
+    updateArtist({
+      genres: profile.genre,
+      careerStage: profile.careerStage,
+      primaryInstrument: profile.instrumentOrRole,
+      location: profile.location,
+      projectType: profile.projectType,
     });
   };
 
@@ -77,17 +202,26 @@ export default function GrantRecommendationsPage() {
           
           <TabsContent value="form">
             <div className="max-w-3xl mx-auto">
-              <GrantRecommendationsForm onFormSubmit={handleFormSubmit} defaultValues={profile || undefined} />
-              
-              {recommendations && recommendations.length > 0 && (
-                <div className="mt-6 text-center">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setActiveTab("results")}
-                  >
-                    View your {recommendations.length} recommendations
-                  </Button>
+              {isLoadingProfile ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                  <p className="text-muted-foreground">Loading your artist profile...</p>
                 </div>
+              ) : (
+                <>
+                  <GrantRecommendationsForm onFormSubmit={handleFormSubmit} defaultValues={profile || undefined} />
+                  
+                  {recommendations && recommendations.length > 0 && (
+                    <div className="mt-6 text-center">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setActiveTab("results")}
+                      >
+                        View your {recommendations.length} recommendations
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </TabsContent>
@@ -144,9 +278,19 @@ export default function GrantRecommendationsPage() {
                         size="sm" 
                         className="text-xs" 
                         onClick={handleSaveProfile}
+                        disabled={isUpdating || !userArtist}
                       >
-                        <Save className="h-3 w-3 mr-1" />
-                        Save Profile
+                        {isUpdating ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-3 w-3 mr-1" />
+                            Save Profile
+                          </>
+                        )}
                       </Button>
                       <Button 
                         variant="outline" 
