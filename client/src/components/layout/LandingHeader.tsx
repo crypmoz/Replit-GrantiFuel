@@ -91,15 +91,19 @@ export default function LandingHeader() {
                 <Moon className="h-5 w-5" />
               )}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => window.location.href = '/auth'}
-            >
-              Log in
-            </Button>
-            <Button onClick={() => window.location.href = '/dashboard'}>
-              Get Started
-            </Button>
+            {location !== '/auth' && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.href = '/auth'}
+                >
+                  Log in
+                </Button>
+                <Button onClick={() => window.location.href = '/dashboard'}>
+                  Get Started
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -144,21 +148,23 @@ export default function LandingHeader() {
                   </div>
                 </Link>
               ))}
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => window.location.href = '/auth'}
-                >
-                  Log in
-                </Button>
-                <Button
-                  className="w-full"
-                  onClick={() => window.location.href = '/dashboard'}
-                >
-                  Get Started
-                </Button>
-              </div>
+              {location !== '/auth' && (
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => window.location.href = '/auth'}
+                  >
+                    Log in
+                  </Button>
+                  <Button
+                    className="w-full"
+                    onClick={() => window.location.href = '/dashboard'}
+                  >
+                    Get Started
+                  </Button>
+                </div>
+              )}
             </nav>
           </div>
         </div>
