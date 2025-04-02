@@ -27,6 +27,7 @@ const registerSchema = z.object({
   confirmPassword: z.string().min(1, "Please confirm your password"),
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Please enter a valid email address"),
+  role: z.enum(['grant_writer', 'manager', 'artist']).default('artist'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -92,6 +93,7 @@ export default function AuthPage() {
       confirmPassword: "",
       name: "",
       email: "",
+      role: "artist",
     },
   });
 
@@ -415,6 +417,33 @@ export default function AuthPage() {
                               {...field} 
                             />
                           </FormControl>
+                          <FormMessage aria-live="polite" />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel htmlFor="register-role">I am a</FormLabel>
+                          <FormControl>
+                            <select 
+                              id="register-role"
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              required
+                              aria-required="true"
+                              aria-describedby="role-description"
+                              {...field}
+                            >
+                              <option value="artist">Musician/Artist</option>
+                              <option value="manager">Manager</option>
+                              <option value="grant_writer">Grant Writer</option>
+                            </select>
+                          </FormControl>
+                          <div id="role-description" className="text-xs text-muted-foreground">
+                            Select your primary role to personalize your experience
+                          </div>
                           <FormMessage aria-live="polite" />
                         </FormItem>
                       )}

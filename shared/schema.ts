@@ -4,7 +4,7 @@ import { z } from "zod";
 import { relations } from "drizzle-orm";
 
 // Define enums
-const userRole = pgEnum('user_role', ['admin', 'grant_writer', 'manager', 'artist', 'user']);
+const userRole = pgEnum('user_role', ['admin', 'grant_writer', 'manager', 'artist']);
 const planTier = pgEnum('plan_tier', ['free', 'basic', 'premium']);
 const documentType = pgEnum('document_type', ['grant_info', 'artist_guide', 'application_tips', 'admin_knowledge', 'user_upload']);
 const fileType = pgEnum('file_type', ['none', 'pdf', 'docx', 'txt']);
@@ -30,7 +30,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   avatar: text("avatar"),
   bio: text("bio"),
-  role: userRole("role").default("user").notNull(),
+  role: userRole("role").default("artist").notNull(),
   verified: boolean("verified").default(false).notNull(),
   verificationToken: text("verification_token"),
   resetPasswordToken: text("reset_password_token"),
@@ -248,6 +248,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export const registerSchema = insertUserSchema.extend({
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
+  role: z.enum(['grant_writer', 'manager', 'artist']).default('artist'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
