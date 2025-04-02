@@ -17,6 +17,7 @@ export default function Grants() {
 
   const { data: grants, isLoading, error } = useQuery<Grant[]>({
     queryKey: ['/api/grants'],
+    refetchOnMount: true
   });
 
   // Show error toast if data fetching fails
