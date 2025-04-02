@@ -7,14 +7,14 @@ import { Input } from '../components/ui/input';
 import { Search, Plus, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '../components/ui/badge';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import { useToast } from '../hooks/use-toast';
 
 export default function Grants() {
   const [searchTerm, setSearchTerm] = useState('');
   const [_, navigate] = useLocation();
   const { toast } = useToast();
-  
+
   const { data: grants, isLoading, error } = useQuery<Grant[]>({
     queryKey: ['/api/grants'],
   });
@@ -116,8 +116,13 @@ export default function Grants() {
                     <Button variant="outline" size="sm" onClick={() => navigate(`/grants/${grant.id}`)}>
                       View Details
                     </Button>
-                    <Button size="sm" onClick={() => navigate(`/applications/new?grantId=${grant.id}`)}>
-                      Apply
+                    <Button 
+                      size="sm" 
+                      asChild
+                    >
+                      <Link to={`/applications/new?grantId=${grant.id}`}>
+                        Apply
+                      </Link>
                     </Button>
                   </CardFooter>
                 </Card>
