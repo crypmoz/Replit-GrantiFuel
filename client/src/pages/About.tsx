@@ -117,7 +117,7 @@ export default function AboutPage() {
     {
       year: '2019',
       title: 'The Idea',
-      description: 'Sarah and Michael conceive Grantaroo after experiencing the challenges of grant applications firsthand.'
+      description: 'Sarah and Michael conceive GrantiFuel after experiencing the challenges of grant applications firsthand.'
     },
     {
       year: '2020',
@@ -310,7 +310,7 @@ export default function AboutPage() {
         <section className="py-16 bg-primary/10 dark:bg-gray-800">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto text-center">
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">Join the Grantaroo Community</h2>
+              <h2 className="text-3xl md:text-4xl font-bold mb-6">Join the GrantiFuel Community</h2>
               <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
                 Connect with like-minded artists, share your success stories, and transform your approach to grant funding.
               </p>

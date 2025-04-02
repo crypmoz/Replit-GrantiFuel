@@ -25,7 +25,7 @@ export default function SuccessStories() {
       amount: "$78,000",
       grantName: "Global Arts Exchange Initiative",
       description: "The Blue Note Collective secured funding for their international tour, allowing them to perform in 7 countries and conduct masterclasses with local musicians.",
-      quote: "The application dashboard made tracking our submission status incredibly easy. We could collaborate efficiently across our entire team thanks to Grantaroo's intuitive interface.",
+      quote: "The application dashboard made tracking our submission status incredibly easy. We could collaborate efficiently across our entire team thanks to GrantiFuel's intuitive interface.",
       author: "James Washington",
       position: "Artistic Director",
       image: "https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=800&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8amF6enxlbnwwfHwwfHx8MA%3D%3D"
@@ -53,7 +53,7 @@ export default function SuccessStories() {
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-6">Success Stories</h1>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
-              Discover how artists and organizations are using Grantaroo to secure funding and bring their creative visions to life.
+              Discover how artists and organizations are using GrantiFuel to secure funding and bring their creative visions to life.
             </p>
           </div>
         </section>
