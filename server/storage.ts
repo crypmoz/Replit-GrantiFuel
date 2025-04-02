@@ -128,8 +128,18 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createGrant(insertGrant: InsertGrant): Promise<Grant> {
-    const [grant] = await db.insert(grants).values(insertGrant).returning();
-    return grant;
+    try {
+      // Ensure deadline is a proper Date object
+      if (insertGrant.deadline && !(insertGrant.deadline instanceof Date)) {
+        insertGrant.deadline = new Date(insertGrant.deadline);
+      }
+      
+      const [grant] = await db.insert(grants).values(insertGrant).returning();
+      return grant;
+    } catch (error) {
+      console.error("Error creating grant:", error);
+      throw error;
+    }
   }
   
   // Artist methods

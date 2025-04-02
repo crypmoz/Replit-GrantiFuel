@@ -293,11 +293,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/grants", requireAuth, async (req, res) => {
-    const grant = await storage.createGrant({
-      ...req.body,
-      userId: req.user!.id
-    });
-    return res.status(201).json(grant);
+    try {
+      // Handle date strings properly
+      const body = req.body;
+      
+      // If deadline is a string, convert it to a Date object
+      if (typeof body.deadline === 'string') {
+        body.deadline = new Date(body.deadline);
+      }
+      
+      const grant = await storage.createGrant({
+        ...body,
+        userId: req.user!.id
+      });
+      
+      return res.status(201).json(grant);
+    } catch (error: any) {
+      console.error("Error creating grant:", error);
+      return res.status(500).json({ 
+        message: "Failed to create grant", 
+        error: error.message || "Unknown error" 
+      });
+    }
   });
   
   // Artists routes
