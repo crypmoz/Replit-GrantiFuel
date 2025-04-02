@@ -71,8 +71,9 @@ export default function NewGrantForm() {
       return await response.json();
     },
     onSuccess: () => {
-      // Invalidate and refetch grants query
+      // Force immediate invalidation and refetch
       queryClient.invalidateQueries({ queryKey: ['/api/grants'] });
+      queryClient.refetchQueries({ queryKey: ['/api/grants'] });
       toast({
         title: "Grant created",
         description: "Grant has been successfully created",

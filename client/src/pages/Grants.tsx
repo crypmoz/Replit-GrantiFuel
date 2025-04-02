@@ -21,7 +21,8 @@ export default function Grants() {
     refetchOnFocus: true,
     refetchOnWindowFocus: true,
     staleTime: 0,
-    cacheTime: 0
+    cacheTime: 0,
+    refetchInterval: 1000 // Refetch every second
   });
 
   // Show error toast if data fetching fails
