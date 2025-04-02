@@ -24,6 +24,19 @@ interface AICompletionResponse {
   }>;
 }
 
+export interface GrantRecommendation {
+  id: string;
+  name: string;
+  organization: string;
+  amount: string;
+  deadline: string;
+  description: string;
+  requirements: string[];
+  eligibility: string[];
+  url: string;
+  matchScore: number;
+}
+
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
@@ -155,6 +168,97 @@ Keep your response focused and professional. Use formatting to enhance readabili
       throw new Error('Request timed out. Please try a shorter or simpler project description.');
     }
     throw new Error('Failed to generate proposal');
+  }
+}
+
+export async function getGrantRecommendations(
+  artistProfile: {
+    genre: string;
+    careerStage: string;
+    instrumentOrRole: string;
+    location?: string;
+    projectType?: string;
+  }
+): Promise<GrantRecommendation[]> {
+  try {
+    // System prompt for defining the assistant's role and behavior
+    const systemPrompt = `You are a grant funding expert for musicians. You help artists find grants that match their profile.
+Your task is to provide tailored grant recommendations in a structured JSON format based on the artist profile.`;
+
+    // User prompt that includes all the criteria for matching
+    const userPrompt = `Recommend music grants for an artist with this profile:
+- Genre: ${artistProfile.genre}
+- Career Stage: ${artistProfile.careerStage}
+- Role/Instrument: ${artistProfile.instrumentOrRole}
+${artistProfile.location ? `- Location: ${artistProfile.location}` : ''}
+${artistProfile.projectType ? `- Project Type: ${artistProfile.projectType}` : ''}
+
+Provide 3-5 grant recommendations in this exact JSON structure:
+[
+  {
+    "id": "unique-id",
+    "name": "Grant Name",
+    "organization": "Organization Name",
+    "amount": "$1,000 - $5,000",
+    "deadline": "2025-06-30 or Rolling",
+    "description": "Brief description of the grant",
+    "requirements": ["Requirement 1", "Requirement 2"],
+    "eligibility": ["Eligibility criteria 1", "Eligibility criteria 2"],
+    "url": "https://example.org/grant",
+    "matchScore": 95
+  }
+]
+
+The matchScore should range from 50-100 and represent how well the grant matches the artist profile.
+Make sure all recommendations are real grants with valid URLs and current information.`;
+
+    const requestData: AICompletionRequest = {
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.3, // Lower temperature for more consistent, factual responses
+      max_tokens: 1800, // Allowing enough tokens for 5 detailed recommendations
+    };
+    
+    // Use a timeout to prevent hanging requests
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), 15000); // 15 second timeout
+    
+    const response = await axios.post<AICompletionResponse>(
+      API_URL,
+      requestData,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        },
+        signal: timeoutController.signal
+      }
+    );
+    
+    clearTimeout(timeoutId);
+    
+    // Parse the response content as JSON
+    const content = response.data.choices[0].message.content;
+    
+    // Sometimes the AI might include markdown code blocks, so we need to handle that
+    const jsonContent = content.replace(/```json\n?|\n?```/g, '').trim();
+    
+    try {
+      const recommendations = JSON.parse(jsonContent) as GrantRecommendation[];
+      return recommendations;
+    } catch (parseError) {
+      console.error('Error parsing AI response as JSON:', parseError);
+      throw new Error('Failed to parse grant recommendations');
+    }
+  } catch (error) {
+    console.error('Error getting grant recommendations:', error);
+    if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
+      throw new Error('Request timed out. Please try again later.');
+    }
+    throw new Error('Failed to get grant recommendations');
   }
 }
 

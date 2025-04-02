@@ -17,6 +17,7 @@ import Templates from "./pages/Templates";
 import TemplateDetail from "./pages/TemplateDetail";
 import TemplateEdit from "./pages/TemplateEdit";
 import AIAssistant from "./pages/AIAssistant";
+import GrantRecommendations from "./pages/GrantRecommendations";
 import Documents from "./pages/Documents";
 import UserManagement from "./pages/admin/UserManagement";
 import LandingPage from "./pages/LandingPage";
@@ -110,6 +111,9 @@ function AppContent() {
               
               {/* AI Assistant is available to premium users (all roles) */}
               <ProtectedRoute path="/ai-assistant" component={AIAssistant} />
+              
+              {/* Grant Recommendations - accessible to all authenticated users */}
+              <ProtectedRoute path="/grant-recommendations" component={GrantRecommendations} />
               
               {/* Document management - different roles have different access */}
               <ProtectedRoute path="/documents" component={Documents} />

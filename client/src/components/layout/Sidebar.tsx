@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { 
   Music, Home, DollarSign, Users, FileText, 
   LayoutTemplate, Zap, LogOut, BookOpen, Settings, User as UserIcon,
-  Shield, UserCog
+  Shield, UserCog, Search
 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
@@ -61,6 +61,12 @@ const navItems: NavItem[] = [
     label: 'AI Assistant', 
     icon: <Zap className="h-5 w-5 mr-3" />,
     // AI Assistant visible to all authenticated users with proper subscription
+  },
+  { 
+    href: '/grant-recommendations', 
+    label: 'Find Grants', 
+    icon: <Search className="h-5 w-5 mr-3" />,
+    // Grant Recommendations visible to all authenticated users
   },
   { 
     href: '/documents', 

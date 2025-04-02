@@ -1,12 +1,12 @@
 import { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateProposal, answerQuestion } from "./services/ai";
+import { generateProposal, answerQuestion, getGrantRecommendations, GrantRecommendation } from "./services/ai";
 import { z } from "zod";
 import { setupAuth } from "./auth";
 import Stripe from "stripe";
 import { db } from "./db";
-import { users, subscriptions } from "@shared/schema";
+import { users, subscriptions, grantRecommendationProfileSchema } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
@@ -559,6 +559,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error in answer question endpoint:', error);
       return res.status(500).json({ error: "Failed to answer question" });
+    }
+  });
+  
+  app.post("/api/ai/grant-recommendations", requireAuth, async (req, res) => {
+    try {
+      const parsedBody = grantRecommendationProfileSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.error });
+      }
+      
+      const profile = parsedBody.data;
+      
+      // Call the AI service to get recommendations
+      const recommendations = await getGrantRecommendations(profile);
+      
+      // Create an activity to record the grant recommendations query
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "REQUESTED",
+        entityType: "GRANT_RECOMMENDATIONS",
+        details: {
+          genre: profile.genre,
+          careerStage: profile.careerStage,
+          instrumentOrRole: profile.instrumentOrRole,
+          recommendationsCount: recommendations.length
+        }
+      });
+      
+      // Complete the onboarding task if it hasn't been completed yet
+      if (profile.genre && profile.careerStage && profile.instrumentOrRole) {
+        try {
+          const tasks = await storage.getUserOnboardingTasks(req.user!.id);
+          const aiAssistantTask = tasks.find(t => t.task === 'ai_assistant_used');
+          
+          if (!aiAssistantTask) {
+            await storage.completeOnboardingTask(req.user!.id, 'ai_assistant_used', {
+              feature: 'grant_recommendations',
+              timestamp: new Date()
+            });
+          }
+        } catch (err) {
+          console.error('Error updating onboarding task:', err);
+          // Continue execution even if onboarding task update fails
+        }
+      }
+      
+      return res.json({ recommendations });
+    } catch (error) {
+      console.error('Error in grant recommendations endpoint:', error);
+      return res.status(500).json({ error: "Failed to generate grant recommendations" });
     }
   });
 

@@ -288,6 +288,14 @@ export const answerQuestionSchema = z.object({
   ).optional().default([]),
 });
 
+export const grantRecommendationProfileSchema = z.object({
+  genre: z.string().min(1, "Genre is required"),
+  careerStage: z.string().min(1, "Career stage is required"),
+  instrumentOrRole: z.string().min(1, "Instrument or role is required"),
+  location: z.string().optional(),
+  projectType: z.string().optional(),
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertGrant = z.infer<typeof insertGrantSchema>;
