@@ -17,12 +17,12 @@ export default function Grants() {
 
   const { data: grants, isLoading, error } = useQuery<Grant[]>({
     queryKey: ['/api/grants'],
-    staleTime: 0,
-    gcTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     retry: 3,
-    refetchInterval: 1000
+    enabled: true,
+    refetchInterval: 2000
   });
 
   // Show error toast if data fetching fails

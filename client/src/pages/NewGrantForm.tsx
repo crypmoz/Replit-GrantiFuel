@@ -68,15 +68,17 @@ export default function NewGrantForm() {
   const createGrantMutation = useMutation({
     mutationFn: async (data: Omit<InsertGrant, 'userId'>) => {
       const response = await apiRequest("POST", "/api/grants", data);
-      const newGrant = await response.json();
-      // Immediately update the cache with the new grant
+      return response.json();
+    },
+    onSuccess: (newGrant) => {
+      // Force a fresh fetch of grants
+      queryClient.invalidateQueries({ queryKey: ['/api/grants'] });
+      queryClient.refetchQueries({ queryKey: ['/api/grants'], type: 'active' });
+      
+      // Also update the cache optimistically
       const currentGrants = queryClient.getQueryData<Grant[]>(['/api/grants']) || [];
       queryClient.setQueryData(['/api/grants'], [...currentGrants, newGrant]);
-      return newGrant;
-    },
-    onSuccess: () => {
-      // Ensure the grants list is refreshed
-      queryClient.invalidateQueries({ queryKey: ['/api/grants'] });
+      
       toast({
         title: "Grant created",
         description: "Grant has been successfully created",
