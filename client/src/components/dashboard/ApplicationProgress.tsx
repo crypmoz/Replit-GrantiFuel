@@ -8,6 +8,14 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { Plus, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
+// Define the personalized grants response type
+interface PersonalizedGrantsResponse {
+  grants: (Grant & { matchScore?: number })[];
+  isPersonalized: boolean;
+  profileComplete: boolean;
+  missingInfo?: 'artistProfile' | 'genres';
+}
+
 interface ApplicationWithGrant extends Application {
   grant?: Grant;
 }
@@ -18,11 +26,25 @@ export default function ApplicationProgress() {
     queryKey: ['/api/applications'],
   });
 
-  const { data: grants, isLoading: isLoadingGrants } = useQuery<Grant[]>({
+  const { data: grantsResponse, isLoading: isLoadingGrants } = useQuery<PersonalizedGrantsResponse | Grant[]>({
     queryKey: ['/api/grants'],
   });
 
   const isLoading = isLoadingApplications || isLoadingGrants;
+
+  // Process the grants data based on the response format
+  console.log("Grants response:", grantsResponse);
+  
+  let grantsArray: Grant[] = [];
+  if (grantsResponse) {
+    if (Array.isArray(grantsResponse)) {
+      grantsArray = grantsResponse;
+    } else if (grantsResponse.grants && Array.isArray(grantsResponse.grants)) {
+      grantsArray = grantsResponse.grants;
+    }
+  }
+  
+  console.log("Processed grants array:", grantsArray);
 
   if (isLoading) {
     return (
@@ -56,7 +78,7 @@ export default function ApplicationProgress() {
   const applicationsWithGrants: ApplicationWithGrant[] = applications
     ? applications.map(app => ({
         ...app,
-        grant: grants?.find(g => g.id === app.grantId)
+        grant: grantsArray.find(g => g.id === app.grantId)
       }))
     : [];
 
