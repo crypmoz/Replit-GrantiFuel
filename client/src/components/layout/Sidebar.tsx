@@ -84,7 +84,7 @@ const navItems: NavItem[] = [
 export default function Sidebar() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, logoutMutation } = useAuth();
   // Keep backward compatibility with previous implementations that might use this query
   const { data: currentUser } = useQuery<User>({
     queryKey: ['/api/users/current'],
@@ -131,10 +131,8 @@ export default function Sidebar() {
   }, []);
 
   const handleSignOut = () => {
-    // Clear any auth data from query client
-    queryClient.clear();
-    // Redirect to home
-    window.location.href = '/';
+    // Use the proper logout mutation from the auth context
+    logoutMutation.mutate();
   };
 
   return (

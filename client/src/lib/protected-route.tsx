@@ -14,6 +14,7 @@ export function ProtectedRoute({ path, component: Component }: ProtectedRoutePro
   return (
     <Route path={path}>
       {() => {
+        // Show loading state while authentication status is being determined
         if (isLoading) {
           return (
             <div className="flex items-center justify-center min-h-screen">
@@ -22,10 +23,12 @@ export function ProtectedRoute({ path, component: Component }: ProtectedRoutePro
           );
         }
 
+        // If no user is logged in, redirect to the auth page
         if (!user) {
           return <Redirect to="/auth" />;
         }
 
+        // User is authenticated, render the protected component
         return <Component />;
       }}
     </Route>

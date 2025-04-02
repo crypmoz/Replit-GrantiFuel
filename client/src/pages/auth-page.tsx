@@ -12,6 +12,7 @@ import { Button } from "../components/ui/button";
 import { Loader2 } from "lucide-react";
 import { VisuallyHidden, LiveRegion } from "../components/ui/a11y-utils";
 import { AccessibleButton } from "../components/ui/accessible-button";
+import { queryClient } from "../lib/queryClient";
 
 // Form schemas
 const loginSchema = z.object({
