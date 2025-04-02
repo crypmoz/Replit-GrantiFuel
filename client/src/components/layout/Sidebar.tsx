@@ -36,7 +36,7 @@ const navItems: NavItem[] = [
     href: '/grants/new', 
     label: 'Create Grant', 
     icon: <DollarSign className="h-5 w-5 mr-3" />,
-    allowedRoles: ['admin', 'grant_writer'] // Only writers and admins can create grants
+    allowedRoles: ['grant_writer'] // Only grant writers can create grants
   },
   { 
     href: '/artists', 
