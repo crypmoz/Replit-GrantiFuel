@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "./components/ui/toaster";
 import NotFound from "./pages/not-found";
+import UnauthorizedPage from "./pages/UnauthorizedPage";
 import Dashboard from "./pages/Dashboard";
 import Grants from "./pages/Grants";
 import NewGrantForm from "./pages/NewGrantForm";
@@ -11,7 +12,7 @@ import Artists from "./pages/Artists";
 import ArtistDetail from "./pages/ArtistDetail";
 import Applications from "./pages/Applications";
 import ApplicationDetail from "./pages/ApplicationDetail";
-import NewApplicationForm from "./pages/NewApplicationForm"; // Added import
+import NewApplicationForm from "./pages/NewApplicationForm";
 import Templates from "./pages/Templates";
 import TemplateDetail from "./pages/TemplateDetail";
 import TemplateEdit from "./pages/TemplateEdit";
@@ -34,6 +35,13 @@ import { ChatbotProvider } from "./context/ChatbotContext";
 import { AuthProvider } from "./hooks/use-auth";
 import { OnboardingProvider } from "./hooks/use-onboarding";
 import { ProtectedRoute } from "./lib/protected-route";
+import { 
+  RoleBasedRoute, 
+  AdminRoute, 
+  GrantWriterRoute,
+  ManagerRoute,
+  ArtistRoute 
+} from "./lib/role-based-route";
 import { SkipToContent, LiveRegion } from "./components/ui/a11y-utils";
 
 function AppContent() {
@@ -77,22 +85,41 @@ function AppContent() {
             aria-label="Main content"
           >
             <Switch>
+              {/* Dashboard is accessible by all authenticated users */}
               <ProtectedRoute path="/dashboard" component={Dashboard} />
+              
+              {/* Grant management - accessible by grant writers and admins */}
+              <GrantWriterRoute path="/grants/new" component={NewGrantForm} />
               <ProtectedRoute path="/grants" component={Grants} />
-              <ProtectedRoute path="/grants/new" component={NewGrantForm} />
               <ProtectedRoute path="/grants/:id" component={GrantDetail} />
-              <ProtectedRoute path="/artists" component={Artists} />
-              <ProtectedRoute path="/artists/:id" component={ArtistDetail} />
-              <ProtectedRoute path="/applications/new" component={NewApplicationForm} />
-              <ProtectedRoute path="/applications/:id" component={ApplicationDetail} />
-              <ProtectedRoute path="/applications" component={Applications} />
-              <ProtectedRoute path="/templates" component={Templates} />
-              <ProtectedRoute path="/templates/:id" component={TemplateDetail} />
-              <ProtectedRoute path="/templates/:id/edit" component={TemplateEdit} />
+              
+              {/* Artist management - accessible by appropriate roles */}
+              <ArtistRoute path="/artists" component={Artists} />
+              <ArtistRoute path="/artists/:id" component={ArtistDetail} />
+              
+              {/* Application management */}
+              <ArtistRoute path="/applications/new" component={NewApplicationForm} />
+              <ArtistRoute path="/applications/:id" component={ApplicationDetail} />
+              <ManagerRoute path="/applications" component={Applications} />
+              
+              {/* Templates - admin and grant writers can edit */}
+              <GrantWriterRoute path="/templates/:id/edit" component={TemplateEdit} />
+              <ArtistRoute path="/templates/:id" component={TemplateDetail} />
+              <ArtistRoute path="/templates" component={Templates} />
+              
+              {/* AI Assistant is available to premium users (all roles) */}
               <ProtectedRoute path="/ai-assistant" component={AIAssistant} />
+              
+              {/* Document management - different roles have different access */}
               <ProtectedRoute path="/documents" component={Documents} />
+              
+              {/* User profile and settings */}
               <ProtectedRoute path="/profile" component={ProfilePage} />
               <ProtectedRoute path="/settings" component={SettingsPage} />
+              
+              {/* Access denied page */}
+              <Route path="/unauthorized" component={UnauthorizedPage} />
+              
               <Route component={NotFound} />
             </Switch>
           </main>

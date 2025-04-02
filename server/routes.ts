@@ -12,6 +12,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import express from "express";
+import { requireRole, requireAdmin, requireGrantWriter, requireManager, requireArtist } from './middleware/role-check';
 
 // Initialize Stripe with secret key
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -65,13 +66,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication first
   setupAuth(app);
   
-  // Middleware to check authentication for protected routes
-  const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-    next();
-  };
+  // Basic authentication check - use this when any authenticated user can access a route
+  const requireAuth = requireRole([]);
   
   // Add request batching for improved performance
   app.post("/api/batch", requireAuth, async (req, res) => {

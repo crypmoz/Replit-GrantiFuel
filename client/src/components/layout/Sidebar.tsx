@@ -2,32 +2,90 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { 
   Music, Home, DollarSign, Users, FileText, 
-  LayoutTemplate, Zap, LogOut, BookOpen
+  LayoutTemplate, Zap, LogOut, BookOpen, Settings, User as UserIcon
 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
 import { User } from '@shared/schema';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/use-auth';
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
+  allowedRoles?: string[]; // Array of roles that can see this nav item
 }
 
+// Define navigation items with role access control
 const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: <Home className="h-5 w-5 mr-3" /> },
-  { href: '/grants', label: 'Grants', icon: <DollarSign className="h-5 w-5 mr-3" /> },
-  { href: '/artists', label: 'Artists', icon: <Users className="h-5 w-5 mr-3" /> },
-  { href: '/applications', label: 'Applications', icon: <FileText className="h-5 w-5 mr-3" /> },
-  { href: '/templates', label: 'Templates', icon: <LayoutTemplate className="h-5 w-5 mr-3" /> },
-  { href: '/ai-assistant', label: 'AI Assistant', icon: <Zap className="h-5 w-5 mr-3" /> },
-  { href: '/documents', label: 'Documents', icon: <BookOpen className="h-5 w-5 mr-3" /> },
+  { 
+    href: '/dashboard', 
+    label: 'Dashboard', 
+    icon: <Home className="h-5 w-5 mr-3" />,
+    // Dashboard is available to all authenticated users
+  },
+  { 
+    href: '/grants', 
+    label: 'Grants', 
+    icon: <DollarSign className="h-5 w-5 mr-3" />,
+    // Grants overview is visible to all users
+  },
+  { 
+    href: '/grants/new', 
+    label: 'Create Grant', 
+    icon: <DollarSign className="h-5 w-5 mr-3" />,
+    allowedRoles: ['admin', 'grant_writer'] // Only writers and admins can create grants
+  },
+  { 
+    href: '/artists', 
+    label: 'Artists', 
+    icon: <Users className="h-5 w-5 mr-3" />,
+    allowedRoles: ['admin', 'grant_writer', 'manager', 'artist'] // Artist-level role minimum
+  },
+  { 
+    href: '/applications', 
+    label: 'Applications', 
+    icon: <FileText className="h-5 w-5 mr-3" />,
+    allowedRoles: ['admin', 'grant_writer', 'manager'] // Manager-level role minimum
+  },
+  { 
+    href: '/templates', 
+    label: 'Templates', 
+    icon: <LayoutTemplate className="h-5 w-5 mr-3" />,
+    allowedRoles: ['admin', 'grant_writer', 'manager', 'artist'] // Artist-level role minimum
+  },
+  { 
+    href: '/ai-assistant', 
+    label: 'AI Assistant', 
+    icon: <Zap className="h-5 w-5 mr-3" />,
+    // AI Assistant visible to all authenticated users with proper subscription
+  },
+  { 
+    href: '/documents', 
+    label: 'Documents', 
+    icon: <BookOpen className="h-5 w-5 mr-3" />,
+    // Documents visible to all authenticated users
+  },
+  { 
+    href: '/profile', 
+    label: 'Profile', 
+    icon: <UserIcon className="h-5 w-5 mr-3" />,
+    // All users can access their profile
+  },
+  { 
+    href: '/settings', 
+    label: 'Settings', 
+    icon: <Settings className="h-5 w-5 mr-3" />,
+    allowedRoles: ['admin', 'grant_writer'] // Only admins and grant writers can access settings
+  },
 ];
 
 export default function Sidebar() {
   const [location] = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAuth();
+  // Keep backward compatibility with previous implementations that might use this query
   const { data: currentUser } = useQuery<User>({
     queryKey: ['/api/users/current'],
   });
@@ -95,7 +153,7 @@ export default function Sidebar() {
           <div className="bg-primary text-white p-2 rounded-lg" aria-hidden="true">
             <Music className="h-6 w-6" />
           </div>
-          <span className="text-xl font-bold text-gray-900 dark:text-white">Grantaroo</span>
+          <span className="text-xl font-bold text-gray-900 dark:text-white">GrantiFuel</span>
         </Link>
         <button 
           onClick={() => setIsOpen(false)}
@@ -113,8 +171,17 @@ export default function Sidebar() {
         <nav className="flex-1 px-2 py-4 space-y-1" aria-label="Application">
           <ul className="space-y-1">
             {navItems.map((item) => {
+              // Check if user has permission to see this navigation item
+              const hasPermission = !item.allowedRoles || 
+                                   !item.allowedRoles.length || 
+                                   (user && item.allowedRoles.includes(user.role));
+              
+              // Skip rendering items the user doesn't have permission to see
+              if (!hasPermission) return null;
+              
               const isActive = location === item.href || 
                             (item.href === '/dashboard' && location === '/');
+              
               return (
                 <li key={item.href}>
                   <Link 
@@ -156,11 +223,18 @@ export default function Sidebar() {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-white">
-                {currentUser?.name || 'Loading...'}
+                {user?.name || currentUser?.name || 'Loading...'}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {currentUser?.email || 'user@example.com'}
-              </p>
+              <div className="flex items-center space-x-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {user?.email || currentUser?.email || 'user@example.com'}
+                </p>
+                {user?.role && (
+                  <span className="text-xs px-1.5 py-0.5 bg-primary-100 text-primary-800 dark:bg-primary-800 dark:text-primary-100 rounded-full">
+                    {user.role.replace('_', ' ')}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="mt-2">
