@@ -83,9 +83,9 @@ function AppContent() {
               <ProtectedRoute path="/grants/:id" component={GrantDetail} />
               <ProtectedRoute path="/artists" component={Artists} />
               <ProtectedRoute path="/artists/:id" component={ArtistDetail} />
-              <ProtectedRoute path="/applications" component={Applications} />
+              <ProtectedRoute path="/applications/new" component={NewApplicationForm} />
               <ProtectedRoute path="/applications/:id" component={ApplicationDetail} />
-              <ProtectedRoute path="/applications/new" component={NewApplicationForm} /> {/* Updated Route */}
+              <ProtectedRoute path="/applications" component={Applications} />
               <ProtectedRoute path="/templates" component={Templates} />
               <ProtectedRoute path="/templates/:id" component={TemplateDetail} />
               <ProtectedRoute path="/templates/:id/edit" component={TemplateEdit} />

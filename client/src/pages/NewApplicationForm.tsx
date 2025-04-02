@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -28,13 +28,18 @@ export default function NewApplicationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get grantId from URL query params
-  const params = new URLSearchParams(window.location.search);
-  const grantId = params.get('grantId');
+  const searchParams = new URLSearchParams(window.location.search);
+  const grantId = searchParams.get('grantId');
 
   // Fetch grant details
   const { data: grant, isLoading: isLoadingGrant } = useQuery({
     queryKey: [`/api/grants/${grantId}`],
     enabled: !!grantId,
+    queryFn: async () => {
+      const response = await fetch(`/api/grants/${grantId}`);
+      if (!response.ok) throw new Error('Failed to fetch grant');
+      return response.json();
+    }
   });
 
   const form = useForm<ApplicationFormValues>({
@@ -56,8 +61,8 @@ export default function NewApplicationForm() {
         },
         body: JSON.stringify({
           grantId: Number(grantId),
-          answers: data,
-          status: 'inProgress',
+          ...data,
+          status: 'draft',
           progress: 25,
         }),
       });
@@ -93,12 +98,47 @@ export default function NewApplicationForm() {
     }
   };
 
+  if (!grantId) {
+    return (
+      <div className="container max-w-4xl mx-auto py-6">
+        <Card>
+          <CardContent className="p-6">
+            <p>No grant selected. Please select a grant to apply for.</p>
+            <Button onClick={() => navigate('/grants')} className="mt-4">
+              View Grants
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (isLoadingGrant) {
-    return <div>Loading...</div>;
+    return (
+      <div className="container max-w-4xl mx-auto py-6">
+        <Card>
+          <CardContent className="p-6 flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="ml-2">Loading grant details...</span>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (!grant) {
-    return <div>Grant not found</div>;
+    return (
+      <div className="container max-w-4xl mx-auto py-6">
+        <Card>
+          <CardContent className="p-6">
+            <p>Grant not found. Please select a valid grant to apply for.</p>
+            <Button onClick={() => navigate('/grants')} className="mt-4">
+              View Grants
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -199,7 +239,7 @@ export default function NewApplicationForm() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating...
+                      Creating Application...
                     </>
                   ) : (
                     'Create Application'
