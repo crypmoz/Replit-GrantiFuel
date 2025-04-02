@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import LandingHeader from "../components/layout/LandingHeader";
 import { Redirect, useLocation } from "wouter";
 import { useAuth, LoginData, RegisterData } from "../hooks/use-auth";
 import { z } from "zod";
@@ -152,11 +153,13 @@ export default function AuthPage() {
   }, [loginMutation, registerMutation, user]);
 
   return (
-    <div 
-      className="min-h-screen flex flex-col md:flex-row items-center justify-center p-4 md:p-8 bg-gradient-to-br from-background to-secondary/20"
-      role="main"
-      aria-labelledby="auth-heading"
-    >
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background to-secondary/20">
+      <LandingHeader />
+      <div 
+        className="flex-1 flex flex-col md:flex-row items-center justify-center p-4 md:p-8"
+        role="main"
+        aria-labelledby="auth-heading"
+      >
       {/* Screen reader announcements */}
       <LiveRegion ariaLive="assertive">{statusMessage}</LiveRegion>
       
@@ -482,5 +485,6 @@ export default function AuthPage() {
         </div>
       </div>
     </div>
+  </div>
   );
 }
