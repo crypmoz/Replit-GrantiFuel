@@ -707,7 +707,7 @@ function ArtistEditForm({ artist, onSubmit, isSubmitting }: ArtistEditFormProps)
             <FormItem>
               <FormLabel>Location</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. New York, USA" {...field} value={field.value || ''} />
+                <Input placeholder="e.g. New York, USA" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -494,7 +494,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const artists = await storage.getAllArtists();
     return res.json(artists);
   });
+  
+  // Get artists by user ID - this route must come before the /:id route
+  app.get("/api/artists/by-user/:userId", requireAuth, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // If requesting someone else's artists, require admin
+      if (userId !== req.user!.id && req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Not authorized to view this artist" });
+      }
+      
+      const artists = await storage.getArtistsByUserId(userId);
+      return res.json(artists.length > 0 ? artists[0] : null);
+    } catch (error) {
+      console.error("Error fetching artist by user ID:", error);
+      return res.status(500).json({ message: "Error fetching artist profile" });
+    }
+  });
 
+  // Get artist by ID (this comes after the by-user route)
   app.get("/api/artists/:id", async (req, res) => {
     const artist = await storage.getArtist(parseInt(req.params.id));
     if (!artist) {
@@ -502,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     return res.json(artist);
   });
-
+  
   app.post("/api/artists", requireAuth, async (req, res) => {
     const artist = await storage.createArtist({
       ...req.body,
