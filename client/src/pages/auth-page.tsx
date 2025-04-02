@@ -268,7 +268,7 @@ export default function AuthPage() {
               <CardHeader>
                 <CardTitle className="text-2xl font-bold" id="register-heading">Create an Account</CardTitle>
                 <CardDescription>
-                  Join Grantaroo Music Assist to simplify your grant applications
+                  Join GrantiFuel Music Assist to simplify your grant applications
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -432,7 +432,7 @@ export default function AuthPage() {
             id="auth-heading"
             className="text-4xl md:text-5xl font-extrabold mb-4 bg-gradient-to-r from-primary to-primary-foreground bg-clip-text text-transparent"
           >
-            Grantaroo Music Assist
+            GrantiFuel Music Assist
           </h1>
           <p className="text-xl mb-6 text-muted-foreground">
             Your intelligent companion for music grant applications

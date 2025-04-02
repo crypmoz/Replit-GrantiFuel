@@ -82,7 +82,7 @@ export function OnboardingProgress() {
           </span>
         </CardTitle>
         <CardDescription>
-          Complete these tasks to get the most out of Grantaroo
+          Complete these tasks to get the most out of GrantiFuel
         </CardDescription>
       </CardHeader>
       <CardContent>
