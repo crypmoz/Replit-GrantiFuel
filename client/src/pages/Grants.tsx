@@ -4,7 +4,7 @@ import { Grant } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Search, Plus, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
+import { Search, Plus, RefreshCw, Trash2, AlertTriangle, UserPlus, FileText, UserRoundCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '../components/ui/badge';
 import { useLocation, Link } from 'wouter';
@@ -23,6 +23,15 @@ import {
 } from "../components/ui/alert-dialog";
 import { useAuth } from '../hooks/use-auth';
 import { AdminGuard } from '../components/auth/RoleGuard';
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
+
+// Define types for the personalized grants response
+interface PersonalizedGrantsResponse {
+  grants: (Grant & { matchScore?: number })[];
+  isPersonalized: boolean;
+  profileComplete: boolean;
+  missingInfo?: 'artistProfile' | 'genres';
+}
 
 export default function Grants() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,7 +41,7 @@ export default function Grants() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  const { data: grants = [], isLoading, error, refetch } = useQuery<Grant[]>({
+  const { data: grantsResponse, isLoading, error, refetch } = useQuery<PersonalizedGrantsResponse | Grant[]>({
     queryKey: ['/api/grants'],
     refetchOnMount: true,
     refetchOnWindowFocus: true,
@@ -42,6 +51,12 @@ export default function Grants() {
     gcTime: 1000, // Keep data in cache for 1 second
     refetchInterval: 0
   });
+  
+  // Process the response to get the grants array and metadata
+  const grants = Array.isArray(grantsResponse) ? grantsResponse : grantsResponse?.grants || [];
+  const isPersonalized = !Array.isArray(grantsResponse) && grantsResponse?.isPersonalized;
+  const profileComplete = !Array.isArray(grantsResponse) && grantsResponse?.profileComplete;
+  const missingInfo = !Array.isArray(grantsResponse) ? grantsResponse?.missingInfo : undefined;
   
   // Delete mutation for grants (admin only)
   const deleteGrantMutation = useMutation({
@@ -135,6 +150,43 @@ export default function Grants() {
           </Button>
         </div>
       </div>
+      
+      {/* Profile completion alert */}
+      {user && missingInfo && (
+        <Alert className="mb-6 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+          <UserPlus className="h-4 w-4 text-amber-500" />
+          <AlertTitle className="text-amber-700 dark:text-amber-400">Complete your profile for personalized grants</AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-400">
+            {missingInfo === 'artistProfile' ? (
+              <>
+                Create an artist profile to get personalized grant recommendations. 
+                <Button variant="link" className="text-amber-600 dark:text-amber-400 p-0 h-auto" asChild>
+                  <Link to="/artists/new">Create your profile now</Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                Add your music genres to get personalized grant recommendations.
+                <Button variant="link" className="text-amber-600 dark:text-amber-400 p-0 h-auto" asChild>
+                  <Link to="/profile">Update your profile</Link>
+                </Button>
+              </>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* Personalization indicator */}
+      {user && isPersonalized && profileComplete && (
+        <Alert className="mb-6 border-green-300 bg-green-50 dark:bg-green-950/30">
+          <UserRoundCheck className="h-4 w-4 text-green-500" />
+          <AlertTitle className="text-green-700 dark:text-green-400">Personalized grants for you</AlertTitle>
+          <AlertDescription className="text-green-700 dark:text-green-400">
+            These grants are tailored to match your artist profile. 
+            Check the <Link to="/grant-recommendations" className="underline text-green-600 dark:text-green-400">Grant Recommendations</Link> page for an AI-powered analysis.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -179,10 +231,17 @@ export default function Grants() {
                         {grant.deadline ? format(new Date(grant.deadline), 'MMM d, yyyy') : 'No deadline set'}
                       </span>
                     </div>
-                    <div>
+                    <div className="flex flex-wrap gap-2">
                       <Badge variant="secondary" className="mt-2">
                         {grant.deadline && new Date(grant.deadline) > new Date() ? 'Active' : 'Closed'}
                       </Badge>
+                      
+                      {/* Show match score for personalized grants */}
+                      {'matchScore' in grant && (
+                        <Badge variant="outline" className="mt-2 border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-400">
+                          {grant.matchScore}% Match
+                        </Badge>
+                      )}
                     </div>
                   </CardContent>
                   <CardFooter className="flex flex-wrap justify-between pt-2 gap-2">

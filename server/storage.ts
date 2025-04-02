@@ -42,6 +42,7 @@ export interface IStorage {
   // Artists
   getAllArtists(): Promise<Artist[]>;
   getArtist(id: number): Promise<Artist | undefined>;
+  getArtistsByUserId(userId: number): Promise<Artist[]>;
   createArtist(artist: InsertArtist): Promise<Artist>;
   
   // Applications
@@ -176,6 +177,14 @@ export class DatabaseStorage implements IStorage {
   async getArtist(id: number): Promise<Artist | undefined> {
     const [artist] = await db.select().from(artists).where(eq(artists.id, id));
     return artist;
+  }
+  
+  async getArtistsByUserId(userId: number): Promise<Artist[]> {
+    return await db
+      .select()
+      .from(artists)
+      .where(eq(artists.userId, userId))
+      .orderBy(desc(artists.createdAt));
   }
   
   async createArtist(insertArtist: InsertArtist): Promise<Artist> {

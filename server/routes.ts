@@ -329,8 +329,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Grants routes
   app.get("/api/grants", async (req, res) => {
-    const grants = await storage.getAllGrants();
-    return res.json(grants);
+    // If user is authenticated, try to provide personalized grants
+    if (req.isAuthenticated()) {
+      try {
+        // Get the user's artist profile if it exists
+        const userArtists = await storage.getArtistsByUserId(req.user!.id);
+        
+        // If user has an artist profile with genre data, use it for recommendations
+        if (userArtists.length > 0 && userArtists[0].genres && userArtists[0].genres.length > 0) {
+          const userArtist = userArtists[0];
+          const genres = userArtist.genres || [];
+          
+          // Get all grants to filter
+          const allGrants = await storage.getAllGrants();
+          
+          // Get user's onboarding status
+          const onboardingTasks = await storage.getUserOnboardingTasks(req.user!.id);
+          
+          // Mark that user has viewed grants
+          if (!onboardingTasks.some(task => task.task === 'first_grant_viewed')) {
+            await storage.completeOnboardingTask(req.user!.id, 'first_grant_viewed', {
+              timestamp: new Date()
+            });
+          }
+          
+          // Basic filtering/ranking logic for grants (in a real app, this would be more sophisticated)
+          // This is a simplified approach - in production, you might use the AI for more personalized recommendations
+          const rankedGrants = allGrants.map(grant => {
+            let matchScore = 50; // Base score
+            
+            // If the grant description or requirements contains any of the user's genres, increase score
+            if (grant.description) {
+              for (const genre of genres) {
+                if (grant.description.toLowerCase().includes(genre.toLowerCase())) {
+                  matchScore += 10;
+                  break;
+                }
+              }
+            }
+            
+            if (grant.requirements) {
+              for (const genre of genres) {
+                if (grant.requirements.toLowerCase().includes(genre.toLowerCase())) {
+                  matchScore += 5;
+                  break;
+                }
+              }
+            }
+            
+            // Higher score for grants with upcoming deadlines (not expired)
+            if (grant.deadline && new Date(grant.deadline) > new Date()) {
+              matchScore += 15;
+              
+              // Even higher for grants with deadlines in the next 30 days
+              const daysTillDeadline = Math.floor((new Date(grant.deadline).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+              if (daysTillDeadline <= 30) {
+                matchScore += 10;
+              }
+            }
+            
+            return {
+              ...grant,
+              matchScore
+            };
+          });
+          
+          // Sort by match score and take top 5
+          const topGrants = rankedGrants
+            .sort((a, b) => b.matchScore - a.matchScore)
+            .slice(0, 5);
+          
+          // For profile completeness, add custom properties
+          return res.json({
+            grants: topGrants,
+            isPersonalized: true,
+            profileComplete: true
+          });
+        } else {
+          // User has no artist profile or incomplete data
+          const allGrants = await storage.getAllGrants();
+          
+          return res.json({
+            grants: allGrants.slice(0, 5), // Only return 5 grants
+            isPersonalized: false,
+            profileComplete: false,
+            missingInfo: !userArtists.length ? 'artistProfile' : 'genres'
+          });
+        }
+      } catch (error) {
+        console.error("Error getting personalized grants:", error);
+        // Fall back to regular grants
+        const grants = await storage.getAllGrants();
+        return res.json(grants);
+      }
+    } else {
+      // Not authenticated, just return all grants
+      const grants = await storage.getAllGrants();
+      return res.json(grants);
+    }
   });
 
   app.get("/api/grants/:id", async (req, res) => {
