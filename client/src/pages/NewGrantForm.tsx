@@ -72,8 +72,9 @@ export default function NewGrantForm() {
     },
     onSuccess: () => {
       // Force immediate invalidation and refetch
-      queryClient.invalidateQueries({ queryKey: ['/api/grants'] });
-      queryClient.refetchQueries({ queryKey: ['/api/grants'] });
+      queryClient.resetQueries({ queryKey: ['/api/grants'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/grants'], refetchType: 'all' });
+      queryClient.refetchQueries({ queryKey: ['/api/grants'], type: 'all', exact: true });
       toast({
         title: "Grant created",
         description: "Grant has been successfully created",
