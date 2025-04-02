@@ -6,7 +6,7 @@ import { z } from "zod";
 import { setupAuth } from "./auth";
 import Stripe from "stripe";
 import { db } from "./db";
-import { users, subscriptions, grantRecommendationProfileSchema } from "@shared/schema";
+import { users, subscriptions, grantRecommendationProfileSchema, type InsertArtist } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
@@ -509,6 +509,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       userId: req.user!.id
     });
     return res.status(201).json(artist);
+  });
+  
+  app.patch("/api/artists/:id", requireAuth, async (req, res) => {
+    try {
+      // Get the artist first to check ownership
+      const artist = await storage.getArtist(parseInt(req.params.id));
+      
+      if (!artist) {
+        return res.status(404).json({ message: "Artist not found" });
+      }
+      
+      // Check if the current user owns this artist or is an admin
+      if (artist.userId !== req.user!.id && req.user!.role !== 'admin') {
+        return res.status(403).json({ message: "Not authorized to update this artist" });
+      }
+      
+      // Only include valid fields to update (don't allow updating userId)
+      const { name, email, phone, bio, genres } = req.body;
+      const updateData: Partial<InsertArtist> = {};
+      
+      if (name !== undefined) updateData.name = name;
+      if (email !== undefined) updateData.email = email;
+      if (phone !== undefined) updateData.phone = phone;
+      if (bio !== undefined) updateData.bio = bio;
+      if (genres !== undefined) updateData.genres = genres;
+      
+      // Update the artist
+      const updatedArtist = await storage.updateArtist(parseInt(req.params.id), updateData);
+      
+      // Create activity record for the update
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "UPDATED",
+        entityType: "ARTIST",
+        entityId: artist.id,
+        details: { name: artist.name }
+      });
+      
+      return res.json(updatedArtist);
+    } catch (error: any) {
+      console.error("Error updating artist:", error);
+      return res.status(500).json({ message: "Error updating artist", error: error.message });
+    }
   });
   
   // Applications routes

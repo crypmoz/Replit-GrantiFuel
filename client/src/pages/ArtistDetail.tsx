@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useRoute } from 'wouter';
-import { useQuery } from '@tanstack/react-query';
-import { queryClient } from '@/lib/queryClient';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient, apiRequest } from '@/lib/queryClient';
 import { 
   Artist, 
   Application, 
   Grant,
-  Activity
+  Activity,
+  insertArtistSchema
 } from '@shared/schema';
 import { 
   Card, 
@@ -19,6 +20,30 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { 
   User, 
   Mail, 
@@ -32,14 +57,33 @@ import {
   Award,
   Star,
   ChevronLeft,
-  Activity as ActivityIcon
+  Activity as ActivityIcon,
+  Save,
+  X
 } from 'lucide-react';
 import { format } from 'date-fns';
+
+// Form validation schema
+const artistFormSchema = insertArtistSchema.pick({
+  name: true,
+  email: true,
+  phone: true,
+  bio: true,
+  genres: true
+});
+
+// Form state type
+type ArtistFormValues = z.infer<typeof artistFormSchema>;
 
 export default function ArtistDetail() {
   // Get artist ID from URL
   const [, params] = useRoute<{ id: string }>('/artists/:id');
   const artistId = params?.id ? parseInt(params.id) : null;
+  
+  // Dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  
+  const { toast } = useToast();
   
   const { data: artist, isLoading: artistLoading } = useQuery<Artist>({
     queryKey: ['/api/artists', artistId],
@@ -48,6 +92,36 @@ export default function ArtistDetail() {
       const res = await fetch(`/api/artists/${artistId}`);
       if (!res.ok) throw new Error('Failed to fetch artist');
       return res.json();
+    }
+  });
+  
+  // Edit artist mutation
+  const updateArtistMutation = useMutation({
+    mutationFn: async (data: ArtistFormValues) => {
+      const response = await apiRequest('PATCH', `/api/artists/${artistId}`, data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update artist');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      // Close the dialog
+      setEditDialogOpen(false);
+      // Show success message
+      toast({
+        title: "Artist updated",
+        description: "The artist profile has been updated successfully.",
+      });
+      // Invalidate cache to reload data
+      queryClient.invalidateQueries({ queryKey: ['/api/artists', artistId] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   });
   
@@ -196,11 +270,35 @@ export default function ArtistDetail() {
             )}
           </CardContent>
           <CardFooter>
-            <Button variant="outline" size="sm" className="w-full">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full"
+              onClick={() => setEditDialogOpen(true)}
+            >
               <Edit className="h-4 w-4 mr-2" />
               Edit Profile
             </Button>
           </CardFooter>
+          
+          {/* Edit Profile Dialog */}
+          <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent className="sm:max-w-[525px]">
+              <DialogHeader>
+                <DialogTitle>Edit Artist Profile</DialogTitle>
+                <DialogDescription>
+                  Update the artist's profile information.
+                </DialogDescription>
+              </DialogHeader>
+              {artist && (
+                <ArtistEditForm 
+                  artist={artist} 
+                  onSubmit={(data) => updateArtistMutation.mutate(data)}
+                  isSubmitting={updateArtistMutation.isPending}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
         </Card>
         
         {/* Tabs for Applications and Activities */}
@@ -348,5 +446,144 @@ export default function ArtistDetail() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Artist Edit Form Component
+interface ArtistEditFormProps {
+  artist: Artist;
+  onSubmit: (data: ArtistFormValues) => void;
+  isSubmitting: boolean;
+}
+
+function ArtistEditForm({ artist, onSubmit, isSubmitting }: ArtistEditFormProps) {
+  // Set up the form with react-hook-form
+  const form = useForm<ArtistFormValues>({
+    resolver: zodResolver(artistFormSchema),
+    defaultValues: {
+      name: artist.name,
+      email: artist.email,
+      phone: artist.phone || '',
+      bio: artist.bio || '',
+      genres: artist.genres || [],
+    },
+  });
+
+  // Manage genres as a comma-separated string for simplicity
+  const [genresInput, setGenresInput] = useState(artist.genres?.join(', ') || '');
+
+  // Handle form submission
+  function handleSubmit(data: ArtistFormValues) {
+    // Convert the comma-separated genres string back to an array
+    const genresArray = genresInput.split(',')
+      .map(genre => genre.trim())
+      .filter(genre => genre !== '');
+    
+    // Submit the form data with the processed genres
+    onSubmit({
+      ...data,
+      genres: genresArray,
+    });
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input placeholder="Artist name" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input placeholder="Email address" type="email" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Phone (optional)</FormLabel>
+              <FormControl>
+                <Input placeholder="Phone number" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        {/* Genres as a comma-separated input for simplicity */}
+        <div className="space-y-2">
+          <FormLabel>Genres (comma-separated)</FormLabel>
+          <Input
+            placeholder="e.g. Jazz, Classical, Hip-Hop"
+            value={genresInput}
+            onChange={(e) => setGenresInput(e.target.value)}
+          />
+          <p className="text-sm text-muted-foreground">
+            Enter genres separated by commas
+          </p>
+        </div>
+        
+        <FormField
+          control={form.control}
+          name="bio"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Biography (optional)</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Tell us about this artist..."
+                  className="min-h-[120px]"
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => form.reset()}>
+            Reset
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
   );
 }

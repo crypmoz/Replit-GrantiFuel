@@ -44,6 +44,7 @@ export interface IStorage {
   getArtist(id: number): Promise<Artist | undefined>;
   getArtistsByUserId(userId: number): Promise<Artist[]>;
   createArtist(artist: InsertArtist): Promise<Artist>;
+  updateArtist(id: number, artistData: Partial<InsertArtist>): Promise<Artist | undefined>;
   
   // Applications
   getAllApplications(): Promise<Application[]>;
@@ -189,6 +190,15 @@ export class DatabaseStorage implements IStorage {
   
   async createArtist(insertArtist: InsertArtist): Promise<Artist> {
     const [artist] = await db.insert(artists).values(insertArtist).returning();
+    return artist;
+  }
+  
+  async updateArtist(id: number, artistData: Partial<InsertArtist>): Promise<Artist | undefined> {
+    const [artist] = await db
+      .update(artists)
+      .set(artistData)
+      .where(eq(artists.id, id))
+      .returning();
     return artist;
   }
   
