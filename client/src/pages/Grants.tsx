@@ -103,12 +103,12 @@ export default function Grants() {
                     <div className="mb-3">
                       <span className="text-sm font-medium text-gray-900 dark:text-white">Deadline: </span>
                       <span className="text-sm text-gray-700 dark:text-gray-300">
-                        {format(new Date(grant.deadline), 'MMM d, yyyy')}
+                        {grant.deadline ? format(new Date(grant.deadline), 'MMM d, yyyy') : 'No deadline set'}
                       </span>
                     </div>
                     <div>
                       <Badge variant="secondary" className="mt-2">
-                        {new Date(grant.deadline) > new Date() ? 'Active' : 'Closed'}
+                        {grant.deadline && new Date(grant.deadline) > new Date() ? 'Active' : 'Closed'}
                       </Badge>
                     </div>
                   </CardContent>
