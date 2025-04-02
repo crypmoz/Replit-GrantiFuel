@@ -14,6 +14,17 @@ import fs from "fs";
 import express from "express";
 import { requireRole, requireAdmin, requireGrantWriter, requireManager, requireArtist } from './middleware/role-check';
 
+// Middleware to prevent caching for all API responses
+const noCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Surrogate-Control': 'no-store'
+  });
+  next();
+};
+
 // Initialize Stripe with secret key
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
@@ -65,6 +76,9 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication first
   setupAuth(app);
+  
+  // Apply the no-cache middleware to all API routes
+  app.use('/api', noCacheMiddleware);
   
   // Basic authentication check - use this when any authenticated user can access a route
   const requireAuth = requireRole([]);
@@ -242,8 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
       
-      // Cache results to improve performance of frequently requested data
-      res.set('Cache-Control', 'public, max-age=60'); // 1 minute cache
+      // Send results without caching to ensure fresh data
       res.json({ results });
     } catch (error: any) {
       console.error("Error processing batch request:", error);

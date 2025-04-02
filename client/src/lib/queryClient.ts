@@ -30,9 +30,12 @@ export async function apiRequest(
     return pendingRequests.get(requestKey)!;
   }
   
-  // Prepare request headers
+  // Prepare request headers with no-cache directives
   const requestHeaders = {
     ...(data ? { "Content-Type": "application/json" } : {}),
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
     ...headers
   };
   
@@ -42,7 +45,7 @@ export async function apiRequest(
     headers: requestHeaders,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
-    cache: method === 'GET' ? cache : 'no-store', // Only cache GET requests
+    cache: 'no-store', // Never cache requests to ensure fresh data
   }).then(async (res) => {
     // Remove from pending requests map
     if (deduplicate) {
@@ -102,7 +105,7 @@ export async function apiBatchRequest(requests: BatchRequest[]): Promise<any[]> 
   try {
     const res = await apiRequest('POST', '/api/batch', { requests }, {
       deduplicate: true,
-      cache: 'force-cache' // Enable HTTP caching for GET requests
+      cache: 'no-store' // Disable caching for batch requests
     });
     
     const data = await res.json();
@@ -165,11 +168,9 @@ export const getQueryFn: <T>(options: {
     try {
       // Use our optimized apiRequest function instead of direct fetch
       const url = queryKey[0] as string;
-      // Different cache strategies based on endpoint
-      const cache = url.includes('/api/grants') ? 'no-cache' : 'force-cache';
       
       const res = await apiRequest('GET', url, undefined, {
-        cache, // Apply appropriate caching strategy
+        cache: 'no-store', // Consistently use no-store to prevent caching
         deduplicate: true // Deduplicate identical requests
       });
       
