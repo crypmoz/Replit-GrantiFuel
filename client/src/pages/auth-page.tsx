@@ -156,7 +156,7 @@ export default function AuthPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background to-secondary/20">
       <LandingHeader />
       <div 
-        className="flex-1 flex flex-col md:flex-row items-center justify-center p-4 md:p-8 pt-32"
+        className="flex-1 flex flex-col md:flex-row items-center justify-center p-4 md:p-8 mt-20"
         role="main"
         aria-labelledby="auth-heading"
       >
@@ -168,7 +168,7 @@ export default function AuthPage() {
         <Tabs 
           defaultValue={activeTab} 
           onValueChange={handleTabChange} 
-          className="w-full max-w-md mx-auto"
+          className="w-full max-w-md mx-auto mt-8"
           aria-label="Authentication options"
         >
           <TabsList className="grid w-full grid-cols-2 mb-8">
