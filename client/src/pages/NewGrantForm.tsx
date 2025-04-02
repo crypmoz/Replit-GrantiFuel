@@ -71,13 +71,16 @@ export default function NewGrantForm() {
       return response.json();
     },
     onSuccess: (newGrant) => {
-      // Force a fresh fetch of grants
-      queryClient.invalidateQueries({ queryKey: ['/api/grants'] });
-      queryClient.refetchQueries({ queryKey: ['/api/grants'], type: 'active' });
+      // Clear all grant-related cache
+      queryClient.removeQueries({ queryKey: ['/api/grants'] });
+      queryClient.resetQueries({ queryKey: ['/api/grants'] });
       
-      // Also update the cache optimistically
-      const currentGrants = queryClient.getQueryData<Grant[]>(['/api/grants']) || [];
-      queryClient.setQueryData(['/api/grants'], [...currentGrants, newGrant]);
+      // Force immediate refetch
+      queryClient.invalidateQueries({ 
+        queryKey: ['/api/grants'],
+        refetchType: 'all',
+        exact: true 
+      });
       
       toast({
         title: "Grant created",
