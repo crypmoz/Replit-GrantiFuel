@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import { 
   Music, Home, DollarSign, Users, FileText, 
-  LayoutTemplate, Zap, LogOut, BookOpen, Settings, User as UserIcon
+  LayoutTemplate, Zap, LogOut, BookOpen, Settings, User as UserIcon,
+  Shield, UserCog
 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
@@ -78,6 +79,12 @@ const navItems: NavItem[] = [
     label: 'Settings', 
     icon: <Settings className="h-5 w-5 mr-3" />,
     allowedRoles: ['admin', 'grant_writer'] // Only admins and grant writers can access settings
+  },
+  { 
+    href: '/admin/users', 
+    label: 'User Management', 
+    icon: <UserCog className="h-5 w-5 mr-3" />,
+    allowedRoles: ['admin'] // Only admins can access user management
   },
 ];
 

@@ -61,7 +61,6 @@ export default function UserManagement() {
       toast({
         title: 'User updated',
         description: 'User role or status has been updated successfully.',
-        variant: 'success',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       setSelectedUser(null);
