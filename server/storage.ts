@@ -37,6 +37,7 @@ export interface IStorage {
   getAllGrants(): Promise<Grant[]>;
   getGrant(id: number): Promise<Grant | undefined>;
   createGrant(grant: InsertGrant): Promise<Grant>;
+  deleteGrant(id: number): Promise<boolean>;
   
   // Artists
   getAllArtists(): Promise<Artist[]>;
@@ -153,6 +154,16 @@ export class DatabaseStorage implements IStorage {
       return grant;
     } catch (error) {
       console.error("Error creating grant:", error);
+      throw error;
+    }
+  }
+  
+  async deleteGrant(id: number): Promise<boolean> {
+    try {
+      await db.delete(grants).where(eq(grants.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting grant:", error);
       throw error;
     }
   }

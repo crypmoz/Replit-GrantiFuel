@@ -365,6 +365,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  app.delete("/api/grants/:id", requireAdmin, async (req, res) => {
+    try {
+      const grantId = parseInt(req.params.id);
+      if (isNaN(grantId)) {
+        return res.status(400).json({ message: "Invalid grant ID" });
+      }
+      
+      // Check if grant exists
+      const grant = await storage.getGrant(grantId);
+      if (!grant) {
+        return res.status(404).json({ message: "Grant not found" });
+      }
+      
+      // Delete the grant
+      await storage.deleteGrant(grantId);
+      
+      // Return success
+      return res.status(200).json({ message: "Grant deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting grant:", error);
+      return res.status(500).json({ 
+        message: "Failed to delete grant", 
+        error: error.message || "Unknown error" 
+      });
+    }
+  });
   
   // Artists routes
   app.get("/api/artists", async (req, res) => {

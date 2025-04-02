@@ -1,20 +1,37 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Grant } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Search, Plus, Filter, RefreshCw } from 'lucide-react';
+import { Search, Plus, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '../components/ui/badge';
 import { useLocation, Link } from 'wouter';
 import { useToast } from '../hooks/use-toast';
+import { apiRequest } from '../lib/queryClient';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../components/ui/alert-dialog";
+import { useAuth } from '../hooks/use-auth';
+import { AdminGuard } from '../components/auth/RoleGuard';
 
 export default function Grants() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [grantToDelete, setGrantToDelete] = useState<Grant | null>(null);
   const [_, navigate] = useLocation();
   const { toast } = useToast();
-
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  
   const { data: grants = [], isLoading, error, refetch } = useQuery<Grant[]>({
     queryKey: ['/api/grants'],
     refetchOnMount: true,
@@ -24,6 +41,35 @@ export default function Grants() {
     staleTime: 0, // Don't use cached data
     gcTime: 1000, // Keep data in cache for 1 second
     refetchInterval: 0
+  });
+  
+  // Delete mutation for grants (admin only)
+  const deleteGrantMutation = useMutation({
+    mutationFn: async (grantId: number) => {
+      const response = await apiRequest('DELETE', `/api/grants/${grantId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete grant');
+      }
+      return grantId;
+    },
+    onSuccess: () => {
+      // Invalidate the grants query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['/api/grants'] });
+      toast({
+        title: "Grant Deleted",
+        description: "The grant has been successfully deleted.",
+      });
+      setGrantToDelete(null);
+    },
+    onError: (error: any) => {
+      console.error("Error deleting grant:", error);
+      toast({
+        title: "Delete Failed",
+        description: error.message || "There was a problem deleting the grant.",
+        variant: "destructive",
+      });
+    }
   });
 
   // Show error toast if data fetching fails
@@ -139,10 +185,44 @@ export default function Grants() {
                       </Badge>
                     </div>
                   </CardContent>
-                  <CardFooter className="flex justify-between pt-2">
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/grants/${grant.id}`)}>
-                      View Details
-                    </Button>
+                  <CardFooter className="flex flex-wrap justify-between pt-2 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/grants/${grant.id}`)}>
+                        View Details
+                      </Button>
+                      <AdminGuard>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="flex items-center">
+                                <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                                Delete Grant
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{grant.name}"? This action cannot be undone.
+                                <p className="mt-2 font-medium text-gray-700 dark:text-gray-300">
+                                  Any applications for this grant will be orphaned.
+                                </p>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-red-600 hover:bg-red-700 text-white"
+                                onClick={() => deleteGrantMutation.mutate(grant.id)}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </AdminGuard>
+                    </div>
                     <Button 
                       size="sm" 
                       asChild
