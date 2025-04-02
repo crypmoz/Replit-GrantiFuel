@@ -42,7 +42,7 @@ const navItems: NavItem[] = [
     href: '/artists', 
     label: 'Artists', 
     icon: <Users className="h-5 w-5 mr-3" />,
-    allowedRoles: ['admin', 'grant_writer', 'manager', 'artist'] // Artist-level role minimum
+    allowedRoles: ['admin', 'grant_writer', 'manager'] // Only admins, grant writers, and managers can see all artists
   },
   { 
     href: '/applications', 

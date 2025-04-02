@@ -526,7 +526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only include valid fields to update (don't allow updating userId)
-      const { name, email, phone, bio, genres } = req.body;
+      const { name, email, phone, bio, genres, careerStage, primaryInstrument, location, projectType } = req.body;
       const updateData: Partial<InsertArtist> = {};
       
       if (name !== undefined) updateData.name = name;
@@ -534,6 +534,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (phone !== undefined) updateData.phone = phone;
       if (bio !== undefined) updateData.bio = bio;
       if (genres !== undefined) updateData.genres = genres;
+      if (careerStage !== undefined) updateData.careerStage = careerStage;
+      if (primaryInstrument !== undefined) updateData.primaryInstrument = primaryInstrument;
+      if (location !== undefined) updateData.location = location;
+      if (projectType !== undefined) updateData.projectType = projectType;
       
       // Update the artist
       const updatedArtist = await storage.updateArtist(parseInt(req.params.id), updateData);

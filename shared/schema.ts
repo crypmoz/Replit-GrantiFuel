@@ -62,6 +62,10 @@ export const artists = pgTable("artists", {
   phone: text("phone"),
   bio: text("bio"),
   genres: text("genres").array(),
+  careerStage: text("career_stage"),
+  primaryInstrument: text("primary_instrument"),
+  location: text("location"),
+  projectType: text("project_type"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

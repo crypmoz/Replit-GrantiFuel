@@ -20,6 +20,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -69,7 +76,11 @@ const artistFormSchema = insertArtistSchema.pick({
   email: true,
   phone: true,
   bio: true,
-  genres: true
+  genres: true,
+  careerStage: true,
+  primaryInstrument: true,
+  location: true,
+  projectType: true
 });
 
 // Form state type
@@ -265,6 +276,58 @@ export default function ArtistDetail() {
                       </p>
                     </div>
                   )}
+                  
+                  {/* Grant matching information section */}
+                  <div className="pt-5 border-t border-gray-100 dark:border-gray-800 mt-4">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                      <Award className="h-4 w-4 mr-1 text-primary" />
+                      Grant Matching Information
+                    </h4>
+                    
+                    <div className="space-y-3 text-sm">
+                      {artist?.careerStage && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Career Stage:</span>
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {artist.careerStage.charAt(0).toUpperCase() + artist.careerStage.slice(1).replace('-', ' ')}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {artist?.primaryInstrument && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Primary Role:</span>
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {artist.primaryInstrument.charAt(0).toUpperCase() + artist.primaryInstrument.slice(1)}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {artist?.location && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Location:</span>
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {artist.location}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {artist?.projectType && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 dark:text-gray-400">Project Type:</span>
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {artist.projectType.charAt(0).toUpperCase() + artist.projectType.slice(1).replace('-', ' ')}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {!artist?.careerStage && !artist?.primaryInstrument && !artist?.location && !artist?.projectType && (
+                        <p className="text-gray-500 dark:text-gray-400 italic">
+                          No grant matching information provided yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </>
             )}
@@ -463,9 +526,13 @@ function ArtistEditForm({ artist, onSubmit, isSubmitting }: ArtistEditFormProps)
     defaultValues: {
       name: artist.name,
       email: artist.email,
-      phone: artist.phone || '',
-      bio: artist.bio || '',
-      genres: artist.genres || [],
+      phone: artist.phone ?? '',
+      bio: artist.bio ?? '',
+      genres: artist.genres ?? [],
+      careerStage: artist.careerStage ?? '',
+      primaryInstrument: artist.primaryInstrument ?? '',
+      location: artist.location ?? '',
+      projectType: artist.projectType ?? '',
     },
   });
 
@@ -524,7 +591,7 @@ function ArtistEditForm({ artist, onSubmit, isSubmitting }: ArtistEditFormProps)
             <FormItem>
               <FormLabel>Phone (optional)</FormLabel>
               <FormControl>
-                <Input placeholder="Phone number" {...field} />
+                <Input placeholder="Phone number" {...field} value={field.value || ''} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -554,9 +621,126 @@ function ArtistEditForm({ artist, onSubmit, isSubmitting }: ArtistEditFormProps)
                 <Textarea 
                   placeholder="Tell us about this artist..."
                   className="min-h-[120px]"
-                  {...field} 
+                  {...field}
+                  value={field.value || ''}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="space-y-1 pt-2">
+          <h3 className="text-sm font-medium">Grant Matching Information</h3>
+          <p className="text-xs text-muted-foreground">
+            These details help match the artist with relevant grant opportunities
+          </p>
+        </div>
+        
+        <FormField
+          control={form.control}
+          name="careerStage"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Career Stage</FormLabel>
+              <Select 
+                onValueChange={field.onChange} 
+                defaultValue={field.value || undefined}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select career stage" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="emerging">Emerging Artist</SelectItem>
+                  <SelectItem value="mid-career">Mid-Career</SelectItem>
+                  <SelectItem value="established">Established Artist</SelectItem>
+                  <SelectItem value="student">Student</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="primaryInstrument"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Primary Instrument or Role</FormLabel>
+              <Select 
+                onValueChange={field.onChange} 
+                defaultValue={field.value || undefined}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select primary role" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="composer">Composer</SelectItem>
+                  <SelectItem value="vocalist">Vocalist</SelectItem>
+                  <SelectItem value="pianist">Pianist</SelectItem>
+                  <SelectItem value="guitarist">Guitarist</SelectItem>
+                  <SelectItem value="drummer">Drummer</SelectItem>
+                  <SelectItem value="strings">String Instrumentalist</SelectItem>
+                  <SelectItem value="woodwind">Woodwind</SelectItem>
+                  <SelectItem value="brass">Brass</SelectItem>
+                  <SelectItem value="producer">Producer</SelectItem>
+                  <SelectItem value="conductor">Conductor</SelectItem>
+                  <SelectItem value="dj">DJ</SelectItem>
+                  <SelectItem value="educator">Educator</SelectItem>
+                  <SelectItem value="multi-instrumentalist">Multi-Instrumentalist</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="location"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Location</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. New York, USA" {...field} value={field.value || ''} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="projectType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Typical Project Type</FormLabel>
+              <Select 
+                onValueChange={field.onChange} 
+                defaultValue={field.value || undefined}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select project type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="recording">Recording Project</SelectItem>
+                  <SelectItem value="touring">Touring/Performance</SelectItem>
+                  <SelectItem value="composition">Composition</SelectItem>
+                  <SelectItem value="education">Education/Workshop</SelectItem>
+                  <SelectItem value="research">Research</SelectItem>
+                  <SelectItem value="community">Community Engagement</SelectItem>
+                  <SelectItem value="interdisciplinary">Interdisciplinary Arts</SelectItem>
+                  <SelectItem value="residency">Artist Residency</SelectItem>
+                  <SelectItem value="festival">Festival/Event</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
