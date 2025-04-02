@@ -73,17 +73,30 @@ export default function AIAssistant() {
   const [savedItems, setSavedItems] = useState<Array<{id: string, type: string, title: string, content: string, date: Date}>>([]);
   
   // Fetch data
-  const { data: grants } = useQuery<Grant[]>({
+  const { data: grantsData } = useQuery({
     queryKey: ['/api/grants'],
   });
   
-  const { data: artists } = useQuery<Artist[]>({
+  // Extract grants array safely
+  const grants = Array.isArray(grantsData) 
+    ? grantsData 
+    : (grantsData?.grants && Array.isArray(grantsData.grants)) 
+      ? grantsData.grants 
+      : [];
+  
+  const { data: artistsData } = useQuery({
     queryKey: ['/api/artists'],
   });
   
-  const { data: templates } = useQuery<Template[]>({
+  // Extract artists array safely
+  const artists = Array.isArray(artistsData) ? artistsData : [];
+  
+  const { data: templatesData } = useQuery({
     queryKey: ['/api/templates'],
   });
+  
+  // Extract templates array safely
+  const templates = Array.isArray(templatesData) ? templatesData : [];
   
   const { toast } = useToast();
   const messageEndRef = useRef<HTMLDivElement>(null);
