@@ -98,6 +98,13 @@ export default function GrantRecommendationsPage() {
             ['/api/ai/grant-recommendations'], 
             data.recommendations
           );
+          
+          // Save to sessionStorage for the application form
+          try {
+            sessionStorage.setItem('ai-grant-recommendations', JSON.stringify(data.recommendations));
+          } catch (err) {
+            console.error('Error saving recommendations to sessionStorage:', err);
+          }
         })
         .catch(err => {
           toast({

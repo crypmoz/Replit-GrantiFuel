@@ -56,6 +56,14 @@ export function useGrantRecommendations() {
         ['/api/ai/grant-recommendations'], 
         data.recommendations
       );
+      
+      // Save recommendations to sessionStorage for the application form to use
+      try {
+        sessionStorage.setItem('ai-grant-recommendations', JSON.stringify(data.recommendations));
+      } catch (err) {
+        console.error('Error saving recommendations to sessionStorage:', err);
+      }
+      
       toast({
         title: 'Grant recommendations ready!',
         description: `Found ${data.recommendations.length} grant opportunities matching your profile.`,

@@ -72,13 +72,54 @@ export default function NewApplicationForm() {
       if (cachedRecommendations) {
         try {
           const recommendations = JSON.parse(cachedRecommendations);
+          
           // Find the recommendation that matches our ID pattern
-          // Since we can't match exactly (due to dynamic IDs), we look for similar properties
-          const matchingGrant = recommendations.find((rec: any) => 
-            (rec.url && grantId.includes(new URL(rec.url).hostname))
-          );
+          // First try to match with a more exact approach
+          let matchingGrant;
+          
+          // Extract the hostname from grantId if possible
+          let targetHostname = '';
+          const hostnameMatch = grantId.match(/doc-based-(.*?)-/);
+          if (hostnameMatch && hostnameMatch[1]) {
+            targetHostname = hostnameMatch[1];
+          }
+          
+          // Try to find an exact match
+          if (targetHostname) {
+            matchingGrant = recommendations.find((rec: any) => {
+              if (!rec.url) return false;
+              
+              try {
+                const hostname = new URL(rec.url).hostname;
+                return hostname === targetHostname || hostname.includes(targetHostname) || targetHostname.includes(hostname);
+              } catch (e) {
+                return false;
+              }
+            });
+          }
+          
+          // If no exact match, fall back to a broader search
+          if (!matchingGrant) {
+            // Try to match based on any similar properties in the URL or name
+            matchingGrant = recommendations.find((rec: any) => {
+              // Try to match by URL first
+              if (rec.url && grantId.includes(rec.url.replace(/https?:\/\//g, '').split('/')[0])) {
+                return true;
+              }
+              
+              // If that fails, just get the first recommendation
+              return true;
+            });
+          }
+          
+          // If still no match, just use the first recommendation as fallback
+          if (!matchingGrant && recommendations.length > 0) {
+            matchingGrant = recommendations[0];
+            console.log('No exact match found, using first recommendation as fallback');
+          }
           
           if (matchingGrant) {
+            console.log('Found matching grant:', matchingGrant.name);
             setAiGrant(matchingGrant);
           }
         } catch (error) {

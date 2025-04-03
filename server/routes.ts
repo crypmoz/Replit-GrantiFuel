@@ -943,11 +943,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use the user-provided profile from the frontend if available, otherwise use database profile
       const profile = userProfile || artistProfile;
       
+      // Cast the profile to ensure we can safely access properties that might not exist
+      const typedProfile = profile as { 
+        careerStage?: string; 
+        genre?: string; 
+        instrumentOrRole?: string;
+        name?: string;
+        bio?: string;
+        location?: string;
+      } | undefined;
+      
       const result = await aiService.generateProposal({
         projectTitle: projectDescription.substring(0, 50) || "Project Proposal",  // Create a title from description
-        artistName: artistName || profile?.name || "Artist",
-        artistBio: profile?.bio || "Professional musician",     // Use profile bio if available
-        artistGenre: profile?.genre || "Music",                 // Use profile genre if available
+        artistName: artistName || typedProfile?.name || "Artist",
+        artistBio: typedProfile?.bio || "Professional musician",     // Use profile bio if available
+        artistGenre: typedProfile?.genre || "Music",                 // Use profile genre if available
         grantName: grantName || "Arts Grant",
         grantOrganization: "Arts Foundation",   // Default organization
         grantRequirements: "Music project funding requirements", // Default requirements
