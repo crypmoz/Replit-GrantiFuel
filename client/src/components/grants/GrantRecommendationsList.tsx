@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { GrantRecommendation } from "@/hooks/use-grant-recommendations";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Clock, Bookmark, AlertCircle, ExternalLink } from "lucide-react";
+import { Clock, Bookmark, AlertCircle, ExternalLink, FileText } from "lucide-react";
 
 interface GrantRecommendationsListProps {
   recommendations: GrantRecommendation[] | undefined | null;
@@ -139,17 +139,25 @@ export default function GrantRecommendationsList({
               </div>
             </CardContent>
             
-            <CardFooter className="flex justify-end space-x-2 bg-muted/20 py-3">
+            <CardFooter className="flex justify-between space-x-2 bg-muted/20 py-3">
               <Button variant="outline" size="sm">
                 <Bookmark className="h-4 w-4 mr-1" />
                 Save
               </Button>
-              <Button size="sm" asChild>
-                <a href={grant.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  View Grant
-                </a>
-              </Button>
+              <div className="space-x-2">
+                <Button size="sm" variant="outline" asChild>
+                  <a href={grant.url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Website
+                  </a>
+                </Button>
+                <Button size="sm" asChild>
+                  <a href={`/applications/new?grantId=${grant.id}`}>
+                    <FileText className="h-4 w-4 mr-1" />
+                    Apply Now
+                  </a>
+                </Button>
+              </div>
             </CardFooter>
           </Card>
         ))}

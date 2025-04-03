@@ -15,7 +15,6 @@ import { queryClient } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
 
 export default function GrantRecommendationsPage() {
-  const [activeTab, setActiveTab] = useState("form");
   const { user } = useAuth();
   const { toast } = useToast();
   
@@ -32,7 +31,8 @@ export default function GrantRecommendationsPage() {
   const { 
     data: artistProfile,
     isLoading: isLoadingProfile,
-    error: profileError 
+    error: profileError,
+    refetch: refetchArtistProfile
   } = useQuery({
     queryKey: ['/api/artists/by-user', user?.id],
     queryFn: async () => {
@@ -51,45 +51,48 @@ export default function GrantRecommendationsPage() {
   
   // Automatically use the artist profile data when available
   useEffect(() => {
-    if (artistProfile && !profile && typeof artistProfile === 'object') {
+    if (artistProfile && typeof artistProfile === 'object') {
       // Map artist profile fields to ArtistProfile format
-      const genres = artistProfile.genres || '';
+      // Handle both array and string formats for genres
+      let genreStr = '';
+      if (artistProfile.genres) {
+        if (Array.isArray(artistProfile.genres)) {
+          genreStr = artistProfile.genres.join(', ');
+        } else if (typeof artistProfile.genres === 'string') {
+          genreStr = artistProfile.genres;
+        }
+      }
+      
       const careerStage = artistProfile.careerStage || '';
       const instrumentOrRole = artistProfile.primaryInstrument || '';
       
       const artistProfileData: ArtistProfile = {
-        genre: typeof genres === 'string' ? genres : '',
+        genre: genreStr,
         careerStage: typeof careerStage === 'string' ? careerStage : '',
         instrumentOrRole: typeof instrumentOrRole === 'string' ? instrumentOrRole : '',
         location: artistProfile.location || '',
         projectType: artistProfile.projectType || '',
       };
       
-      // If we have all required fields, automatically fetch recommendations
-      if (artistProfileData.genre && artistProfileData.careerStage && artistProfileData.instrumentOrRole) {
-        setProfile(artistProfileData);
+      // Update profile data whether complete or not
+      setProfile(artistProfileData);
+      
+      // If we have required fields, fetch recommendations
+      if (artistProfileData.genre || artistProfileData.careerStage || artistProfileData.instrumentOrRole) {
         fetchRecommendations(artistProfileData);
-        
-        // Show notification
-        toast({
-          title: "Using your artist profile",
-          description: "We've automatically loaded your profile data to find grant matches.",
-        });
-        
-        // Automatically switch to results tab
-        setActiveTab("results");
       } else {
         toast({
           title: "Profile incomplete",
-          description: "Your artist profile is missing some information. Please complete the form to get recommendations.",
+          description: "Your artist profile is missing key information. Please update your profile to get better recommendations.",
+          variant: "destructive"
         });
       }
     }
-  }, [artistProfile, profile, setProfile, fetchRecommendations, toast]);
+  }, [artistProfile, setProfile, fetchRecommendations, toast]);
 
   const handleFormSubmit = (values: ArtistProfile) => {
     setProfile(values);
-    setActiveTab("results");
+    fetchRecommendations(values);
   };
 
   const handleRetry = () => {
@@ -185,22 +188,20 @@ export default function GrantRecommendationsPage() {
         </header>
 
         <Tabs 
-          defaultValue="form" 
-          value={activeTab} 
-          onValueChange={setActiveTab}
+          defaultValue="results" 
           className="space-y-6"
+          onValueChange={() => {}} // Prevent unused variable warning
         >
           <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="form">Your Profile</TabsTrigger>
+            <TabsTrigger value="profile">Your Profile</TabsTrigger>
             <TabsTrigger 
-              value="results" 
-              disabled={!recommendations && !isLoading}
+              value="results"
             >
               Recommendations
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="form">
+          <TabsContent value="profile">
             <div className="max-w-3xl mx-auto">
               {isLoadingProfile ? (
                 <div className="flex flex-col items-center justify-center py-12">
@@ -210,17 +211,6 @@ export default function GrantRecommendationsPage() {
               ) : (
                 <>
                   <GrantRecommendationsForm onFormSubmit={handleFormSubmit} defaultValues={profile || undefined} />
-                  
-                  {recommendations && recommendations.length > 0 && (
-                    <div className="mt-6 text-center">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setActiveTab("results")}
-                      >
-                        View your {recommendations.length} recommendations
-                      </Button>
-                    </div>
-                  )}
                 </>
               )}
             </div>
@@ -269,9 +259,9 @@ export default function GrantRecommendationsPage() {
                         variant="outline" 
                         size="sm" 
                         className="text-xs" 
-                        onClick={() => setActiveTab("form")}
+                        asChild
                       >
-                        Edit Profile
+                        <a href="#profile">Edit Profile</a>
                       </Button>
                       <Button 
                         variant="secondary" 
