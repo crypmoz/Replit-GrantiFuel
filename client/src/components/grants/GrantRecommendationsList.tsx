@@ -86,8 +86,10 @@ export default function GrantRecommendationsList({
       </div>
       
       <div className="space-y-6">
-        {recommendations.map((grant) => (
-          <Card key={grant.id} className="w-full overflow-hidden border-l-4 border-l-primary">
+        {recommendations.map((grant, index) => (
+          <Card 
+            key={typeof grant.id === 'string' ? grant.id : `grant-${grant.organization}-${index}`} 
+            className="w-full overflow-hidden border-l-4 border-l-primary">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <div>
@@ -153,14 +155,53 @@ export default function GrantRecommendationsList({
                 Save
               </Button>
               <div className="space-x-2">
-                <Button size="sm" variant="outline" asChild>
-                  <a href={grant.url} target="_blank" rel="noopener noreferrer">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  asChild
+                  disabled={!grant.url}
+                >
+                  <a 
+                    href={(() => {
+                      if (!grant.url) return '#';
+                      try {
+                        // Ensure URL is properly formatted
+                        const url = grant.url.startsWith('http') ? grant.url : `https://${grant.url}`;
+                        new URL(url); // Will throw if invalid
+                        return url;
+                      } catch (e) {
+                        console.error('Invalid URL:', grant.url);
+                        return '#';
+                      }
+                    })()}
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    onClick={(e) => {
+                      if (!grant.url) {
+                        e.preventDefault();
+                        // Could show a toast notification here
+                      }
+                    }}
+                  >
                     <ExternalLink className="h-4 w-4 mr-1" />
                     Official Website
                   </a>
                 </Button>
                 <Button size="sm" asChild>
-                  <a href={`/applications/new?grantId=${grant.id || `doc-based-${grant.url ? new URL(grant.url).hostname : 'recommendation'}-${Date.now()}`}`}>
+                  <a href={`/applications/new?grantId=${
+                    grant.id || 
+                    `doc-based-${
+                      grant.url ? 
+                        (() => {
+                          try {
+                            return new URL(grant.url).hostname;
+                          } catch (e) {
+                            return 'recommendation';
+                          }
+                        })() : 
+                        'recommendation'
+                    }-${index}`
+                  }`}>
                     <FileText className="h-4 w-4 mr-1" />
                     Prepare Application
                   </a>

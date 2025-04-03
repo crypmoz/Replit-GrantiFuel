@@ -295,7 +295,7 @@ window.addEventListener('offline', () => {
 queryClient.setDefaultOptions({
   queries: {
     ...queryClient.getDefaultOptions().queries,
-    retry: (failureCount, error) => {
+    retry: (failureCount, error: unknown) => {
       // Don't retry if we get a 4xx error (client error)
       if (error instanceof Error && error.message.startsWith('4')) {
         return false;
@@ -303,10 +303,13 @@ queryClient.setDefaultOptions({
       
       // Retry network errors up to 3 times with exponential backoff
       return failureCount < 3;
-    },
-    onError: (error) => {
-      console.error('Query error:', error);
-      // Could implement global error reporting or UI notifications here
     }
   }
+});
+
+// Custom error handling for improved error logging
+// This logs errors centrally to help with debugging
+window.addEventListener('unhandledrejection', (event) => {
+  // Log any unhandled promise rejections that might be from API calls
+  console.error('Unhandled Promise Rejection:', event.reason);
 });
