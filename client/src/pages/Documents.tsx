@@ -88,6 +88,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import FileUploadForm from '@/components/documents/FileUploadForm';
+import BatchUploadForm from '@/components/documents/BatchUploadForm';
 import DocumentsAnalysisList from '@/components/documents/DocumentsAnalysisList';
 import { DocumentAnalysisResult } from '@/components/documents/DocumentAnalysisCard';
 
@@ -841,6 +842,20 @@ export default function Documents() {
           
           <TabsContent value="uploads">
             <div className="grid grid-cols-1 gap-6">
+              {user?.role === 'admin' && (
+                <div className="col-span-1">
+                  <BatchUploadForm 
+                    onSuccess={() => {
+                      queryClient.invalidateQueries({ queryKey: ['/api/documents'] });
+                      toast({
+                        title: "Batch Upload Complete",
+                        description: "Your files have been uploaded and processed successfully.",
+                      });
+                    }}
+                  />
+                </div>
+              )}
+              
               <div className="col-span-1">
                 <FileUploadForm 
                   userRole={user?.role || 'user'} 

@@ -59,6 +59,25 @@ const fileUploadSchema = z.object({
     ),
 });
 
+// Define schema for batch upload (admin only)
+const batchUploadSchema = z.object({
+  isPublic: z.boolean().default(false),
+  files: z
+    .instanceof(FileList)
+    .refine((files) => files.length > 0, "At least one file is required")
+    .refine(
+      (files) => {
+        const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+        return Array.from(files).every(file => validTypes.includes(file.type));
+      },
+      "Only PDF, DOCX, and TXT files are allowed"
+    )
+    .refine(
+      (files) => Array.from(files).every(file => file.size <= 10 * 1024 * 1024),
+      "All files must be less than 10MB each"
+    ),
+});
+
 type FileUploadFormValues = z.infer<typeof fileUploadSchema>;
 
 interface FileUploadFormProps {

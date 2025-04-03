@@ -1467,6 +1467,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Determine if this is an admin user (for auto-classification)
       const isAdmin = req.user!.role === 'admin';
       
+      // Check if this is part of a batch upload (admin only)
+      const isBatchUpload = isAdmin && req.body.isBatchUpload === 'true';
+      
       // Determine file type for database
       let fileType: 'pdf' | 'docx' | 'txt' = 'none' as any;
       const extension = path.extname(file.originalname).toLowerCase();
@@ -1591,7 +1594,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: document.type,
           fileName: document.fileName,
           fileType: document.fileType,
-          aiClassified: documentData.aiClassified || false
+          aiClassified: documentData.aiClassified || false,
+          isBatchUpload: isBatchUpload || false
         }
       });
       
