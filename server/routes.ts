@@ -280,8 +280,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log the activity
       await storage.createActivity({
         userId: req.user!.id,
-        type: 'admin_action',
         action: 'ai_circuit_breaker_reset',
+        entityType: 'admin_action',
         details: {
           status: resetResult.status,
           message: resetResult.message
@@ -294,6 +294,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ 
         status: 'error',
         message: error.message || "Failed to reset circuit breaker"
+      });
+    }
+  });
+  
+  // Get AI service status for admin
+  app.get("/api/admin/ai/status", requireAdmin, async (req, res) => {
+    try {
+      console.log(`[Admin] AI status check requested by user ${req.user!.id}`);
+      
+      // Get service info using the proper method
+      const serviceInfo = aiService.getServiceInfo();
+      
+      // Log the activity
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: 'ai_status_check',
+        entityType: 'admin_action',
+        details: {
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      return res.json({
+        status: 'success',
+        message: 'AI system status retrieved successfully',
+        ...serviceInfo
+      });
+    } catch (error: any) {
+      console.error('Error getting AI status:', error);
+      return res.status(500).json({ 
+        status: 'error',
+        message: error.message || "Failed to get AI status"
       });
     }
   });
@@ -828,34 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     proposalType: z.string().optional()
   });
   
-  // Admin route to reset AI circuit breaker
-  app.post("/api/admin/ai/reset-circuit-breaker", requireAdmin, async (req, res) => {
-    try {
-      console.log(`[Admin] Circuit breaker reset requested by user ${req.user!.id}`);
-      
-      // Call the reset method
-      const resetResult = aiService.resetCircuitBreaker();
-      
-      // Log the activity
-      await storage.createActivity({
-        userId: req.user!.id,
-        action: "ADMIN",
-        entityType: "AI_CIRCUIT_BREAKER",
-        details: {
-          status: resetResult.status,
-          message: resetResult.message
-        }
-      });
-      
-      return res.json(resetResult);
-    } catch (error: any) {
-      console.error('Error resetting AI circuit breaker:', error);
-      return res.status(500).json({ 
-        status: 'error',
-        message: error.message || "Failed to reset circuit breaker"
-      });
-    }
-  });
+  // Note: The admin route to reset AI circuit breaker is defined at the top of the file
 
   app.post("/api/ai/generate-proposal", requireAuth, async (req, res) => {
     try {
@@ -1921,8 +1926,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log(`[Admin] AI cache clear requested by user ${req.user!.id}`);
       
-      // Clear the cache
-      aiService.clearCache();
+      // Clear the cache - now returns a status object
+      const clearResult = aiService.clearCache();
       
       // Log the activity
       await storage.createActivity({
@@ -1930,15 +1935,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: "ADMIN",
         entityType: "AI_CACHE",
         details: {
-          action: "cleared",
+          status: clearResult.status,
+          message: clearResult.message,
           timestamp: new Date().toISOString()
         }
       });
       
-      return res.json({
-        status: 'success',
-        message: 'AI service cache has been successfully cleared'
-      });
+      // Return the original result
+      return res.json(clearResult);
     } catch (error: any) {
       console.error('[Admin] Error clearing AI cache:', error);
       return res.status(500).json({ 

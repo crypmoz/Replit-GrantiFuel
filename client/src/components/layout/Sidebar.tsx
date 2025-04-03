@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { 
   Music, Home, DollarSign, Users, FileText, 
   LayoutTemplate, Zap, LogOut, BookOpen, Settings, User as UserIcon,
-  Shield, UserCog, Search
+  Shield, UserCog, Search, Gauge, BrainCircuit
 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
@@ -87,10 +87,22 @@ const navItems: NavItem[] = [
     allowedRoles: ['admin', 'grant_writer'] // Only admins and grant writers can access settings
   },
   { 
+    href: '/admin', 
+    label: 'Admin Dashboard', 
+    icon: <Gauge className="h-5 w-5 mr-3" />,
+    allowedRoles: ['admin'] // Only admins can access admin dashboard
+  },
+  { 
     href: '/admin/users', 
     label: 'User Management', 
     icon: <UserCog className="h-5 w-5 mr-3" />,
     allowedRoles: ['admin'] // Only admins can access user management
+  },
+  { 
+    href: '/admin/ai-controls', 
+    label: 'AI Controls', 
+    icon: <BrainCircuit className="h-5 w-5 mr-3" />,
+    allowedRoles: ['admin'] // Only admins can access AI controls
   },
 ];
 

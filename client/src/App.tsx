@@ -20,6 +20,8 @@ import AIAssistant from "./pages/AIAssistant";
 import GrantRecommendations from "./pages/GrantRecommendations";
 import Documents from "./pages/Documents";
 import UserManagement from "./pages/admin/UserManagement";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AiControls from "./pages/admin/AiControls";
 import LandingPage from "./pages/LandingPage";
 import About from "./pages/About";
 import Pricing from "./pages/Pricing";
@@ -123,7 +125,9 @@ function AppContent() {
               <ProtectedRoute path="/settings" component={SettingsPage} />
               
               {/* Admin section */}
+              <AdminRoute path="/admin" component={AdminDashboard} />
               <AdminRoute path="/admin/users" component={UserManagement} />
+              <AdminRoute path="/admin/ai-controls" component={AiControls} />
               
               {/* Access denied page */}
               <Route path="/unauthorized" component={UnauthorizedPage} />
