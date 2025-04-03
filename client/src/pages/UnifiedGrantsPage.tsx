@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
@@ -54,6 +55,7 @@ export default function UnifiedGrantsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('relevance');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showExpired, setShowExpired] = useState(false);
   
   // Artist profile update mutation
   const { mutate: updateArtistProfile, isPending: isUpdatingProfile } = useMutation({
@@ -248,6 +250,18 @@ export default function UnifiedGrantsPage() {
         return false;
       }
       
+      // Apply filter for expired grants if the showExpired flag is false
+      if (!showExpired && grant.deadline) {
+        const deadlineDate = new Date(grant.deadline);
+        // Skip invalid dates
+        if (!isNaN(deadlineDate.getTime())) {
+          // Filter out grants with deadlines in the past
+          if (new Date() > deadlineDate) {
+            return false;
+          }
+        }
+      }
+      
       // Then apply search filtering if there's a search query
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -423,7 +437,7 @@ export default function UnifiedGrantsPage() {
               />
             </div>
             
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-4 items-center">
               <div className="w-40">
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger id="sort-by">
@@ -438,6 +452,17 @@ export default function UnifiedGrantsPage() {
                     <SelectItem value="amount">Amount</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="show-expired" 
+                  checked={showExpired} 
+                  onCheckedChange={setShowExpired}
+                />
+                <Label htmlFor="show-expired" className="text-sm">
+                  Show expired grants
+                </Label>
               </div>
             </div>
           </div>

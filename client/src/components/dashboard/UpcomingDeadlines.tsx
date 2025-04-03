@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
 import { cn } from '@/lib/utils';
 import { useOnboarding } from '@/hooks/use-onboarding';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 // Define the personalized grants response type
 interface PersonalizedGrantsResponse {
@@ -36,6 +38,7 @@ const applicationStatus: ApplicationStatus = {
 
 export default function UpcomingDeadlines() {
   const [page, setPage] = useState(1);
+  const [showExpired, setShowExpired] = useState(false);
   const itemsPerPage = 4;
   const { completeTask, hasCompletedTask } = useOnboarding();
 
@@ -88,8 +91,26 @@ export default function UpcomingDeadlines() {
     );
   }
 
+  // Filter grants based on deadline and sort by nearest deadline first
   const sortedGrants = grantsArray.length > 0
-    ? [...grantsArray].sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+    ? [...grantsArray]
+        .filter(grant => {
+          // Skip grants with no deadline
+          if (!grant.deadline) return false;
+          
+          // Convert deadline to Date object
+          const deadlineDate = new Date(grant.deadline);
+          
+          // Skip invalid dates
+          if (isNaN(deadlineDate.getTime())) return false;
+          
+          // If showExpired is true, include all grants with valid deadlines
+          if (showExpired) return true;
+          
+          // Otherwise, only include grants with deadlines in the future
+          return isAfter(deadlineDate, new Date());
+        })
+        .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
     : [];
 
   // Calculate total pages
@@ -140,13 +161,28 @@ export default function UpcomingDeadlines() {
   return (
     <Card className="shadow-sm border-muted">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <CalendarClock className="h-5 w-5 text-primary" />
-          Upcoming Deadlines
-        </CardTitle>
-        <CardDescription>
-          Stay on top of important grant deadlines
-        </CardDescription>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <CalendarClock className="h-5 w-5 text-primary" />
+              Upcoming Deadlines
+            </CardTitle>
+            <CardDescription>
+              Stay on top of important grant deadlines
+            </CardDescription>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch 
+              id="show-expired-deadlines" 
+              checked={showExpired} 
+              onCheckedChange={setShowExpired}
+              className="scale-75"
+            />
+            <Label htmlFor="show-expired-deadlines" className="text-xs">
+              Show expired
+            </Label>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
