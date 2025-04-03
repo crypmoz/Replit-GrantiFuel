@@ -20,9 +20,9 @@ interface CircuitBreakerOptions {
 }
 
 const defaultOptions: CircuitBreakerOptions = {
-  failureThreshold: 5,     // Increased threshold to avoid premature tripping on temporary slowdowns
-  resetTimeout: 180000,    // 3 minutes - increased further to ensure API has time to recover
-  timeoutDuration: 120000, // 2 minutes - increased timeout for AI large document processing
+  failureThreshold: 8,     // Increased threshold to avoid premature tripping on temporary slowdowns
+  resetTimeout: 300000,    // 5 minutes - increased further to ensure API has time to recover
+  timeoutDuration: 180000, // 3 minutes - increased timeout for AI large document processing
   monitorInterval: 60000,  // 1 minute
 };
 
@@ -151,7 +151,7 @@ export class CircuitBreaker {
     // This helps prevent rapid cycling between states when service is unstable
     const backoff = Math.min(
       this.options.resetTimeout * Math.pow(1.5, this.failureCount - this.options.failureThreshold), 
-      300000 // Cap at 5 minutes max
+      600000 // Cap at 10 minutes max
     );
     
     console.log(`[CircuitBreaker:${this.serviceName}] Circuit OPEN, will try again in ${Math.round(backoff/1000)}s`);

@@ -203,41 +203,56 @@ export default function UnifiedGrantsPage() {
   const [processedInitialProfile, setProcessedInitialProfile] = useState(false);
   
   useEffect(() => {
-    // Only run once when artistProfile is first loaded and not null
-    if (artistProfile && typeof artistProfile === 'object' && !processedInitialProfile) {
-      setProcessedInitialProfile(true);
-      
-      // Map artist profile fields to ArtistProfile format
-      // Handle both array and string formats for genres
-      let genreStr = '';
-      if (artistProfile.genres) {
-        if (Array.isArray(artistProfile.genres)) {
-          genreStr = artistProfile.genres.join(', ');
-        } else if (typeof artistProfile.genres === 'string') {
-          genreStr = artistProfile.genres;
+    // Define an async function to properly handle potential promise rejections
+    const processProfileData = async () => {
+      try {
+        // Only run once when artistProfile is first loaded and not null
+        if (artistProfile && typeof artistProfile === 'object' && !processedInitialProfile) {
+          setProcessedInitialProfile(true);
+          
+          // Map artist profile fields to ArtistProfile format
+          // Handle both array and string formats for genres
+          let genreStr = '';
+          if (artistProfile.genres) {
+            if (Array.isArray(artistProfile.genres)) {
+              genreStr = artistProfile.genres.join(', ');
+            } else if (typeof artistProfile.genres === 'string') {
+              genreStr = artistProfile.genres;
+            }
+          }
+          
+          const careerStage = artistProfile.careerStage || '';
+          const instrumentOrRole = artistProfile.primaryInstrument || '';
+          
+          const artistProfileData: ArtistProfile = {
+            genre: genreStr,
+            careerStage: typeof careerStage === 'string' ? careerStage : '',
+            instrumentOrRole: typeof instrumentOrRole === 'string' ? instrumentOrRole : '',
+            location: artistProfile.location || '',
+            projectType: artistProfile.projectType || '',
+          };
+          
+          // Update profile data
+          setProfile(artistProfileData);
+          
+          // Only fetch if we have some data
+          if (artistProfileData.genre || artistProfileData.careerStage || artistProfileData.instrumentOrRole) {
+            await fetchRecommendations(artistProfileData);
+          }
         }
+      } catch (error) {
+        console.error("Error processing artist profile:", error);
+        toast({
+          title: "Error loading recommendations",
+          description: "We encountered a problem getting your grant recommendations. Please try again.",
+          variant: "destructive"
+        });
       }
-      
-      const careerStage = artistProfile.careerStage || '';
-      const instrumentOrRole = artistProfile.primaryInstrument || '';
-      
-      const artistProfileData: ArtistProfile = {
-        genre: genreStr,
-        careerStage: typeof careerStage === 'string' ? careerStage : '',
-        instrumentOrRole: typeof instrumentOrRole === 'string' ? instrumentOrRole : '',
-        location: artistProfile.location || '',
-        projectType: artistProfile.projectType || '',
-      };
-      
-      // Update profile data
-      setProfile(artistProfileData);
-      
-      // Only fetch if we have some data
-      if (artistProfileData.genre || artistProfileData.careerStage || artistProfileData.instrumentOrRole) {
-        fetchRecommendations(artistProfileData);
-      }
-    }
-  }, [artistProfile, processedInitialProfile, setProfile, fetchRecommendations]);
+    };
+    
+    // Execute the async function
+    processProfileData();
+  }, [artistProfile, processedInitialProfile, setProfile, fetchRecommendations, toast]);
 
   // Filter and sort the grants based on user input
   const filteredAndSortedGrants = combinedGrants
@@ -257,8 +272,13 @@ export default function UnifiedGrantsPage() {
         if (!isNaN(deadlineDate.getTime())) {
           // Filter out grants with deadlines in the past
           const now = new Date();
-          if (now > deadlineDate) {
-            console.log('Filtering out expired grant:', grant.name, deadlineDate);
+          // Reset time portion for more accurate date comparison
+          now.setHours(0, 0, 0, 0);
+          const deadlineWithoutTime = new Date(deadlineDate);
+          deadlineWithoutTime.setHours(0, 0, 0, 0);
+          
+          if (now > deadlineWithoutTime) {
+            console.log('Filtering out expired grant:', grant.name, 'Deadline:', deadlineWithoutTime.toISOString().split('T')[0], 'Today:', now.toISOString().split('T')[0]);
             return false;
           }
         }
@@ -364,13 +384,22 @@ export default function UnifiedGrantsPage() {
   }
   
   // Handle refreshing AI recommendations
-  const handleRefreshRecommendations = () => {
+  const handleRefreshRecommendations = async () => {
     if (profile) {
-      fetchRecommendations(profile);
-      toast({
-        title: "Refreshing recommendations",
-        description: "We're finding the latest grant opportunities for you."
-      });
+      try {
+        toast({
+          title: "Refreshing recommendations",
+          description: "We're finding the latest grant opportunities for you."
+        });
+        await fetchRecommendations(profile);
+      } catch (error) {
+        console.error("Error refreshing recommendations:", error);
+        toast({
+          title: "Error refreshing recommendations",
+          description: "We encountered a problem. Please try again later.",
+          variant: "destructive"
+        });
+      }
     } else {
       toast({
         title: "Profile needed",
@@ -463,8 +492,11 @@ export default function UnifiedGrantsPage() {
                   onCheckedChange={(checked) => {
                     console.log('Setting showExpired to:', checked);
                     setShowExpired(checked);
-                    // Force UI refresh
-                    setCombinedGrants([...combinedGrants]);
+                    // Force UI refresh with a short delay to ensure state update completes
+                    setTimeout(() => {
+                      console.log('Refreshing grants list with showExpired =', checked);
+                      setCombinedGrants([...combinedGrants]);
+                    }, 50);
                   }}
                 />
                 <Label htmlFor="show-expired" className="text-sm">
@@ -680,7 +712,7 @@ export default function UnifiedGrantsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredAndSortedGrants.map((grant) => (
               <Card 
-                key={grant.id || Math.random().toString()} 
+                key={`grant-list-item-${typeof grant.id === 'number' ? grant.id : `${grant.name}-${grant.organization}-${Math.random().toString(36).substring(2, 9)}`.replace(/\s+/g, '-').toLowerCase()}`} 
                 className={`hover:shadow-md transition-shadow ${grant.aiRecommended 
                   ? 'border-l-4 border-l-primary' 
                   : ''}`}
@@ -844,7 +876,7 @@ export default function UnifiedGrantsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredAndSortedGrants.map((grant) => (
           <Card 
-            key={grant.id || Math.random().toString()} 
+            key={`grant-grid-item-${typeof grant.id === 'number' ? grant.id : `${grant.name}-${grant.organization}-${Math.random().toString(36).substring(2, 9)}`.replace(/\s+/g, '-').toLowerCase()}`} 
             className={`hover:shadow-md transition-shadow ${grant.aiRecommended 
               ? 'border-l-4 border-l-primary' 
               : ''}`}
