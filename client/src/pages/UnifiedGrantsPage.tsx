@@ -146,6 +146,9 @@ export default function UnifiedGrantsPage() {
     },
   });
   
+  // State to track loading message for recommendations
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+  
   // Combine database grants with AI recommendations
   const [combinedGrants, setCombinedGrants] = useState<UnifiedGrant[]>([]);
   
@@ -155,6 +158,13 @@ export default function UnifiedGrantsPage() {
     // Add database grants if available
     if (grantsData && grantsData.grants && Array.isArray(grantsData.grants)) {
       grants = [...grantsData.grants];
+      
+      // Check if there's a loading message for AI recommendations
+      if (grantsData.generatingRecommendations && grantsData.loadingMessage) {
+        setLoadingMessage(grantsData.loadingMessage);
+      } else {
+        setLoadingMessage(null);
+      }
     }
     
     // Add AI recommendations that aren't already in the database
@@ -619,6 +629,147 @@ export default function UnifiedGrantsPage() {
             {error.message || 'Failed to load grants. Please try again later.'}
           </AlertDescription>
         </Alert>
+      );
+    }
+    
+    // Display loading message banner when AI is generating recommendations
+    if (loadingMessage) {
+      return (
+        <>
+          <Alert className="bg-primary/5 border-primary/20 mb-6">
+            <Loader2 className="h-4 w-4 mr-2 animate-spin text-primary" />
+            <AlertTitle>AI is processing</AlertTitle>
+            <AlertDescription>
+              {loadingMessage}
+            </AlertDescription>
+          </Alert>
+          
+          {/* Continue to display available grants */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredAndSortedGrants.map((grant) => (
+              <Card 
+                key={grant.id || Math.random().toString()} 
+                className={`hover:shadow-md transition-shadow ${grant.aiRecommended 
+                  ? 'border-l-4 border-l-primary' 
+                  : ''}`}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between">
+                    <div>
+                      <CardTitle 
+                        className="text-lg font-bold hover:text-primary transition-colors"
+                        onClick={() => {
+                          // For database grants, go to detail page
+                          if (typeof grant.id === 'number' && grant.id > 0) {
+                            navigate(`/grants/${grant.id}`);
+                          } else if (grant.url) {
+                            // For AI recommendations with URL, open in new tab
+                            window.open(grant.url, '_blank');
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {grant.name}
+                      </CardTitle>
+                      <CardDescription>{grant.organization}</CardDescription>
+                    </div>
+                    {grant.aiRecommended && (
+                      <Badge className="bg-primary/10 text-primary border-primary/20">
+                        AI Match
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="space-y-4">
+                  <div className="text-sm line-clamp-3 text-muted-foreground">
+                    {grant.description || 'No description provided.'}
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-sm">
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 text-muted-foreground mr-1" />
+                      <span>
+                        {formatDeadline(grant.deadline)}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <DollarSign className="h-4 w-4 text-muted-foreground mr-1" />
+                      <span>
+                        {grant.amount || 'Amount varies'}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {grant.matchScore !== undefined && (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-muted-foreground">Match Score:</span>
+                      <div className="h-2 flex-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary rounded-full"
+                          style={{ width: `${Math.round(grant.matchScore * 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-medium">
+                        {Math.round(grant.matchScore * 100)}%
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+                
+                <CardFooter className="flex justify-between space-x-2 bg-muted/20 py-3">
+                  <Button variant="outline" size="sm">
+                    <Bookmark className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <div className="space-x-2">
+                    {grant.website || grant.url ? (
+                      <Button size="sm" variant="outline" asChild>
+                        <a 
+                          href={grant.website || grant.url || '#'} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-1" />
+                          Website
+                        </a>
+                      </Button>
+                    ) : null}
+                    <Button size="sm" onClick={() => {
+                      if (!grant.id || typeof grant.id !== 'number' || grant.id < 0) {
+                        try {
+                          sessionStorage.setItem('selectedGrant', JSON.stringify({
+                            name: grant.name,
+                            organization: grant.organization,
+                            amount: grant.amount,
+                            deadline: grant.deadline,
+                            description: grant.description,
+                            requirements: grant.requirements,
+                            url: grant.url || grant.website,
+                            aiRecommended: true
+                          }));
+                          window.location.href = '/applications/new';
+                        } catch (err) {
+                          console.error('Error storing grant data:', err);
+                          toast({
+                            title: 'Error',
+                            description: 'Failed to prepare application. Please try again.',
+                            variant: 'destructive'
+                          });
+                        }
+                      } else {
+                        window.location.href = `/applications/new?grantId=${grant.id}`;
+                      }
+                    }}>
+                      <FileText className="h-4 w-4 mr-1" />
+                      Prepare App
+                    </Button>
+                  </div>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </>
       );
     }
     

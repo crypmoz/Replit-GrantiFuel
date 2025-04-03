@@ -431,6 +431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (userRole === 'artist' || userRole === 'grant_writer') {
           // Get artist profile if it exists (or create a minimal default one)
           const userArtist = userArtists.length > 0 ? userArtists[0] : {
+            id: null,
             genres: [],
             careerStage: '',
             primaryInstrument: '',
@@ -443,6 +444,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (cachedRecommendations && 
               cachedRecommendations.recommendations && 
+              Array.isArray(cachedRecommendations.recommendations) &&
               cachedRecommendations.recommendations.length > 0) {
             
             console.log(`[Cache] Using cached recommendations for user ${req.user!.id}`);
@@ -456,7 +458,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               action: "RETRIEVED",
               entityType: "CACHED_GRANT_RECOMMENDATIONS",
               details: {
-                count: aiRecommendations.length,
+                count: Array.isArray(aiRecommendations) ? aiRecommendations.length : 0,
                 source: "grants_page",
                 cacheAge: cachedRecommendations.updatedAt 
                   ? Math.floor((Date.now() - new Date(cachedRecommendations.updatedAt).getTime()) / (1000 * 60)) + ' minutes'

@@ -191,9 +191,9 @@ export class BackgroundProcessor {
           documentCount: totalDocuments,
           documentIds: queueArray,
           batchSize: BATCH_SIZE,
-          totalBatches: totalBatches
+          totalBatches: totalBatches,
+          startTime: new Date().toISOString()
         },
-        startedAt: new Date(),
       });
       
       console.log(`[BackgroundProcessor] Created processing job ${job.id}`);
