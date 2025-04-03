@@ -49,9 +49,15 @@ export default function GrantRecommendationsPage() {
   const isLoading = isLoadingRecommendations || isLoadingProfile;
   const error = recommendationsError || profileError;
   
+  // Track if we've already processed the artist profile
+  const [processedInitialProfile, setProcessedInitialProfile] = useState(false);
+  
   // Automatically use the artist profile data when available
   useEffect(() => {
-    if (artistProfile && typeof artistProfile === 'object') {
+    // Only run once when artistProfile is first loaded and not null
+    if (artistProfile && typeof artistProfile === 'object' && !processedInitialProfile) {
+      setProcessedInitialProfile(true);
+      
       // Map artist profile fields to ArtistProfile format
       // Handle both array and string formats for genres
       let genreStr = '';
@@ -74,12 +80,32 @@ export default function GrantRecommendationsPage() {
         projectType: artistProfile.projectType || '',
       };
       
-      // Update profile data whether complete or not
+      // Update profile data
       setProfile(artistProfileData);
       
-      // If we have required fields, fetch recommendations
+      // Only fetch if we have some data
       if (artistProfileData.genre || artistProfileData.careerStage || artistProfileData.instrumentOrRole) {
-        fetchRecommendations(artistProfileData);
+        // We directly call the API without setting the profile again
+        fetch('/api/ai/grant-recommendations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(artistProfileData)
+        })
+        .then(res => res.json())
+        .then(data => {
+          // Manually update the cache with the recommendations
+          queryClient.setQueryData(
+            ['/api/ai/grant-recommendations'], 
+            data.recommendations
+          );
+        })
+        .catch(err => {
+          toast({
+            title: "Error fetching recommendations",
+            description: err.message,
+            variant: "destructive"
+          });
+        });
       } else {
         toast({
           title: "Profile incomplete",
@@ -88,7 +114,7 @@ export default function GrantRecommendationsPage() {
         });
       }
     }
-  }, [artistProfile, setProfile, fetchRecommendations, toast]);
+  }, [artistProfile, processedInitialProfile, setProfile, queryClient, toast]);
 
   const handleFormSubmit = (values: ArtistProfile) => {
     setProfile(values);

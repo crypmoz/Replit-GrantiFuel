@@ -35,20 +35,12 @@ export function useGrantRecommendations() {
     error,
     refetch
   } = useQuery({
-    queryKey: ['/api/ai/grant-recommendations', profile],
+    queryKey: ['/api/ai/grant-recommendations'],
     queryFn: async () => {
-      if (!profile) return null;
-      
-      try {
-        const res = await apiRequest('POST', '/api/ai/grant-recommendations', profile);
-        const data = await res.json();
-        return data.recommendations as GrantRecommendation[];
-      } catch (error) {
-        console.error('Error fetching grant recommendations:', error);
-        throw error;
-      }
+      // This query won't actually run - we'll use mutations instead
+      return null;
     },
-    enabled: !!profile, // Only run the query if profile is set
+    enabled: false, // Never run this query automatically
     staleTime: 1000 * 60 * 60, // Keep data fresh for 1 hour
   });
 
@@ -60,7 +52,7 @@ export function useGrantRecommendations() {
     onSuccess: (data) => {
       // Update cache
       queryClient.setQueryData(
-        ['/api/ai/grant-recommendations', profile], 
+        ['/api/ai/grant-recommendations'], 
         data.recommendations
       );
       toast({
@@ -84,7 +76,8 @@ export function useGrantRecommendations() {
     profile,
     setProfile,
     fetchRecommendations: (newProfile: ArtistProfile) => {
-      setProfile(newProfile);
+      // Only trigger mutation, don't set profile here as it would cause a loop
+      // since the profile is already being set by the caller
       fetchRecommendationsMutation.mutate(newProfile);
     },
     isSubmitting: fetchRecommendationsMutation.isPending,
