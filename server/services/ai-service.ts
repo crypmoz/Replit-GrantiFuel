@@ -190,14 +190,30 @@ export class AIService extends BaseService {
     }
   ): Promise<ServiceResponse<GrantRecommendation[]>> {
     return this.executeWithErrorHandling(async () => {
-      // Create cache key based on artist profile
-      const cacheKey = `recommendations-${JSON.stringify(artistProfile)}`;
+      // Create cache key based on key artist profile fields 
+      // Only use the essential profile fields for the cache key to increase cache hits
+      const { genre, careerStage, instrumentOrRole, projectType } = artistProfile;
+      const cacheKeyObj = { genre, careerStage, instrumentOrRole, projectType };
+      const cacheKey = `recommendations-${JSON.stringify(cacheKeyObj)}`;
       
       // Check cache first
       const cachedRecommendations = this.cache.get<GrantRecommendation[]>(cacheKey);
       if (cachedRecommendations) {
         console.log(`[AIService] Using cached grant recommendations for profile`);
         return cachedRecommendations;
+      }
+      
+      // Also check a global fallback cache for any recommendations if user-specific ones aren't available
+      // This allows new users to get faster initial recommendations
+      const globalCacheKey = 'global-recommendations';
+      const globalCachedRecommendations = this.cache.get<GrantRecommendation[]>(globalCacheKey);
+      if (!cachedRecommendations && globalCachedRecommendations) {
+        console.log(`[AIService] Using global cached grant recommendations`);
+        // Clone and add a note that these are from global cache
+        const recommendations = [...globalCachedRecommendations];
+        // Cache these recommendations for this user to speed up future requests
+        this.cache.set(cacheKey, recommendations, CACHE_TTL.RECOMMENDATIONS);
+        return recommendations;
       }
       
       // Always try to analyze documents for enhanced recommendations

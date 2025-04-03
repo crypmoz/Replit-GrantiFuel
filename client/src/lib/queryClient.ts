@@ -190,23 +190,33 @@ export const getQueryFn: <T>(options: {
 const queryDefaults = {
   // Critical user data - should always be fresh
   user: {
-    staleTime: 0, // Always refetch user data 
-    gcTime: 5 * 60 * 1000,    // 5 minutes
+    staleTime: 60 * 1000,      // 1 minute - small stale time for smoother UX
+    gcTime: 30 * 60 * 1000,    // 30 minutes - keep user data longer in case of reconnection
   },
   // Application and grant data - moderate freshness
   applications: {
-    staleTime: 5 * 60 * 1000,  // 5 minutes
-    gcTime: 15 * 60 * 1000,    // 15 minutes
+    staleTime: 5 * 60 * 1000,  // 5 minutes - applications don't change frequently
+    gcTime: 60 * 60 * 1000,    // 60 minutes - longer retention for offline access
   },
   // Frequently changing data - shorter freshness
   documents: {
     staleTime: 2 * 60 * 1000,  // 2 minutes
-    gcTime: 10 * 60 * 1000,    // 10 minutes
+    gcTime: 30 * 60 * 1000,    // 30 minutes - increased for offline access
+  },
+  // AI-generated recommendations - longer caching to reduce API load
+  recommendations: {
+    staleTime: 30 * 60 * 1000, // 30 minutes - AI recommendations are expensive to generate
+    gcTime: 24 * 60 * 60 * 1000, // 24 hours - keep for an entire day
+  },
+  // Dashboard data - can be cached longer for better performance
+  dashboard: {
+    staleTime: 10 * 60 * 1000, // 10 minutes - dashboard data updates infrequently
+    gcTime: 60 * 60 * 1000,    // 60 minutes - keep for offline viewing
   },
   // Default for all other data
   default: {
     staleTime: 3 * 60 * 1000,  // 3 minutes
-    gcTime: 10 * 60 * 1000,    // 10 minutes
+    gcTime: 30 * 60 * 1000,    // 30 minutes - increased for better offline experience
   }
 };
 
@@ -241,11 +251,62 @@ queryClient.setQueryDefaults(['/api/applications'], {
 });
 
 queryClient.setQueryDefaults(['/api/grants'], {
-  staleTime: 0, // Always consider grants data stale (forces refresh)
-  gcTime: 5 * 60 * 1000, // Keep cached data for 5 minutes after unused
+  staleTime: queryDefaults.applications.staleTime, // Increased from 0 to 5 minutes
+  gcTime: queryDefaults.applications.gcTime, // Increased to match applications
 });
 
 queryClient.setQueryDefaults(['/api/documents'], {
   staleTime: queryDefaults.documents.staleTime,
   gcTime: queryDefaults.documents.gcTime,
+});
+
+// Add caching settings for AI recommendations
+queryClient.setQueryDefaults(['/api/ai/grant-recommendations'], {
+  staleTime: queryDefaults.recommendations.staleTime,
+  gcTime: queryDefaults.recommendations.gcTime,
+});
+
+// Add caching settings for chat history
+queryClient.setQueryDefaults(['/api/ai/chat'], {
+  staleTime: queryDefaults.recommendations.staleTime,
+  gcTime: queryDefaults.recommendations.gcTime,
+});
+
+// Add caching settings for dashboard data
+queryClient.setQueryDefaults(['/api/dashboard'], {
+  staleTime: queryDefaults.dashboard.staleTime,
+  gcTime: queryDefaults.dashboard.gcTime,
+});
+
+// Add local persistence for improved offline support
+// These functions could be extended in the future to support
+// local storage or IndexedDB persistence
+window.addEventListener('online', () => {
+  console.log('App is online, resuming background fetching');
+  queryClient.resumePausedMutations();
+});
+
+window.addEventListener('offline', () => {
+  console.log('App is offline, pausing background fetching');
+  // Optional: Could implement offline indicators in UI here
+});
+
+// Custom error handling for network errors to improve UX
+queryClient.setDefaultOptions({
+  queries: {
+    ...queryClient.getDefaultOptions().queries,
+    retry: (failureCount, error) => {
+      // Don't retry if we get a 4xx error (client error)
+      if (error instanceof Error && error.message.startsWith('4')) {
+        return false;
+      }
+      
+      // Retry network errors up to 3 times with exponential backoff
+      return failureCount < 3;
+    },
+    onError: (error) => {
+      console.error('Query error:', error);
+      // Could implement global error reporting or UI notifications here
+    }
+  }
 });

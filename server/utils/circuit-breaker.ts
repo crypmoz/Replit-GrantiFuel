@@ -20,9 +20,9 @@ interface CircuitBreakerOptions {
 }
 
 const defaultOptions: CircuitBreakerOptions = {
-  failureThreshold: 5,
-  resetTimeout: 30000,  // 30 seconds
-  timeoutDuration: 10000,  // 10 seconds
+  failureThreshold: 3,     // Lower threshold for faster circuit breaking
+  resetTimeout: 120000,    // 2 minutes - increased to give more time for recovery
+  timeoutDuration: 90000,  // 90 seconds - increased to match AI service timeout
   monitorInterval: 60000,  // 1 minute
 };
 
@@ -142,16 +142,25 @@ export class CircuitBreaker {
     this.lastStateChange = new Date();
     this.successCount = 0;
     
-    // Set timer to try half-open after resetTimeout
+    // Set timer to try half-open after resetTimeout with exponential backoff
     if (this.resetTimer) {
       clearTimeout(this.resetTimer);
     }
+    
+    // Calculate exponential backoff based on consecutive failures
+    // This helps prevent rapid cycling between states when service is unstable
+    const backoff = Math.min(
+      this.options.resetTimeout * Math.pow(1.5, this.failureCount - this.options.failureThreshold), 
+      300000 // Cap at 5 minutes max
+    );
+    
+    console.log(`[CircuitBreaker:${this.serviceName}] Circuit OPEN, will try again in ${Math.round(backoff/1000)}s`);
     
     this.resetTimer = setTimeout(() => {
       console.log(`[CircuitBreaker:${this.serviceName}] Reset timeout elapsed, circuit HALF-OPEN`);
       this.state = CircuitState.HALF_OPEN;
       this.lastStateChange = new Date();
-    }, this.options.resetTimeout);
+    }, backoff);
   }
 
   /**
