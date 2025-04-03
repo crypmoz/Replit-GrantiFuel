@@ -737,11 +737,7 @@ export default function UnifiedGrantsPage() {
                       </CardTitle>
                       <CardDescription>{grant.organization}</CardDescription>
                     </div>
-                    {grant.aiRecommended && (
-                      <Badge className="bg-primary/10 text-primary border-primary/20">
-                        AI Match
-                      </Badge>
-                    )}
+{/* AI Match badge removed as requested */}
                   </div>
                 </CardHeader>
                 
@@ -799,18 +795,7 @@ export default function UnifiedGrantsPage() {
                     Save
                   </Button>
                   <div className="space-x-2">
-                    {grant.website || grant.url ? (
-                      <Button size="sm" variant="outline" asChild>
-                        <a 
-                          href={grant.website || grant.url || '#'} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="h-4 w-4 mr-1" />
-                          Website
-                        </a>
-                      </Button>
-                    ) : null}
+    {/* Website button removed as requested */}
                     <Button size="sm" onClick={() => {
                       if (!grant.id || typeof grant.id !== 'number' || grant.id < 0) {
                         try {
@@ -901,11 +886,7 @@ export default function UnifiedGrantsPage() {
                   </CardTitle>
                   <CardDescription>{grant.organization}</CardDescription>
                 </div>
-                {grant.aiRecommended && (
-                  <Badge className="bg-primary/10 text-primary border-primary/20">
-                    AI Match
-                  </Badge>
-                )}
+{/* AI Match badge removed as requested */}
               </div>
             </CardHeader>
             
@@ -963,18 +944,7 @@ export default function UnifiedGrantsPage() {
                 Save
               </Button>
               <div className="space-x-2">
-                {grant.website || grant.url ? (
-                  <Button size="sm" variant="outline" asChild>
-                    <a 
-                      href={grant.website || grant.url || '#'} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      Website
-                    </a>
-                  </Button>
-                ) : null}
+{/* Website button removed as requested */}
                 <Button size="sm" onClick={() => {
                   // When preparing an application for an AI-recommended grant without an ID, 
                   // we need to store the grant data in sessionStorage
