@@ -460,7 +460,7 @@ If you don't know the answer, be honest about not knowing rather than making up 
       
       if (existingGrants && existingGrants.length > 0) {
         // Map existing grants to the recommendation format
-        return existingGrants.slice(0, 5).map((grant, index) => {
+        return existingGrants.slice(0, 5).map((grant: any, index: number) => {
           // Calculate a match score based on available information
           const matchScore = Math.floor(Math.random() * 30) + 50; // 50-80 range
           

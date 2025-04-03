@@ -8,7 +8,8 @@ import {
   subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
   subscriptions, type Subscription, type InsertSubscription,
   documents, type Document, type InsertDocument,
-  userOnboarding, type UserOnboarding, type InsertUserOnboarding
+  userOnboarding, type UserOnboarding, type InsertUserOnboarding,
+  userRoleEnum
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -419,70 +420,72 @@ const initializeDatabase = async () => {
       name: "Admin User",
       email: "admin@example.com",
       avatar: null,
-      role: "admin",
+      role: userRoleEnum.enumValues[0],
       verified: true,
       active: true
     };
     
-    const [user] = await db.insert(users).values(userValues).returning();
+    const [user] = await db.insert(users).values([userValues]).returning();
     
     // Add initial grants
-    const [grant1] = await db.insert(grants).values({
+    const [grant1] = await db.insert(grants).values([{
       name: "Music Innovation Grant",
       organization: "Harmony Foundation",
       amount: "$5,000",
       deadline: new Date(2025, 5, 15),
       description: "Supporting innovative music projects",
-      requirements: "Open to musicians with at least 2 years of experience"
-    }).returning();
+      requirements: "Open to musicians with at least 2 years of experience",
+      userId: user.id
+    }]).returning();
     
-    const [grant2] = await db.insert(grants).values({
+    const [grant2] = await db.insert(grants).values([{
       name: "Community Music Program",
       organization: "Metro Arts Council",
       amount: "$10,000",
       deadline: new Date(2025, 4, 30),
       description: "Funding community engagement through music",
-      requirements: "Must include educational components"
-    }).returning();
+      requirements: "Must include educational components",
+      userId: user.id
+    }]).returning();
     
     // Add initial artists with userId reference
-    const [artist1] = await db.insert(artists).values({
+    const [artist1] = await db.insert(artists).values([{
       userId: user.id,
       name: "Emma Johnson",
       email: "emma@example.com",
       phone: "555-123-4567",
       bio: "Classical pianist with 10 years of experience",
       genres: ["Classical", "Contemporary"]
-    }).returning();
+    }]).returning();
     
-    const [artist2] = await db.insert(artists).values({
+    const [artist2] = await db.insert(artists).values([{
       userId: user.id,
       name: "Marcus Rivera",
       email: "marcus@example.com",
       phone: "555-987-6543",
       bio: "Hip-hop producer and community educator",
       genres: ["Hip-Hop", "R&B", "Electronic"]
-    }).returning();
+    }]).returning();
     
     // Add initial templates with userId reference
-    await db.insert(templates).values({
+    await db.insert(templates).values([{
       userId: user.id,
       name: "Standard Project Proposal",
       description: "General template for music project proposals",
       content: "# Project Proposal\n\n## Background\n\n## Goals\n\n## Budget\n\n## Timeline\n\n## Expected Impact",
       type: "proposal"
-    });
+    }]);
     
-    await db.insert(templates).values({
+    await db.insert(templates).values([{
       userId: user.id,
       name: "Artist Statement",
       description: "Template for crafting compelling artist statements",
       content: "# Artist Statement\n\nAs an artist, my work explores...\n\nMy artistic journey began...\n\nThrough my music, I aim to...",
       type: "statement"
-    });
+    }]);
     
     // Add initial applications
-    await db.insert(applications).values({
+    await db.insert(applications).values([{
       userId: user.id,
       grantId: grant1.id,
       artistId: artist1.id,
@@ -490,9 +493,9 @@ const initializeDatabase = async () => {
       progress: 60,
       answers: { question1: "This project aims to...", question2: "The budget breakdown is..." },
       submittedAt: null
-    });
+    }]);
     
-    await db.insert(applications).values({
+    await db.insert(applications).values([{
       userId: user.id,
       grantId: grant2.id,
       artistId: artist2.id,
@@ -500,27 +503,27 @@ const initializeDatabase = async () => {
       progress: 25,
       answers: { question1: "Initial concept ideas..." },
       submittedAt: null
-    });
+    }]);
     
     // Add initial activities for the user
-    await db.insert(activities).values({
+    await db.insert(activities).values([{
       userId: user.id,
       action: "CREATED",
       entityType: "ARTIST",
       entityId: artist1.id,
       details: { name: artist1.name }
-    });
+    }]);
     
-    await db.insert(activities).values({
+    await db.insert(activities).values([{
       userId: user.id,
       action: "CREATED",
       entityType: "ARTIST",
       entityId: artist2.id,
       details: { name: artist2.name }
-    });
+    }]);
     
     // Add subscription plans
-    await db.insert(subscriptionPlans).values({
+    await db.insert(subscriptionPlans).values([{
       name: "Free",
       tier: "free",
       price: 0,
@@ -529,9 +532,9 @@ const initializeDatabase = async () => {
       maxArtists: 1,
       features: ["1 grant application", "1 artist profile", "AI assistance", "Basic templates"],
       active: true
-    });
+    }]);
     
-    await db.insert(subscriptionPlans).values({
+    await db.insert(subscriptionPlans).values([{
       name: "Basic",
       tier: "basic",
       price: 2500, // $25.00
@@ -541,9 +544,9 @@ const initializeDatabase = async () => {
       features: ["5 grant applications", "2 artist profiles", "Priority AI assistance", "All templates", "Email support"],
       stripePriceId: process.env.STRIPE_BASIC_PRICE_ID,
       active: true
-    });
+    }]);
     
-    await db.insert(subscriptionPlans).values({
+    await db.insert(subscriptionPlans).values([{
       name: "Premium",
       tier: "premium",
       price: 6000, // $60.00
@@ -553,10 +556,10 @@ const initializeDatabase = async () => {
       features: ["20 grant applications", "10 artist profiles", "Priority AI assistance", "All templates", "Priority support", "Grant deadline alerts", "Application analytics"],
       stripePriceId: process.env.STRIPE_PREMIUM_PRICE_ID,
       active: true
-    });
+    }]);
     
     // Add initial knowledge documents
-    await db.insert(documents).values({
+    await db.insert(documents).values([{
       userId: user.id,
       title: "Guide to Grant Writing for Musicians",
       content: "# Guide to Grant Writing for Musicians\n\nGrant writing can be a challenging but rewarding process for musicians seeking funding. Here are some key tips for success:\n\n## Research Thoroughly\nIdentify grants that align with your musical focus and career stage. Look for foundations, government agencies, and private organizations that support your type of work.\n\n## Read Guidelines Carefully\nEach grant has specific requirements and preferences. Follow instructions exactly, and make sure you qualify before applying.\n\n## Be Clear and Specific\nClearly articulate your project goals, timeline, and budget. Use concrete examples and avoid jargon.\n\n## Tell Your Story\nMake your narrative compelling by connecting your musical work to broader impacts. Explain why your project matters and how it will benefit others.\n\n## Get Feedback\nHave colleagues review your application before submitting. A fresh perspective can identify weaknesses or unclear sections.\n\n## Plan Ahead\nStart working on applications well before deadlines. Quality applications take time to develop.",
@@ -564,9 +567,9 @@ const initializeDatabase = async () => {
       tags: ["grant writing", "funding", "tips", "music"],
       isPublic: true,
       isApproved: true
-    });
+    }]);
     
-    await db.insert(documents).values({
+    await db.insert(documents).values([{
       userId: user.id,
       title: "Understanding Music Grant Evaluation Criteria",
       content: "# Understanding Music Grant Evaluation Criteria\n\nWhen reviewing grant applications for music projects, evaluators typically consider several key factors:\n\n## Artistic Merit\nEvaluators assess the quality, creativity, and originality of your work. Include samples of your best work and clearly explain your artistic vision.\n\n## Feasibility\nYour proposal must demonstrate that you can successfully complete the project. Include a realistic timeline, budget, and explanation of your qualifications.\n\n## Impact\nGrant makers want to fund projects that make a difference. Explain how your project will benefit your artistic development, your community, or the music field.\n\n## Innovation\nMany funders look for projects that break new ground or approach traditional forms in fresh ways. Highlight the innovative aspects of your work.\n\n## Diversity and Inclusion\nIncreasingly, funders value projects that engage diverse participants or address issues of equity and access in the arts.\n\n## Budget Clarity\nYour budget should be detailed, realistic, and appropriate for the scope of the project. Make sure all expenses are justified and clearly explained.",
@@ -574,7 +577,7 @@ const initializeDatabase = async () => {
       tags: ["evaluation", "criteria", "funding", "music grants"],
       isPublic: true,
       isApproved: true
-    });
+    }]);
     
     console.log("Database initialized with default data");
   }

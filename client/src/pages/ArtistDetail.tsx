@@ -289,7 +289,7 @@ export default function ArtistDetail() {
                         <div className="flex justify-between">
                           <span className="text-gray-500 dark:text-gray-400">Career Stage:</span>
                           <span className="text-gray-900 dark:text-white font-medium">
-                            {artist.careerStage.charAt(0).toUpperCase() + artist.careerStage.slice(1).replace('-', ' ')}
+                            {artist.careerStage ? (artist.careerStage.charAt(0).toUpperCase() + artist.careerStage.slice(1).replace('-', ' ')) : ''}
                           </span>
                         </div>
                       )}
@@ -298,7 +298,7 @@ export default function ArtistDetail() {
                         <div className="flex justify-between">
                           <span className="text-gray-500 dark:text-gray-400">Primary Role:</span>
                           <span className="text-gray-900 dark:text-white font-medium">
-                            {artist.primaryInstrument.charAt(0).toUpperCase() + artist.primaryInstrument.slice(1)}
+                            {artist.primaryInstrument ? (artist.primaryInstrument.charAt(0).toUpperCase() + artist.primaryInstrument.slice(1)) : ''}
                           </span>
                         </div>
                       )}
@@ -316,7 +316,7 @@ export default function ArtistDetail() {
                         <div className="flex justify-between">
                           <span className="text-gray-500 dark:text-gray-400">Project Type:</span>
                           <span className="text-gray-900 dark:text-white font-medium">
-                            {artist.projectType.charAt(0).toUpperCase() + artist.projectType.slice(1).replace('-', ' ')}
+                            {artist.projectType ? (artist.projectType.charAt(0).toUpperCase() + artist.projectType.slice(1).replace('-', ' ')) : ''}
                           </span>
                         </div>
                       )}
@@ -563,7 +563,14 @@ function ArtistEditForm({ artist, onSubmit, isSubmitting }: ArtistEditFormProps)
             <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input placeholder="Artist name" {...field} />
+                <Input 
+                  placeholder="Artist name"
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
+                  value={field.value} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -577,7 +584,15 @@ function ArtistEditForm({ artist, onSubmit, isSubmitting }: ArtistEditFormProps)
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input placeholder="Email address" type="email" {...field} />
+                <Input 
+                  placeholder="Email address" 
+                  type="email"
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
+                  value={field.value} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -591,7 +606,14 @@ function ArtistEditForm({ artist, onSubmit, isSubmitting }: ArtistEditFormProps)
             <FormItem>
               <FormLabel>Phone (optional)</FormLabel>
               <FormControl>
-                <Input placeholder="Phone number" {...field} value={field.value || ''} />
+                <Input 
+                  placeholder="Phone number" 
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
+                  value={field.value ?? ''} 
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -621,8 +643,11 @@ function ArtistEditForm({ artist, onSubmit, isSubmitting }: ArtistEditFormProps)
                 <Textarea 
                   placeholder="Tell us about this artist..."
                   className="min-h-[120px]"
-                  {...field}
-                  value={field.value || ''}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
+                  value={field.value ?? ''}
                 />
               </FormControl>
               <FormMessage />
@@ -707,7 +732,14 @@ function ArtistEditForm({ artist, onSubmit, isSubmitting }: ArtistEditFormProps)
             <FormItem>
               <FormLabel>Location</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. New York, USA" {...field} />
+                <Input 
+                  placeholder="e.g. New York, USA" 
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  name={field.name}
+                  ref={field.ref}
+                  value={field.value ?? ''}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

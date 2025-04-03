@@ -80,8 +80,8 @@ export default function AIAssistant() {
   // Extract grants array safely
   const grants = Array.isArray(grantsData) 
     ? grantsData 
-    : (grantsData?.grants && Array.isArray(grantsData.grants)) 
-      ? grantsData.grants 
+    : (grantsData && typeof grantsData === 'object' && 'grants' in grantsData && Array.isArray((grantsData as any).grants)) 
+      ? (grantsData as any).grants 
       : [];
   
   const { data: artistsData } = useQuery({
@@ -120,8 +120,8 @@ export default function AIAssistant() {
     try {
       setGeneratingProposal(true);
       
-      const selectedGrantObj = grants?.find(g => g.id === parseInt(selectedGrant));
-      const selectedArtistObj = artists?.find(a => a.id === parseInt(selectedArtist));
+      const selectedGrantObj = grants?.find((g: any) => g.id === parseInt(selectedGrant));
+      const selectedArtistObj = artists?.find((a: any) => a.id === parseInt(selectedArtist));
       
       // Call the AI API
       const response = await fetch('/api/ai/generate-proposal', {
@@ -251,7 +251,7 @@ export default function AIAssistant() {
   // Handle template selection
   const handleTemplateChange = (value: string) => {
     setSelectedTemplate(value);
-    const template = templates?.find(t => t.id === parseInt(value));
+    const template = templates?.find((t: any) => t.id === parseInt(value));
     if (template) {
       setProjectDescription(template.content);
     }
@@ -322,7 +322,7 @@ export default function AIAssistant() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No specific grant</SelectItem>
-                    {grants?.map(grant => (
+                    {grants?.map((grant: any) => (
                       <SelectItem key={grant.id} value={grant.id.toString()}>
                         {grant.name} - {grant.organization}
                       </SelectItem>
@@ -339,7 +339,7 @@ export default function AIAssistant() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No specific artist</SelectItem>
-                    {artists?.map(artist => (
+                    {artists?.map((artist: any) => (
                       <SelectItem key={artist.id} value={artist.id.toString()}>
                         {artist.name}
                       </SelectItem>
@@ -356,7 +356,7 @@ export default function AIAssistant() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">No template</SelectItem>
-                    {templates?.filter(t => t.type === 'proposal')?.map(template => (
+                    {templates?.filter((t: any) => t.type === 'proposal')?.map((template: any) => (
                       <SelectItem key={template.id} value={template.id.toString()}>
                         {template.name}
                       </SelectItem>
@@ -602,7 +602,7 @@ export default function AIAssistant() {
             <CardContent>
               {savedItems.length > 0 ? (
                 <div className="space-y-3">
-                  {savedItems.map(item => (
+                  {savedItems.map((item: any) => (
                     <Card key={item.id} className="shadow-sm">
                       <CardHeader className="p-4 pb-2">
                         <div className="flex justify-between items-start">
