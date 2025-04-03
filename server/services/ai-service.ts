@@ -48,6 +48,35 @@ export interface GrantRecommendation {
   matchScore: number;
 }
 
+export interface ApplicationContent {
+  projectTitle: string;
+  projectDescription: string;
+  artistGoals: string;
+  projectImpact: string;
+  projectTimeline: string;
+  budgetOutline: string;
+}
+
+export interface ApplicationContentParams {
+  artistProfile: {
+    name: string;
+    bio: string;
+    genre: string;
+    careerStage: string;
+    location: string;
+    accomplishments: string;
+  };
+  grantDetails: {
+    name: string;
+    organization: string;
+    requirements: string;
+    amount: string;
+    deadline: string;
+  };
+  systemPrompt: string;
+  userPrompt: string;
+}
+
 export interface ProposalGenerationParams {
   artistName: string;
   artistBio: string;
@@ -779,6 +808,87 @@ Return your analysis in JSON format with the following fields:
       console.error('[AIService] Error analyzing documents for grant matching:', error);
       return [];
     }
+  }
+  
+  /**
+   * Generate application content based on artist profile and grant details
+   */
+  async generateApplicationContent(params: ApplicationContentParams): Promise<ServiceResponse<ApplicationContent>> {
+    return this.executeWithErrorHandling(async () => {
+      // Create cache key based on artist profile and grant details
+      const cacheKey = `application-content-${JSON.stringify({
+        artistName: params.artistProfile.name,
+        grantName: params.grantDetails.name
+      })}`;
+      
+      // Check cache first
+      const cachedContent = this.cache.get<ApplicationContent>(cacheKey);
+      if (cachedContent) {
+        console.log(`[AIService] Using cached application content for "${params.artistProfile.name}" and grant "${params.grantDetails.name}"`);
+        return cachedContent;
+      }
+      
+      console.log(`[AIService] Generating application content for "${params.artistProfile.name}" and grant "${params.grantDetails.name}"`);
+      
+      // Prepare the request data using the provided prompts
+      const requestData: AICompletionRequest = {
+        model: this.defaultModel,
+        messages: [
+          { role: 'system', content: params.systemPrompt },
+          { role: 'user', content: params.userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 3000 // Increased for more detailed content
+      };
+      
+      // Use circuit breaker to call the AI API
+      return await this.executeWithLogging('generateApplicationContent', async () => {
+        try {
+          const response = await this.circuitBreaker.execute(this.callAI.bind(this), requestData);
+          
+          // Parse the response
+          try {
+            const content = response.choices[0].message.content;
+            
+            // Sometimes the AI might include markdown code blocks, so we need to handle that
+            const jsonContent = content.replace(/```json\n?|\n?```/g, '').trim();
+            const applicationContent = JSON.parse(jsonContent) as ApplicationContent;
+            
+            // Validate that we have the expected fields
+            const requiredFields = ['projectTitle', 'projectDescription', 'artistGoals', 'projectImpact'];
+            
+            for (const field of requiredFields) {
+              // Use type assertion with bracket notation to avoid TypeScript error
+              if (!(applicationContent as Record<string, any>)[field]) {
+                throw new Error(`Missing required field: ${field}`);
+              }
+            }
+            
+            // Ensure we have projectTimeline and budgetOutline with defaults if not present
+            if (!applicationContent.projectTimeline) {
+              applicationContent.projectTimeline = "Timeline not provided. Please consider planning your project with specific milestones and deadlines.";
+            }
+            
+            if (!applicationContent.budgetOutline) {
+              applicationContent.budgetOutline = "Budget outline not provided. Please consider creating a detailed budget for your project.";
+            }
+            
+            // Add to cache with a relatively short TTL since this is specific to user actions
+            this.cache.set(cacheKey, applicationContent, 1800); // 30 minutes cache
+            
+            console.log(`[AIService] Successfully generated application content`);
+            return applicationContent;
+          } catch (parseError) {
+            console.error('[AIService] Failed to parse application content:', parseError);
+            throw new Error('Failed to parse application content from AI response');
+          }
+        } catch (error) {
+          console.error('[AIService] Error generating application content:', error);
+          // Unlike other methods, we don't have fallback content for applications
+          throw new Error('Failed to generate application content. Please try again later.');
+        }
+      });
+    }, 'Failed to generate application content');
   }
   
   /**

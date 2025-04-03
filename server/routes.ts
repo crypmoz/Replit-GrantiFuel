@@ -1184,7 +1184,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         grantRequirements, 
         artistName, 
         artistBio, 
-        artistGenre 
+        artistGenre,
+        artistAccomplishments,
+        projectIdea
       } = req.body;
       
       if (!grantName || !artistName) {
@@ -1203,16 +1205,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         artistDetails = await storage.getArtist(artistId);
       }
       
+      // Get relevant documents if artist ID is provided
+      const relevantDocuments: { 
+        title: string; 
+        content: string; 
+        type: string;
+      }[] = [];
+      
+      if (artistId) {
+        const userId = artistDetails?.userId;
+        if (userId) {
+          const userDocs = await storage.getDocumentsByUser(userId);
+          // Only include public documents or documents owned by the current user
+          const filteredDocs = userDocs.filter(doc => 
+            doc.isPublic === true || doc.userId === req.user!.id
+          );
+          
+          // Map to simpler structure
+          relevantDocuments.push(...filteredDocs.map(doc => ({
+            title: doc.title,
+            content: doc.content,
+            type: doc.type
+          })));
+        }
+      }
+      
       // Combine provided data with existing data
       const combinedParams = {
         grantName: grantName || grantDetails?.name || '',
         grantOrganization: grantOrganization || grantDetails?.organization || '',
         grantRequirements: grantRequirements || (grantDetails?.requirements && Array.isArray(grantDetails.requirements) ? grantDetails.requirements.join(', ') : ''),
+        grantAmount: grantDetails?.amount || 'Not specified',
+        grantDeadline: grantDetails?.deadline || 'Not specified',
         artistName: artistName || artistDetails?.name || '',
         artistBio: artistBio || artistDetails?.bio || '',
         artistGenre: artistGenre || (artistDetails?.genres && Array.isArray(artistDetails.genres) ? artistDetails.genres.join(', ') : ''),
-        projectTitle: '',  // To be generated
-        projectDescription: ''  // To be generated
+        artistCareerStage: artistDetails?.careerStage || 'Not specified',
+        artistLocation: artistDetails?.location || 'Not specified',
+        // Handle accomplishments field - may not exist in schema yet
+        artistAccomplishments: artistAccomplishments || '',
+        // Use primaryInstrument instead of instrumentOrRole
+        artistInstrumentOrRole: artistDetails?.primaryInstrument || 'Musician',
+        projectIdea: projectIdea || '',
+        relevantDocuments: relevantDocuments.map(doc => ({
+          title: doc.title,
+          content: doc.content,
+          type: doc.type
+        }))
       };
       
       console.log(`[AI Route] Generating application content for grant "${combinedParams.grantName}" and artist "${combinedParams.artistName}"`);
@@ -1220,87 +1259,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create system prompt for application content generation
       const systemPrompt = `You are an expert grant writer specializing in helping musicians and artists.
 Your task is to generate compelling content for a grant application based on the artist profile and grant details provided.
-Focus on creating content that effectively communicates the artist's qualifications and project goals while meeting the requirements of the grant.`;
+Focus on creating content that effectively communicates the artist's qualifications and project goals while meeting the requirements of the grant.
+
+Use any provided documents as reference to make the application more specific and personalized.
+If specific project ideas are provided, incorporate them into your response while refining and enhancing them.
+The content should be tailored to the artist's career stage and genre while addressing the specific requirements of the grant.`;
+
+      // Prepare additional document context if available
+      let documentContext = '';
+      if (combinedParams.relevantDocuments && combinedParams.relevantDocuments.length > 0) {
+        documentContext += '\n\nRelevant Artist Documents:\n';
+        combinedParams.relevantDocuments.forEach((doc, index) => {
+          documentContext += `\nDocument ${index + 1}: ${doc.title} (${doc.type})\n${doc.content}\n`;
+        });
+      }
 
       const userPrompt = `Please generate application content for:
-Artist: ${combinedParams.artistName}
-Artist Bio: ${combinedParams.artistBio}
-Genre: ${combinedParams.artistGenre}
-Grant: ${combinedParams.grantName} by ${combinedParams.grantOrganization}
-Grant Requirements: ${combinedParams.grantRequirements}
+
+GRANT DETAILS:
+- Name: ${combinedParams.grantName}
+- Organization: ${combinedParams.grantOrganization}
+- Requirements: ${combinedParams.grantRequirements}
+- Amount: ${combinedParams.grantAmount}
+- Deadline: ${combinedParams.grantDeadline}
+
+ARTIST DETAILS:
+- Name: ${combinedParams.artistName}
+- Bio: ${combinedParams.artistBio}
+- Genre: ${combinedParams.artistGenre}
+- Career Stage: ${combinedParams.artistCareerStage}
+- Location: ${combinedParams.artistLocation}
+- Instrument/Role: ${combinedParams.artistInstrumentOrRole}
+${combinedParams.artistAccomplishments ? '- Accomplishments:\n- ' + combinedParams.artistAccomplishments : ''}
+${combinedParams.projectIdea ? '\nProject Idea From Artist:\n' + combinedParams.projectIdea : ''}
+${documentContext}
 
 Generate the following sections:
 1. Project Title (short, memorable, and relevant to the artist's work)
 2. Project Description (detailed explanation of what the project entails)
 3. Artist Goals (what the artist hopes to achieve personally and professionally)
 4. Project Impact (how this project will impact the artist's community or field)
+5. Project Timeline (suggested milestones and timeline for the project)
+6. Budget Outline (suggested budget categories with approximate allocations)
 
 Return your response in this JSON format:
 {
   "projectTitle": "Your generated title",
   "projectDescription": "Your detailed project description...",
   "artistGoals": "The artist's goals for this project...",
-  "projectImpact": "The impact of this project..."
+  "projectImpact": "The impact of this project...",
+  "projectTimeline": "The suggested timeline for the project...",
+  "budgetOutline": "The suggested budget breakdown..."
 }`;
 
-      // Call AI service to generate content
-      const requestData = {
-        model: "deepseek-chat",
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 2048
-      };
+      console.log(`[AI Route] Generating application content with enhanced prompt`);
       
-      try {
-        const response = await axios.post(
-          'https://api.deepseek.com/v1/chat/completions',
-          requestData,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
-            },
-            timeout: 30000 // 30 second timeout
-          }
-        );
-        
-        const content = response.data.choices[0].message.content;
-        
-        // Parse the JSON response
-        let generatedContent;
-        try {
-          // Sometimes the AI might include markdown code blocks, so we need to handle that
-          const jsonContent = content.replace(/```json\n?|\n?```/g, '').trim();
-          generatedContent = JSON.parse(jsonContent);
-          
-          console.log(`[AI Route] Successfully generated application content`);
-        } catch (parseError) {
-          console.error('Error parsing AI response as JSON:', parseError);
-          return res.status(500).json({ error: "Failed to parse AI response" });
-        }
-        
-        // Create activity record for using AI to generate application content
-        await storage.createActivity({
-          userId: req.user!.id,
-          action: "GENERATED",
-          entityType: "APPLICATION_CONTENT",
-          details: { 
-            grantName: combinedParams.grantName,
-            artistName: combinedParams.artistName
-          }
-        });
-        
-        return res.json({ content: generatedContent });
-      } catch (error) {
-        console.error('Error calling AI service:', error);
-        return res.status(500).json({ error: "Failed to generate application content" });
+      // Use AIService instead of direct API call for better error handling and circuit breaking
+      const result = await aiService.generateApplicationContent({
+        artistProfile: {
+          name: combinedParams.artistName,
+          bio: combinedParams.artistBio,
+          genre: combinedParams.artistGenre,
+          careerStage: combinedParams.artistCareerStage,
+          location: combinedParams.artistLocation,
+          accomplishments: combinedParams.artistAccomplishments
+        },
+        grantDetails: {
+          name: combinedParams.grantName,
+          organization: combinedParams.grantOrganization,
+          requirements: combinedParams.grantRequirements,
+          amount: combinedParams.grantAmount,
+          deadline: combinedParams.grantDeadline.toString() // Ensure deadline is a string
+        },
+        systemPrompt,
+        userPrompt
+      });
+      
+      if (!result.success) {
+        console.error(`[AI Route] Application content generation failed: ${result.error}`);
+        return res.status(500).json({ error: result.error || "Failed to generate application content" });
       }
+      
+      console.log(`[AI Route] Successfully generated application content`);
+        
+      // Create activity record for using AI to generate application content
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "GENERATED",
+        entityType: "APPLICATION_CONTENT",
+        details: { 
+          grantName: combinedParams.grantName,
+          artistName: combinedParams.artistName,
+          projectTitle: result.data?.projectTitle || 'Unknown project'
+        }
+      });
+      
+      return res.json({ content: result.data });
     } catch (error) {
       console.error('Error in generate application content endpoint:', error);
-      return res.status(500).json({ error: "Failed to generate application content" });
+      return res.status(500).json({ error: "Failed to generate application content. Please try again later." });
     }
   });
 
