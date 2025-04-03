@@ -14,6 +14,7 @@ import { Loader2, Save, User, Music } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Textarea } from '../components/ui/textarea';
 import { Artist } from '@shared/schema';
+import { ProfileRequirements } from '../components/profile/ProfileRequirements';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -350,7 +351,7 @@ export default function ProfilePage() {
           </form>
         </Card>
 
-        <Card className="col-span-1 md:col-span-3">
+        <Card className="col-span-1 md:col-span-3 lg:col-span-2">
           <CardHeader className="flex flex-row items-center">
             <div className="flex-1">
               <CardTitle>Grant Matching Information</CardTitle>
@@ -383,6 +384,49 @@ export default function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+        
+        <div className="col-span-1 md:col-span-3 lg:col-span-1">
+          <ProfileRequirements 
+            completedFields={[
+              // Base fields
+              ...(formData.name ? ['Full Name'] : []),
+              ...(formData.email ? ['Email'] : []),
+              ...(formData.bio ? ['Bio'] : []),
+              // Grant matching fields
+              ...(formData.genres.length > 0 ? ['Music Genres'] : []),
+              ...(formData.careerStage ? ['Career Stage'] : []),
+              ...(formData.instrument ? ['Primary Instrument'] : []),
+              ...(formData.location ? ['Location'] : []),
+              ...(formData.projectType ? ['Project Type'] : [])
+            ]}
+            onFieldClick={(fieldName) => {
+              // Scroll to the relevant field
+              const fieldMap: Record<string, string> = {
+                'Full Name': 'name',
+                'Email': 'email',
+                'Bio': 'bio',
+                'Music Genres': 'genres',
+                'Career Stage': 'careerStage',
+                'Primary Instrument': 'instrument',
+                'Location': 'location',
+                'Project Type': 'projectType'
+              };
+              
+              const elementId = fieldMap[fieldName];
+              if (elementId) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  // Add a brief highlight effect
+                  element.classList.add('ring-2', 'ring-primary', 'ring-opacity-50');
+                  setTimeout(() => {
+                    element.classList.remove('ring-2', 'ring-primary', 'ring-opacity-50');
+                  }, 2000);
+                }
+              }
+            }}
+          />
+        </div>
       </div>
     </div>
   );

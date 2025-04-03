@@ -65,6 +65,13 @@ export interface AnswerQuestionParams {
   conversationHistory?: AIMessage[];
 }
 
+export interface ProfileRequirement {
+  fieldName: string;
+  importance: 'required' | 'recommended' | 'optional';
+  description: string;
+  examples?: string[];
+}
+
 export interface DocumentAnalysisResult {
   documentId: number;
   title: string;
@@ -73,6 +80,7 @@ export interface DocumentAnalysisResult {
   relevanceScore: number;
   keyInsights: string[];
   targetAudience: string[];
+  profileRequirements?: ProfileRequirement[];
 }
 
 export interface DocumentClassificationResult {
@@ -410,13 +418,16 @@ If you don't know the answer, be honest about not knowing rather than making up 
       
       // Prepare the system prompt
       const systemPrompt = `You are an AI assistant specialized in analyzing grant-related documents for musicians and artists.
-Your task is to analyze the provided document and extract key information that would be useful for grant matching.
+Your task is to analyze the provided document and extract key information that would be useful for grant matching and profile completion.
 Provide a structured analysis with the following components:
 1. A concise summary of the document
 2. Main topics covered in the document
 3. Relevance score for grant matching (0-100)
 4. Key insights from the document
 5. Target audience information
+6. Required profile fields for artists applying to grants
+
+Identify any profile fields that would be needed for grant applications mentioned in the document.
 `;
 
       // Prepare the user message
@@ -432,7 +443,15 @@ Return your analysis in JSON format with the following fields:
   "topics": ["List of main topics covered"],
   "relevanceScore": number between 0-100,
   "keyInsights": ["List of key insights or important points"],
-  "targetAudience": ["List of target audience groups"]
+  "targetAudience": ["List of target audience groups"],
+  "profileRequirements": [
+    {
+      "fieldName": "Name of the profile field (e.g., 'genre', 'careerStage', 'education', etc.)",
+      "importance": "required/recommended/optional",
+      "description": "Brief description of what this field is and why it matters for grant applications",
+      "examples": ["Example values for this field"]
+    }
+  ]
 }`;
 
       const requestData: AICompletionRequest = {
@@ -609,6 +628,161 @@ Return your analysis in JSON format with the following fields:
   }
   
   /**
+   * Extract required profile fields from documents
+   * This helps identify what fields artists need to complete for better grant matches
+   */
+  async getRequiredProfileFields(): Promise<ServiceResponse<ProfileRequirement[]>> {
+    return this.executeWithErrorHandling(async () => {
+      // Create cache key
+      const cacheKey = `profile-requirements`;
+      
+      // Check cache first
+      const cachedRequirements = this.cache.get<ProfileRequirement[]>(cacheKey);
+      if (cachedRequirements) {
+        console.log(`[AIService] Using cached profile requirements`);
+        return cachedRequirements;
+      }
+      
+      // Get approved documents
+      const documents = await storage.getApprovedDocuments();
+      if (!documents || documents.length === 0) {
+        // Return default requirements if no documents
+        const defaultRequirements: ProfileRequirement[] = [
+          {
+            fieldName: "genre",
+            importance: "required",
+            description: "Primary musical genre of the artist",
+            examples: ["Classical", "Jazz", "Hip-hop", "Rock", "Electronic"]
+          },
+          {
+            fieldName: "careerStage",
+            importance: "required",
+            description: "Current stage of the artist's career",
+            examples: ["Early career", "Mid-career", "Established"]
+          },
+          {
+            fieldName: "instrumentOrRole",
+            importance: "required",
+            description: "Main instrument played or role in music production",
+            examples: ["Vocalist", "Guitarist", "Producer", "Composer"]
+          }
+        ];
+        
+        // Cache the default requirements
+        this.cache.set(cacheKey, defaultRequirements, CACHE_TTL.DOCUMENT_ANALYSIS);
+        return defaultRequirements;
+      }
+      
+      // Analyze documents to extract profile requirements
+      const analysisResults: DocumentAnalysisResult[] = [];
+      
+      // Limit to a reasonable number of documents
+      const docsToAnalyze = documents.slice(0, 5);
+      for (const doc of docsToAnalyze) {
+        try {
+          const analysis = await this.analyzeDocument(doc.id);
+          if (analysis.success && analysis.data) {
+            analysisResults.push(analysis.data);
+          }
+        } catch (error) {
+          console.error(`[AIService] Error analyzing document ${doc.id}:`, error);
+          // Continue with other documents
+        }
+      }
+      
+      // Consolidate profile requirements from all analyses
+      const allRequirements: ProfileRequirement[] = [];
+      
+      // Extract profile requirements from all document analyses
+      analysisResults.forEach(analysis => {
+        if (analysis.profileRequirements && analysis.profileRequirements.length > 0) {
+          allRequirements.push(...analysis.profileRequirements);
+        }
+      });
+      
+      // If we couldn't extract any requirements, return defaults
+      if (allRequirements.length === 0) {
+        const defaultRequirements: ProfileRequirement[] = [
+          {
+            fieldName: "genre",
+            importance: "required",
+            description: "Primary musical genre of the artist",
+            examples: ["Classical", "Jazz", "Hip-hop", "Rock", "Electronic"]
+          },
+          {
+            fieldName: "careerStage",
+            importance: "required",
+            description: "Current stage of the artist's career",
+            examples: ["Early career", "Mid-career", "Established"]
+          },
+          {
+            fieldName: "instrumentOrRole",
+            importance: "required",
+            description: "Main instrument played or role in music production",
+            examples: ["Vocalist", "Guitarist", "Producer", "Composer"]
+          }
+        ];
+        
+        // Cache the default requirements
+        this.cache.set(cacheKey, defaultRequirements, CACHE_TTL.DOCUMENT_ANALYSIS);
+        return defaultRequirements;
+      }
+      
+      // Consolidate requirements (combine duplicate fields and keep the highest importance)
+      const fieldMap = new Map<string, ProfileRequirement>();
+      
+      allRequirements.forEach(req => {
+        const normalizedField = req.fieldName.toLowerCase().trim();
+        
+        // If we already have this field, potentially update its importance
+        if (fieldMap.has(normalizedField)) {
+          const existing = fieldMap.get(normalizedField)!;
+          
+          // Update importance if the new one is higher priority
+          const importanceLevels = { required: 3, recommended: 2, optional: 1 };
+          const existingLevel = importanceLevels[existing.importance];
+          const newLevel = importanceLevels[req.importance];
+          
+          if (newLevel > existingLevel) {
+            existing.importance = req.importance;
+          }
+          
+          // Merge examples if available
+          if (req.examples && req.examples.length > 0) {
+            if (!existing.examples) {
+              existing.examples = [];
+            }
+            
+            // Add unique examples
+            req.examples.forEach(example => {
+              if (!existing.examples!.includes(example)) {
+                existing.examples!.push(example);
+              }
+            });
+          }
+        } else {
+          // Add new field
+          fieldMap.set(normalizedField, { ...req });
+        }
+      });
+      
+      // Convert the map back to an array
+      const consolidatedRequirements = Array.from(fieldMap.values());
+      
+      // Sort by importance (required first, then recommended, then optional)
+      const sortedRequirements = consolidatedRequirements.sort((a, b) => {
+        const importanceOrder = { required: 1, recommended: 2, optional: 3 };
+        return importanceOrder[a.importance] - importanceOrder[b.importance];
+      });
+      
+      // Cache the results
+      this.cache.set(cacheKey, sortedRequirements, CACHE_TTL.DOCUMENT_ANALYSIS);
+      
+      return sortedRequirements;
+    }, 'Failed to extract required profile fields');
+  }
+  
+  /**
    * Parse document analysis result from AI response
    */
   private parseDocumentAnalysis(content: string, documentId: number, documentTitle: string): DocumentAnalysisResult {
@@ -649,7 +823,13 @@ Return your analysis in JSON format with the following fields:
         topics: ["Document analysis"],
         relevanceScore: 40,
         keyInsights: ["Analysis parsing failed"],
-        targetAudience: ["Musicians"]
+        targetAudience: ["Musicians"],
+        profileRequirements: [{
+          fieldName: "genre",
+          importance: "recommended",
+          description: "Primary musical genre of the artist",
+          examples: ["Classical", "Jazz", "Hip-hop"]
+        }]
       };
     }
   }

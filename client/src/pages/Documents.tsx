@@ -768,14 +768,7 @@ export default function Documents() {
               <Upload className="mr-2 h-4 w-4" aria-hidden="true" /> 
               <span>File Uploads</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="analysis" 
-              className="flex items-center"
-              aria-controls="analysis-panel"
-            >
-              <Brain className="mr-2 h-4 w-4" aria-hidden="true" /> 
-              <span>AI Analysis</span>
-            </TabsTrigger>
+
           </TabsList>
           
           <TabsContent value="documents" id="documents-panel" role="tabpanel">
@@ -967,70 +960,7 @@ export default function Documents() {
             </div>
           </TabsContent>
           
-          <TabsContent value="analysis" id="analysis-panel" role="tabpanel">
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="h-5 w-5 text-primary" />
-                    AI Document Analysis
-                  </CardTitle>
-                  <CardDescription>
-                    Use AI to analyze your documents and extract insights for better grant matching
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="py-8 text-center">
-                      <Loader2 className="mx-auto h-10 w-10 text-muted-foreground animate-spin mb-3" />
-                      <h3 className="text-lg font-medium">Loading documents...</h3>
-                    </div>
-                  ) : error ? (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Error</AlertTitle>
-                      <AlertDescription>
-                        Failed to load documents: {(error as any).message}
-                      </AlertDescription>
-                    </Alert>
-                  ) : documents.length === 0 ? (
-                    <div className="py-8 text-center">
-                      <AlertCircle className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-                      <h3 className="text-lg font-medium">No documents found</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Add documents to your knowledge base to analyze them.
-                      </p>
-                      <Button 
-                        variant="outline" 
-                        className="mt-4"
-                        onClick={() => setIsDialogOpen(true)}
-                      >
-                        <Plus className="mr-2 h-4 w-4" /> Add Document
-                      </Button>
-                    </div>
-                  ) : (
-                    <DocumentsAnalysisList
-                      documents={documents}
-                      isLoading={isLoading}
-                      error={error}
-                      onAnalysisComplete={(documentId: number, analysis: DocumentAnalysisResult) => {
-                        toast({
-                          title: "Analysis complete",
-                          description: `Document "${analysis.title}" analyzed successfully.`,
-                        });
-                      }}
-                    />
-                  )}
-                </CardContent>
-                <CardFooter className="border-t p-4">
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Info className="h-4 w-4 mr-1" />
-                    Document analysis helps improve grant recommendations by understanding your specific needs.
-                  </div>
-                </CardFooter>
-              </Card>
-            </div>
-          </TabsContent>
+
         </Tabs>
       </main>
     </div>

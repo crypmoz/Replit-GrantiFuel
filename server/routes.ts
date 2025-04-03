@@ -984,6 +984,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get required profile fields from AI analysis of documents
+  app.get("/api/ai/profile-requirements", requireAuth, async (req, res) => {
+    try {
+      // Get profile requirements from AI service
+      const result = await aiService.getRequiredProfileFields();
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error || "Failed to get profile requirements" });
+      }
+      
+      return res.json({ profileRequirements: result.data });
+    } catch (error) {
+      console.error("Error getting profile requirements:", error);
+      return res.status(500).json({ error: "Failed to get profile requirements" });
+    }
+  });
+
   // Onboarding routes
   app.get("/api/onboarding", requireAuth, async (req, res) => {
     try {
