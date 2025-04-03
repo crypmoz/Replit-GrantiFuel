@@ -107,21 +107,39 @@ export default function UpcomingDeadlines() {
           // If showExpired is true, include all grants with valid deadlines
           if (showExpired) return true;
           
-          // Otherwise, only include grants with deadlines in the future
-          const now = new Date();
-          // Reset time to start of day for more accurate date comparison
-          now.setHours(0, 0, 0, 0);
+          // Get today's date and standardize the time component
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          // Standardize the deadline date (remove time component)
           const deadlineWithoutTime = new Date(deadlineDate);
           deadlineWithoutTime.setHours(0, 0, 0, 0);
           
+          // Convert to ISO date strings for easier debugging and comparison
+          const todayStr = today.toISOString().split('T')[0];
+          const deadlineStr = deadlineWithoutTime.toISOString().split('T')[0];
+          
+          // Explicit comparisons for clarity
+          const isPastDeadline = deadlineStr < todayStr;
+          const isToday = deadlineStr === todayStr;
+          const isFutureDeadline = deadlineStr > todayStr;
+          
+          // Filter out expired grants
+          if (isPastDeadline) {
+            console.log('Filtering out expired grant:', grant.name, 'Deadline:', deadlineStr, 'Today:', todayStr);
+            return false;
+          }
+          
           // Debug log the dates being compared
-          console.log('Comparing dates:', 
-            'Deadline:', deadlineWithoutTime.toISOString().split('T')[0], 
-            'Today:', now.toISOString().split('T')[0],
-            'Result:', isAfter(deadlineWithoutTime, now) || deadlineWithoutTime.getTime() === now.getTime());
+          console.log(
+            'Including grant:', grant.name,
+            'Deadline:', deadlineStr, 
+            'Today:', todayStr,
+            'Status:', isToday ? 'Due today' : `${differenceInDays(deadlineWithoutTime, today)} days left`
+          );
           
           // Include today's deadline and future deadlines
-          return isAfter(deadlineWithoutTime, now) || deadlineWithoutTime.getTime() === now.getTime();
+          return isToday || isFutureDeadline;
         })
         .sort((a, b) => {
           // Sort by deadline (nearest first)
@@ -142,24 +160,40 @@ export default function UpcomingDeadlines() {
 
   // Function to render deadline status text and color
   const getDeadlineStatus = (deadlineDate: Date) => {
+    // Standardize today's date (remove time component)
     const today = new Date();
-    // Reset time components for more accurate day calculation
-    const todayWithoutTime = new Date(today);
-    todayWithoutTime.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
     
+    // Standardize the deadline date (remove time component)
     const deadlineWithoutTime = new Date(deadlineDate);
     deadlineWithoutTime.setHours(0, 0, 0, 0);
+    const deadlineStr = deadlineWithoutTime.toISOString().split('T')[0];
     
-    const daysRemaining = differenceInDays(deadlineWithoutTime, todayWithoutTime);
+    // Calculate days remaining using date-fns
+    const daysRemaining = differenceInDays(deadlineWithoutTime, today);
     
-    if (isAfter(todayWithoutTime, deadlineWithoutTime)) {
+    // Determine status by string comparison for consistency
+    const isPastDeadline = deadlineStr < todayStr;
+    const isToday = deadlineStr === todayStr;
+    
+    // Debug logging
+    console.log('Grant deadline status:', {
+      deadline: deadlineStr,
+      today: todayStr,
+      daysRemaining,
+      isPastDeadline,
+      isToday
+    });
+    
+    if (isPastDeadline) {
       return { 
         text: 'Expired', 
         className: 'text-red-600 dark:text-red-400',
         bgColor: 'bg-red-50 dark:bg-red-900/20',
         borderColor: 'border-red-200 dark:border-red-900/30'
       };
-    } else if (daysRemaining === 0) {
+    } else if (isToday) {
       return { 
         text: 'Due today', 
         className: 'text-red-600 dark:text-red-400 font-medium',
@@ -230,14 +264,23 @@ export default function UpcomingDeadlines() {
               // Determine mock status based on deadline (would be real status in production)
               const today = new Date();
               today.setHours(0, 0, 0, 0);
+              const todayStr = today.toISOString().split('T')[0];
+              
               const deadlineDateWithoutTime = new Date(deadlineDate);
               deadlineDateWithoutTime.setHours(0, 0, 0, 0);
+              const deadlineStr = deadlineDateWithoutTime.toISOString().split('T')[0];
+              
+              // Calculate days between dates
               const daysToDeadline = differenceInDays(deadlineDateWithoutTime, today);
               
+              // Status is also influenced by whether the deadline is in the past
+              const isPastDeadline = deadlineStr < todayStr;
+              
+              // Determine application status based on deadline
               let status = 'draft';
-              if (daysToDeadline < 0) status = 'submitted';
-              else if (daysToDeadline < 7) status = 'inProgress';
-              else if (daysToDeadline < 14) status = 'draft';
+              if (isPastDeadline) status = 'submitted'; // Already passed = 'submitted'
+              else if (daysToDeadline < 7) status = 'inProgress'; // Less than a week = 'in progress'
+              else if (daysToDeadline < 14) status = 'draft'; // Less than two weeks = 'draft'
               
               return (
                 <div 

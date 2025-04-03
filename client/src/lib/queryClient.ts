@@ -313,3 +313,21 @@ window.addEventListener('unhandledrejection', (event) => {
   // Log any unhandled promise rejections that might be from API calls
   console.error('Unhandled Promise Rejection:', event.reason);
 });
+
+// Helper function to clear AI service cache
+export async function clearAICache(): Promise<boolean> {
+  try {
+    // Call the new endpoint we created to clear the AI cache
+    const res = await apiRequest('POST', '/api/ai/clear-cache');
+    const result = await res.json();
+    console.log('AI cache cleared:', result);
+    
+    // Also invalidate any related queries in the React Query cache
+    queryClient.invalidateQueries({ queryKey: ['/api/ai/grant-recommendations'] });
+    
+    return true;
+  } catch (error) {
+    console.error('Failed to clear AI cache:', error);
+    return false;
+  }
+}

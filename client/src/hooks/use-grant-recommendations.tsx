@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from './use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, clearAICache } from '@/lib/queryClient';
 
 export interface GrantRecommendation {
   id: string;
@@ -129,6 +129,50 @@ export function useGrantRecommendations() {
     },
   });
 
+  /**
+   * Clears both server and client caches, then refreshes recommendations
+   * This is useful when we want to force the AI to generate new recommendations
+   * with future deadlines
+   */
+  const refreshRecommendations = async (artistProfile: ArtistProfile) => {
+    if (!artistProfile) {
+      toast({
+        title: 'Profile required',
+        description: 'Please complete your artist profile before refreshing recommendations.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      // Clear client-side caches
+      sessionStorage.removeItem('ai-grant-recommendations');
+      const profileKey = `profile-${artistProfile.genre}-${artistProfile.careerStage}-${artistProfile.instrumentOrRole}`;
+      sessionStorage.removeItem(profileKey);
+      
+      // Clear server-side AI cache 
+      await clearAICache();
+      
+      // Invalidate React Query cache
+      queryClient.invalidateQueries({ queryKey: ['/api/ai/grant-recommendations'] });
+      
+      toast({
+        title: 'Cache cleared',
+        description: 'Refreshing grant recommendations with future deadlines...',
+      });
+      
+      // Fetch fresh recommendations
+      fetchRecommendationsMutation.mutate(artistProfile);
+    } catch (error) {
+      console.error('Error refreshing recommendations:', error);
+      toast({
+        title: 'Refresh failed',
+        description: 'Unable to refresh recommendations. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return {
     recommendations,
     isLoading,
@@ -140,6 +184,7 @@ export function useGrantRecommendations() {
       // since the profile is already being set by the caller
       fetchRecommendationsMutation.mutate(newProfile);
     },
+    refreshRecommendations, // New function to force refresh with cache clearing
     isSubmitting: fetchRecommendationsMutation.isPending,
   };
 }

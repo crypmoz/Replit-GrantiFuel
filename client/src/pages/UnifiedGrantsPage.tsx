@@ -116,7 +116,9 @@ export default function UnifiedGrantsPage() {
     error: recommendationsError,
     profile,
     setProfile,
-    fetchRecommendations
+    fetchRecommendations,
+    refreshRecommendations,
+    isSubmitting: isSubmittingRecommendations
   } = useGrantRecommendations();
 
   // Get artist profile for recommendations
@@ -270,15 +272,20 @@ export default function UnifiedGrantsPage() {
         const deadlineDate = new Date(grant.deadline);
         // Skip invalid dates
         if (!isNaN(deadlineDate.getTime())) {
-          // Filter out grants with deadlines in the past
-          const now = new Date();
           // Reset time portion for more accurate date comparison
+          const now = new Date();
           now.setHours(0, 0, 0, 0);
+          const todayStr = now.toISOString().split('T')[0];
+          
           const deadlineWithoutTime = new Date(deadlineDate);
           deadlineWithoutTime.setHours(0, 0, 0, 0);
+          const deadlineStr = deadlineWithoutTime.toISOString().split('T')[0];
           
-          if (now > deadlineWithoutTime) {
-            console.log('Filtering out expired grant:', grant.name, 'Deadline:', deadlineWithoutTime.toISOString().split('T')[0], 'Today:', now.toISOString().split('T')[0]);
+          // Determine if the deadline is in the past using string comparison for consistency
+          const isPastDeadline = deadlineStr < todayStr;
+          
+          if (isPastDeadline) {
+            console.log('Filtering out expired grant:', grant.name, 'Deadline:', deadlineStr, 'Today:', todayStr);
             return false;
           }
         }
@@ -383,15 +390,23 @@ export default function UnifiedGrantsPage() {
     }
   }
   
-  // Handle refreshing AI recommendations
+  // Handle refreshing AI recommendations with cache clearing
   const handleRefreshRecommendations = async () => {
     if (profile) {
       try {
         toast({
           title: "Refreshing recommendations",
-          description: "We're finding the latest grant opportunities for you."
+          description: "Finding grant opportunities with future deadlines for you."
         });
-        await fetchRecommendations(profile);
+        
+        // Use the enhanced refresh function that clears both client and server caches
+        await refreshRecommendations(profile);
+        
+        // Force UI refresh with a short delay
+        setTimeout(() => {
+          console.log('Refreshing UI after cache clear and AI recommendation refresh');
+          setCombinedGrants([...combinedGrants]);
+        }, 100);
       } catch (error) {
         console.error("Error refreshing recommendations:", error);
         toast({
@@ -441,15 +456,15 @@ export default function UnifiedGrantsPage() {
               <Button 
                 variant="outline" 
                 onClick={handleRefreshRecommendations} 
-                disabled={isLoading || !profile}
+                disabled={isLoading || isSubmittingRecommendations || !profile}
                 className="inline-flex items-center"
               >
-                {isLoadingRecommendations ? (
+                {isLoadingRecommendations || isSubmittingRecommendations ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <RefreshCw className="h-4 w-4 mr-2" />
                 )}
-                Refresh Recommendations
+                {isSubmittingRecommendations ? 'Refreshing...' : 'Refresh Recommendations'} 
               </Button>
             </div>
           </div>

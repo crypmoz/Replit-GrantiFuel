@@ -1127,6 +1127,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Special endpoint for clearing AI cache for testing purposes
+  app.post("/api/ai/clear-cache", requireAuth, async (req, res) => {
+    try {
+      const result = aiService.clearCache();
+      console.log("[AI Route] Cache cleared:", result);
+      res.json({ success: true, message: "AI cache cleared successfully" });
+    } catch (error) {
+      console.error("[AI Route] Error clearing cache:", error);
+      res.status(500).json({ error: "Failed to clear AI cache" });
+    }
+  });
+  
   app.post("/api/ai/grant-recommendations", requireAuth, async (req, res) => {
     try {
       // Check if Deepseek API key is configured

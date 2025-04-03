@@ -255,6 +255,12 @@ For each grant, include these fields: id (unique string), name, organization, am
 description (2-3 sentences), requirements (list of strings), eligibility (list of strings), url (fictional but plausible), 
 and matchScore (integer 0-100 indicating relevance, calculated based on how well the grant matches the artist profile).
 
+CRITICAL DEADLINE REQUIREMENTS:
+- Set ALL deadlines at least 1 year into the future from today's date (${new Date().toISOString().split('T')[0]})
+- Prefer deadlines between 12-18 months from now to give artists plenty of preparation time
+- Never set any deadlines in the past or less than 12 months from today
+- Double-check all deadline dates before returning to ensure they are valid and at least 1 year in the future
+
 Return exactly 5 grants that would be appropriate for this artist.
 Only recommend grants that would be specifically relevant to the artist's profile details like genre, career stage, instrument, etc.
 
@@ -301,9 +307,12 @@ ${grantsContext}
 Important instructions:
 1. Make sure each grant recommendation is SPECIFICALLY tailored to this artist's profile details.
 2. Focus especially on matching grants to their genre (${artistProfileObj.genre || 'Not specified'}) and instrument (${artistProfileObj.instrumentOrRole || 'Not specified'}).
-3. All deadlines must be in the future (at least 2 months from now).
-4. Ensure each grant has a match score that accurately reflects its relevance to this specific artist.
-5. Return your response as a JSON array of grant objects.`;
+3. CRITICAL: ALL grant deadlines MUST be at least 1 year (12 months) in the future from today (${new Date().toISOString().split('T')[0]}). Preferably set deadlines 12-18 months from now.
+4. Use YYYY-MM-DD format for deadlines and verify each date is valid and at least 365 days from today.
+5. Ensure each grant has a match score that accurately reflects its relevance to this specific artist.
+6. Return your response as a JSON array of grant objects.
+
+DOUBLE-CHECK: Before returning, verify that every deadline date is actually in the future by at least 12 months.`;
       
       const requestData: AICompletionRequest = {
         model: this.defaultModel,
@@ -1420,12 +1429,14 @@ Return your analysis in JSON format with the following fields:
           amount = `$${baseAmount + Math.floor(Math.random() * 5000)}`;
         }
         
-        // Generate future deadline (random 3-6 months from now)
+        // Generate future deadline (random 12-18 months from now)
         const today = new Date();
         const futureDate = new Date();
-        const monthsAhead = 3 + Math.floor(Math.random() * 4);
+        // Setting deadlines 12-18 months ahead to ensure they are well in the future
+        const monthsAhead = 12 + Math.floor(Math.random() * 7);
         futureDate.setMonth(today.getMonth() + monthsAhead);
         const deadline = futureDate.toISOString().split('T')[0];
+        console.log(`[AIService] Generated future deadline: ${deadline} (${monthsAhead} months ahead)`)
         
         // Extract or generate description
         let description = '';
