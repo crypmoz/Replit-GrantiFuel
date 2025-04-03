@@ -51,13 +51,42 @@ export default function NewApplicationForm() {
   // Fetch grant details
   const { data: grant, isLoading: isLoadingGrant } = useQuery({
     queryKey: [`/api/grants/${grantId}`],
-    enabled: !!grantId,
+    enabled: !!grantId && !grantId.startsWith('doc-based-'),
     queryFn: async () => {
       const response = await fetch(`/api/grants/${grantId}`);
       if (!response.ok) throw new Error('Failed to fetch grant');
       return response.json();
     }
   });
+  
+  // Check if we have a document-based recommendation (AI-generated grant)
+  const isDocBasedGrant = grantId && grantId.startsWith('doc-based-');
+  
+  // Get grant data from sessionStorage if it's an AI recommendation
+  const [aiGrant, setAiGrant] = useState<any>(null);
+  
+  useEffect(() => {
+    if (isDocBasedGrant) {
+      // Try to get grant data from the cached recommendations
+      const cachedRecommendations = sessionStorage.getItem('ai-grant-recommendations');
+      if (cachedRecommendations) {
+        try {
+          const recommendations = JSON.parse(cachedRecommendations);
+          // Find the recommendation that matches our ID pattern
+          // Since we can't match exactly (due to dynamic IDs), we look for similar properties
+          const matchingGrant = recommendations.find((rec: any) => 
+            (rec.url && grantId.includes(new URL(rec.url).hostname))
+          );
+          
+          if (matchingGrant) {
+            setAiGrant(matchingGrant);
+          }
+        } catch (error) {
+          console.error('Error parsing cached recommendations:', error);
+        }
+      }
+    }
+  }, [grantId, isDocBasedGrant]);
 
   // Fetch artist profiles
   const { data: artists } = useQuery({
@@ -96,19 +125,63 @@ export default function NewApplicationForm() {
 
   const createApplicationMutation = useMutation({
     mutationFn: async (data: ApplicationFormValues) => {
-      const response = await apiRequest('POST', '/api/applications', {
-        grantId: Number(grantId),
-        artistId: primaryArtist?.id,
-        ...data,
-        status: 'draft',
-        progress: 40,
-      });
+      // Check if grantId is an AI-recommended grant (starts with "doc-based-")
+      if (grantId && grantId.startsWith("doc-based-")) {
+        // This is an AI recommendation, not a stored grant
+        // We need to create a new grant first based on the data we have
+        try {
+          // Create a new grant from the recommendation
+          const grantResponse = await apiRequest('POST', '/api/grants', {
+            name: effectiveGrant?.name || "AI Recommended Grant",
+            organization: effectiveGrant?.organization || "Unknown Organization", 
+            amount: effectiveGrant?.amount || "$0",
+            deadline: effectiveGrant?.deadline || new Date().toISOString(),
+            description: effectiveGrant?.description || "",
+            requirements: typeof effectiveGrant?.requirements === 'string' ? effectiveGrant.requirements : 
+                         Array.isArray(effectiveGrant?.requirements) ? effectiveGrant.requirements.join(", ") : "",
+            website: effectiveGrant?.website || effectiveGrant?.url || "",
+          });
+          
+          if (!grantResponse.ok) {
+            throw new Error('Failed to create grant from AI recommendation');
+          }
+          
+          const newGrant = await grantResponse.json();
+          
+          // Now create the application using the new grant
+          const response = await apiRequest('POST', '/api/applications', {
+            grantId: newGrant.id,
+            artistId: primaryArtist?.id,
+            ...data,
+            status: 'draft',
+            progress: 40,
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to create application');
+          }
+          
+          return await response.json();
+        } catch (error) {
+          console.error("Error creating grant from recommendation:", error);
+          throw new Error("Failed to create application from AI recommendation");
+        }
+      } else {
+        // Normal flow for existing grants
+        const response = await apiRequest('POST', '/api/applications', {
+          grantId: Number(grantId),
+          artistId: primaryArtist?.id,
+          ...data,
+          status: 'draft',
+          progress: 40,
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to create application');
+        if (!response.ok) {
+          throw new Error('Failed to create application');
+        }
+
+        return await response.json();
       }
-
-      return await response.json();
     },
     onSuccess: () => {
       toast({
@@ -145,7 +218,7 @@ export default function NewApplicationForm() {
   };
 
   const generateAIContent = async () => {
-    if (!grant || !primaryArtist) {
+    if (!effectiveGrant || !primaryArtist) {
       toast({
         title: "Missing information",
         description: "Grant details or artist profile information is missing.",
@@ -157,11 +230,12 @@ export default function NewApplicationForm() {
     setIsGenerating(true);
     try {
       const response = await apiRequest('POST', '/api/ai/generate-application-content', {
-        grantId: grant.id,
+        grantId: effectiveGrant.id,
         artistId: primaryArtist.id,
-        grantName: grant.name,
-        grantOrganization: grant.organization,
-        grantRequirements: grant.requirements?.join(', ') || '',
+        grantName: effectiveGrant.name,
+        grantOrganization: effectiveGrant.organization,
+        grantRequirements: effectiveGrant.requirements?.join?.(', ') || 
+                           (typeof effectiveGrant.requirements === 'string' ? effectiveGrant.requirements : ''),
         artistName: primaryArtist.name,
         artistBio: primaryArtist.bio || '',
         artistGenre: primaryArtist.genres?.join(', ') || '',
@@ -254,7 +328,10 @@ ${form.getValues('projectImpact')}
     );
   }
 
-  if (!grant) {
+  // Use AI grant data if available, otherwise use the fetched grant
+  const effectiveGrant = grant || aiGrant;
+  
+  if (!effectiveGrant) {
     return (
       <div className="container max-w-4xl mx-auto py-6">
         <Card>
@@ -284,10 +361,10 @@ ${form.getValues('projectImpact')}
           Preparation Tool Only
         </AlertTitle>
         <AlertDescription className="text-amber-700 dark:text-amber-400">
-          This tool helps you prepare your application content for <strong>{grant.name}</strong>. 
+          This tool helps you prepare your application content for <strong>{effectiveGrant.name}</strong>. 
           You'll need to submit the final application through their 
           <a 
-            href={grant.url} 
+            href={effectiveGrant.url || effectiveGrant.website || "#"} 
             target="_blank" 
             rel="noopener noreferrer"
             className="mx-1 text-primary underline hover:text-primary/80"
@@ -322,7 +399,7 @@ ${form.getValues('projectImpact')}
             </Button>
           </CardTitle>
           <CardDescription>
-            {grant.name} - {grant.organization}
+            {effectiveGrant.name} - {effectiveGrant.organization}
           </CardDescription>
         </CardHeader>
         
@@ -480,7 +557,7 @@ ${form.getValues('projectImpact')}
                   </Button>
                   
                   <Button 
-                    onClick={() => window.open(grant.url, '_blank')}
+                    onClick={() => window.open(effectiveGrant.url || effectiveGrant.website || "#", '_blank')}
                     className="w-full"
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />

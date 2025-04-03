@@ -160,7 +160,7 @@ export default function GrantRecommendationsList({
                   </a>
                 </Button>
                 <Button size="sm" asChild>
-                  <a href={`/applications/new?grantId=${grant.id}`}>
+                  <a href={`/applications/new?grantId=${grant.id || `doc-based-${grant.url ? new URL(grant.url).hostname : 'recommendation'}-${Date.now()}`}`}>
                     <FileText className="h-4 w-4 mr-1" />
                     Prepare Application
                   </a>

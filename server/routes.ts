@@ -625,7 +625,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/grants/:id", async (req, res) => {
-    const grant = await storage.getGrant(parseInt(req.params.id));
+    // Check if the ID is a document-based recommendation (starts with "doc-based-")
+    if (req.params.id.startsWith("doc-based-")) {
+      // This is an AI-generated recommendation, not stored in the database
+      // Return the cached recommendation or an error
+      return res.status(404).json({ message: "Grant not found in database. This may be an AI-generated recommendation." });
+    }
+    
+    // Parse ID as integer for database lookup, with error handling
+    let grantId;
+    try {
+      grantId = parseInt(req.params.id);
+      if (isNaN(grantId)) {
+        throw new Error("Invalid grant ID format");
+      }
+    } catch (error) {
+      return res.status(400).json({ message: "Invalid grant ID format" });
+    }
+    
+    const grant = await storage.getGrant(grantId);
     if (!grant) {
       return res.status(404).json({ message: "Grant not found" });
     }
