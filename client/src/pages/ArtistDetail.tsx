@@ -45,10 +45,7 @@ import { ArtistProfileEdit } from '@/components/profile/ArtistProfileEdit';
 // Form state type
 type ArtistFormValues = Omit<z.infer<typeof insertArtistSchema>, 'userId'>;
 
-// Activity details interface
-interface ActivityDetails {
-  [key: string]: string | number | boolean | null | object;
-}
+// Activity details interface - removed to simplify approach
 
 export default function ArtistDetail() {
   // Get artist ID from URL
@@ -307,23 +304,13 @@ export default function ArtistDetail() {
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                               {activity.createdAt ? format(new Date(activity.createdAt.toString()), 'MMMM d, yyyy h:mm a') : 'Unknown date'}
                             </p>
+                            {/* Simplified activity details rendering */}
                             {activity.details && typeof activity.details === 'object' && (
                               <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                {(() => {
-                                  const details = activity.details as ActivityDetails;
-                                  return Object.entries(details).map(([key, value]) => {
-                                    const displayValue = typeof value === 'object' && value !== null 
-                                      ? JSON.stringify(value) 
-                                      : String(value);
-                                    
-                                    return (
-                                      <div key={key} className="flex items-start gap-2">
-                                        <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                                        <span>{displayValue}</span>
-                                      </div>
-                                    );
-                                  });
-                                })()}
+                                <div className="flex items-start gap-2">
+                                  <span className="font-medium">Details:</span>
+                                  <span>{JSON.stringify(activity.details)}</span>
+                                </div>
                               </div>
                             )}
                           </div>
