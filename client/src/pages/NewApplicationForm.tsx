@@ -66,6 +66,23 @@ export default function NewApplicationForm() {
   const [aiGrant, setAiGrant] = useState<any>(null);
   
   useEffect(() => {
+    // First check if we have a directly selected grant from UnifiedGrantsPage
+    const selectedGrantStr = sessionStorage.getItem('selectedGrant');
+    if (selectedGrantStr) {
+      try {
+        const selectedGrant = JSON.parse(selectedGrantStr);
+        console.log('Found selected grant in sessionStorage:', selectedGrant.name);
+        setAiGrant(selectedGrant);
+        
+        // Clear the storage to avoid reusing this data accidentally
+        sessionStorage.removeItem('selectedGrant');
+        return;
+      } catch (error) {
+        console.error('Error parsing selected grant:', error);
+      }
+    }
+    
+    // If no directly selected grant, check for doc-based grants
     if (isDocBasedGrant) {
       // Try to get grant data from the cached recommendations
       const cachedRecommendations = sessionStorage.getItem('ai-grant-recommendations');
@@ -166,11 +183,14 @@ export default function NewApplicationForm() {
 
   const createApplicationMutation = useMutation({
     mutationFn: async (data: ApplicationFormValues) => {
-      // Check if grantId is an AI-recommended grant (starts with "doc-based-")
-      if (grantId && grantId.startsWith("doc-based-")) {
-        // This is an AI recommendation, not a stored grant
-        // We need to create a new grant first based on the data we have
+      // If we have a non-database grant (from AI or session storage), create a new grant first
+      if (!grantId || (grantId && isNaN(Number(grantId))) || (grantId && grantId.startsWith("doc-based-")) || 
+          (effectiveGrant && (typeof effectiveGrant.id !== 'number' || effectiveGrant.id < 0))) {
+        
+        // This is a non-database grant, we need to create it first
         try {
+          console.log("Creating new grant from recommendation:", effectiveGrant);
+          
           // Create a new grant from the recommendation
           const grantResponse = await apiRequest('POST', '/api/grants', {
             name: effectiveGrant?.name || "AI Recommended Grant",
@@ -184,10 +204,11 @@ export default function NewApplicationForm() {
           });
           
           if (!grantResponse.ok) {
-            throw new Error('Failed to create grant from AI recommendation');
+            throw new Error('Failed to create grant from recommendation');
           }
           
           const newGrant = await grantResponse.json();
+          console.log("Created new grant:", newGrant);
           
           // Now create the application using the new grant
           const response = await apiRequest('POST', '/api/applications', {
@@ -205,23 +226,29 @@ export default function NewApplicationForm() {
           return await response.json();
         } catch (error) {
           console.error("Error creating grant from recommendation:", error);
-          throw new Error("Failed to create application from AI recommendation");
+          throw new Error("Failed to create application: " + (error instanceof Error ? error.message : String(error)));
         }
       } else {
-        // Normal flow for existing grants
-        const response = await apiRequest('POST', '/api/applications', {
-          grantId: Number(grantId),
-          artistId: primaryArtist?.id,
-          ...data,
-          status: 'draft',
-          progress: 40,
-        });
+        // Normal flow for existing grants with valid database IDs
+        try {
+          console.log("Creating application for existing grant ID:", grantId);
+          const response = await apiRequest('POST', '/api/applications', {
+            grantId: Number(grantId),
+            artistId: primaryArtist?.id,
+            ...data,
+            status: 'draft',
+            progress: 40,
+          });
 
-        if (!response.ok) {
-          throw new Error('Failed to create application');
+          if (!response.ok) {
+            throw new Error('Failed to create application');
+          }
+
+          return await response.json();
+        } catch (error) {
+          console.error("Error creating application:", error);
+          throw new Error("Failed to create application: " + (error instanceof Error ? error.message : String(error)));
         }
-
-        return await response.json();
       }
     },
     onSuccess: () => {
@@ -270,17 +297,28 @@ export default function NewApplicationForm() {
 
     setIsGenerating(true);
     try {
-      const response = await apiRequest('POST', '/api/ai/generate-application-content', {
-        grantId: effectiveGrant.id,
+      // For AI-recommended grants that don't have a database ID, we use name and other fields directly
+      const requestData = {
+        // Only include grantId if it's a valid number (database ID)
+        ...(typeof effectiveGrant.id === 'number' && effectiveGrant.id > 0 ? { grantId: effectiveGrant.id } : {}),
         artistId: primaryArtist.id,
         grantName: effectiveGrant.name,
         grantOrganization: effectiveGrant.organization,
         grantRequirements: effectiveGrant.requirements?.join?.(', ') || 
                            (typeof effectiveGrant.requirements === 'string' ? effectiveGrant.requirements : ''),
+        // Additional info that might be helpful for AI
+        grantDescription: effectiveGrant.description || '',
+        grantAmount: effectiveGrant.amount || '',
+        grantDeadline: effectiveGrant.deadline ? new Date(effectiveGrant.deadline).toLocaleDateString() : '',
+        // Artist info
         artistName: primaryArtist.name,
         artistBio: primaryArtist.bio || '',
         artistGenre: primaryArtist.genres?.join(', ') || '',
-      });
+      };
+      
+      console.log("Generating content with data:", requestData);
+      
+      const response = await apiRequest('POST', '/api/ai/generate-application-content', requestData);
 
       if (!response.ok) {
         throw new Error('Failed to generate content');
@@ -301,6 +339,7 @@ export default function NewApplicationForm() {
         console.error('Error completing onboarding task:', error);
       }
     } catch (error: any) {
+      console.error("Error generating AI content:", error);
       toast({
         title: "Error generating content",
         description: error.message || "Failed to generate content. Please try again.",
@@ -341,7 +380,9 @@ ${form.getValues('projectImpact')}
     });
   };
 
-  if (!grantId) {
+  // Only show the no grant selected message if we don't have a grantId AND don't have an aiGrant
+  // The aiGrant could be loaded from sessionStorage even without a grantId
+  if (!grantId && !aiGrant) {
     return (
       <div className="container max-w-4xl mx-auto py-6">
         <Card>

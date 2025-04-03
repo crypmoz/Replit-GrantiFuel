@@ -734,11 +734,39 @@ export default function UnifiedGrantsPage() {
                     </a>
                   </Button>
                 ) : null}
-                <Button size="sm" asChild>
-                  <a href={`/applications/new?grantId=${grant.id || `rec-${Date.now()}`}`}>
-                    <FileText className="h-4 w-4 mr-1" />
-                    Prepare App
-                  </a>
+                <Button size="sm" onClick={() => {
+                  // When preparing an application for an AI-recommended grant without an ID, 
+                  // we need to store the grant data in sessionStorage
+                  if (!grant.id || typeof grant.id !== 'number' || grant.id < 0) {
+                    try {
+                      // Store the grant details in session storage for the application form to use
+                      sessionStorage.setItem('selectedGrant', JSON.stringify({
+                        name: grant.name,
+                        organization: grant.organization,
+                        amount: grant.amount,
+                        deadline: grant.deadline,
+                        description: grant.description,
+                        requirements: grant.requirements,
+                        url: grant.url || grant.website,
+                        aiRecommended: true
+                      }));
+                      // Navigate to the new application form without an ID parameter
+                      window.location.href = '/applications/new';
+                    } catch (err) {
+                      console.error('Error storing grant data:', err);
+                      toast({
+                        title: 'Error',
+                        description: 'Failed to prepare application. Please try again.',
+                        variant: 'destructive'
+                      });
+                    }
+                  } else {
+                    // For database grants with valid IDs, use the ID in the URL
+                    window.location.href = `/applications/new?grantId=${grant.id}`;
+                  }
+                }}>
+                  <FileText className="h-4 w-4 mr-1" />
+                  Prepare App
                 </Button>
               </div>
             </CardFooter>
