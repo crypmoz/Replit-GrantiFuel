@@ -17,9 +17,11 @@ import { ArtistProfile, useGrantRecommendations, GrantRecommendation } from '@/h
 import { apiRequest } from '@/lib/queryClient';
 import { Grant, GrantWithAIRecommendation, userRoleEnum } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowUpDown, Calendar, DollarSign, Filter, Plus, ExternalLink, FileText, Search, RefreshCw, AlertCircle, Bookmark, Save, Loader2 } from 'lucide-react';
+import { ArrowUpDown, Calendar, DollarSign, Filter, Plus, ExternalLink, FileText, Search, 
+         RefreshCw, AlertCircle, Bookmark, Save, Loader2, UserCheck } from 'lucide-react';
+import GrantRecommendationsForm from '@/components/grants/GrantRecommendationsForm';
 
-// Common type to represent both database grants and AI-recommended grants
+// Enhanced type to represent both database grants and AI-recommended grants
 interface GrantRecommendationExtended {
   id?: string | number;
   userId?: number;
@@ -52,6 +54,32 @@ export default function UnifiedGrantsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('relevance');
   const [filterStatus, setFilterStatus] = useState('all');
+  
+  // Artist profile update mutation
+  const { mutate: updateArtistProfile, isPending: isUpdatingProfile } = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('PATCH', `/api/artists/${data.id}`, data);
+      if (!response.ok) {
+        throw new Error('Failed to update artist profile');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate and refetch artist profile data
+      queryClient.invalidateQueries({ queryKey: ['/api/artists/by-user', user?.id] });
+      toast({
+        title: 'Profile saved',
+        description: 'Your artist profile has been updated in the database.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to save profile',
+        description: error.message || 'Please try again later',
+        variant: 'destructive',
+      });
+    }
+  });
   
   // State for artist profile and recommendations
   const {
@@ -384,10 +412,11 @@ export default function UnifiedGrantsPage() {
             onValueChange={setActiveTab} 
             className="space-y-6"
           >
-            <TabsList className="grid grid-cols-3 w-full max-w-md">
+            <TabsList className="grid grid-cols-4 w-full max-w-md">
               <TabsTrigger value="all">All Grants</TabsTrigger>
               <TabsTrigger value="ai-recommended">AI Recommended</TabsTrigger>
               <TabsTrigger value="my-grants">My Grants</TabsTrigger>
+              <TabsTrigger value="profile">Your Profile</TabsTrigger>
             </TabsList>
             
             {/* Profile Card for AI Recommendations */}
@@ -432,7 +461,7 @@ export default function UnifiedGrantsPage() {
                       variant="outline" 
                       size="sm" 
                       className="text-xs" 
-                      onClick={() => navigate('/profile')}
+                      onClick={() => setActiveTab('profile')}
                     >
                       Edit Profile
                     </Button>
@@ -452,7 +481,7 @@ export default function UnifiedGrantsPage() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>No profile submitted</AlertTitle>
                   <AlertDescription>
-                    Please update your <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/profile')}>artist profile</Button> to get grant recommendations.
+                    Please update your <Button variant="link" className="p-0 h-auto" onClick={() => setActiveTab('profile')}>artist profile</Button> to get grant recommendations.
                   </AlertDescription>
                 </Alert>
               )}
@@ -461,6 +490,53 @@ export default function UnifiedGrantsPage() {
             
             <TabsContent value="my-grants" className="space-y-6">
               {renderGrantsList()}
+            </TabsContent>
+            
+            <TabsContent value="profile" className="space-y-6">
+              <div className="max-w-3xl mx-auto">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-xl">Your Artist Profile</CardTitle>
+                    <CardDescription>
+                      Update your profile to get better grant recommendations
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingProfile ? (
+                      <div className="flex flex-col items-center justify-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                        <p className="text-muted-foreground">Loading your artist profile...</p>
+                      </div>
+                    ) : (
+                      <GrantRecommendationsForm 
+                        onFormSubmit={(values) => {
+                          setProfile(values);
+                          fetchRecommendations(values);
+                          
+                          // Also save to the database if user has an artist profile
+                          if (artistProfile && artistProfile.id) {
+                            updateArtistProfile({
+                              id: artistProfile.id,
+                              genres: values.genre,
+                              careerStage: values.careerStage,
+                              primaryInstrument: values.instrumentOrRole,
+                              location: values.location,
+                              projectType: values.projectType
+                            });
+                          }
+                          
+                          setActiveTab('ai-recommended');
+                          toast({
+                            title: "Profile updated",
+                            description: "Generating new grant recommendations based on your profile."
+                          });
+                        }} 
+                        defaultValues={profile || undefined} 
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           </Tabs>
         </div>

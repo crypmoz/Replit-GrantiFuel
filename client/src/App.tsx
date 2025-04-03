@@ -109,20 +109,7 @@ function AppContent() {
               {/* AI Assistant is available to premium users (all roles) */}
               <ProtectedRoute path="/ai-assistant" component={AIAssistant} />
               
-              {/* Legacy redirects for backward compatibility */}
-              <Route path="/find-grants">
-                {() => {
-                  window.location.href = "/grants";
-                  return null;
-                }}
-              </Route>
-              
-              <Route path="/grant-recommendations">
-                {() => {
-                  window.location.href = "/grants";
-                  return null;
-                }}
-              </Route>
+              {/* Legacy redirects no longer needed - unified grants page handles all */}
               
               {/* Document management - different roles have different access */}
               <ProtectedRoute path="/documents" component={Documents} />
