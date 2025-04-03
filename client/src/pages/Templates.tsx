@@ -1,6 +1,17 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Template } from '@shared/schema';
+// Template feature removed - considered useless
+// import { Template } from '@shared/schema';
+
+// Temporary type definition for Template until completely removed from codebase
+type Template = {
+  id: number;
+  name: string;
+  description?: string;
+  content: string;
+  type: string;
+  createdAt?: string | Date;
+};
 import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

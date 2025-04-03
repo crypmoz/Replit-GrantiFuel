@@ -50,12 +50,15 @@ const navItems: NavItem[] = [
     icon: <FileText className="h-5 w-5 mr-3" />,
     allowedRoles: ['admin', 'grant_writer', 'manager'] // Manager-level role minimum
   },
+  // Templates feature removed - considered useless 
+  /*
   { 
     href: '/templates', 
     label: 'Templates', 
     icon: <LayoutTemplate className="h-5 w-5 mr-3" />,
     allowedRoles: ['admin', 'grant_writer', 'manager', 'artist'] // Artist-level role minimum
   },
+  */
   { 
     href: '/ai-assistant', 
     label: 'AI Assistant', 

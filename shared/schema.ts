@@ -93,15 +93,16 @@ export const activities = pgTable("activities", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const templates = pgTable("templates", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  name: text("name").notNull(),
-  description: text("description"),
-  content: text("content").notNull(),
-  type: text("type").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+// Templates feature removed - considered useless
+// export const templates = pgTable("templates", {
+//   id: serial("id").primaryKey(),
+//   userId: integer("user_id").notNull(),
+//   name: text("name").notNull(),
+//   description: text("description"),
+//   content: text("content").notNull(),
+//   type: text("type").notNull(),
+//   createdAt: timestamp("created_at").defaultNow(),
+// });
 
 export const documents = pgTable("knowledge_documents", {
   id: serial("id").primaryKey(),
@@ -195,12 +196,13 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
   }),
 }));
 
-export const templatesRelations = relations(templates, ({ one }) => ({
-  user: one(users, {
-    fields: [templates.userId],
-    references: [users.id],
-  }),
-}));
+// Templates feature removed - considered useless
+// export const templatesRelations = relations(templates, ({ one }) => ({
+//   user: one(users, {
+//     fields: [templates.userId],
+//     references: [users.id],
+//   }),
+// }));
 
 export const documentsRelations = relations(documents, ({ one }) => ({
   user: one(users, {
@@ -231,7 +233,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   activities: many(activities),
   artists: many(artists),
   grants: many(grants),
-  templates: many(templates),
+  // templates: many(templates), // Templates feature removed - considered useless
   subscriptions: many(subscriptions),
   documents: many(documents),
   onboardingTasks: many(userOnboarding),
@@ -270,7 +272,8 @@ export const insertGrantSchema = createInsertSchema(grants).omit({ id: true, cre
 export const insertArtistSchema = createInsertSchema(artists).omit({ id: true, createdAt: true });
 export const insertApplicationSchema = createInsertSchema(applications).omit({ id: true, startedAt: true });
 export const insertActivitySchema = createInsertSchema(activities).omit({ id: true, createdAt: true });
-export const insertTemplateSchema = createInsertSchema(templates).omit({ id: true, createdAt: true });
+// Templates feature removed - considered useless
+// export const insertTemplateSchema = createInsertSchema(templates).omit({ id: true, createdAt: true });
 export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({ id: true, createdAt: true });
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true, canceledAt: true });
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, createdAt: true, updatedAt: true });
@@ -308,7 +311,8 @@ export type InsertGrant = z.infer<typeof insertGrantSchema>;
 export type InsertArtist = z.infer<typeof insertArtistSchema>;
 export type InsertApplication = z.infer<typeof insertApplicationSchema>;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
-export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
+// Templates feature removed - considered useless
+// export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
 export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
@@ -325,7 +329,8 @@ export type GrantWithAIRecommendation = Grant & {
 export type Artist = typeof artists.$inferSelect;
 export type Application = typeof applications.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
-export type Template = typeof templates.$inferSelect;
+// Templates feature removed - considered useless
+// export type Template = typeof templates.$inferSelect;
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Document = typeof documents.$inferSelect;

@@ -232,6 +232,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
             } 
+            // Templates feature removed - considered useless
+            /*
             else if (url.startsWith("/api/templates")) {
               if (method === "GET") {
                 if (id) {
@@ -248,6 +250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
             } 
+            */
             else {
               mockRes.status(404).json({ error: "Route not found in batch processing" });
             }
@@ -886,43 +889,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(201).json(activity);
   });
 
-  // Templates routes
-  app.get("/api/templates", async (req, res) => {
-    const templates = await storage.getAllTemplates();
-    return res.json(templates);
-  });
+  // Templates routes removed - feature considered useless
 
-  app.get("/api/templates/:id", async (req, res) => {
-    const template = await storage.getTemplate(parseInt(req.params.id));
-    if (!template) {
-      return res.status(404).json({ message: "Template not found" });
-    }
-    return res.json(template);
-  });
-
-  app.post("/api/templates", requireAuth, async (req, res) => {
-    const template = await storage.createTemplate({
-      ...req.body,
-      userId: req.user!.id
-    });
-    return res.status(201).json(template);
-  });
-  
-  app.put("/api/templates/:id", requireAuth, async (req, res) => {
-    // Get existing template to verify ownership
-    const existingTemplate = await storage.getTemplate(parseInt(req.params.id));
-    if (!existingTemplate) {
-      return res.status(404).json({ message: "Template not found" });
-    }
-    
-    // Check if the template belongs to the current user
-    if (existingTemplate.userId !== req.user!.id) {
-      return res.status(403).json({ message: "You don't have permission to modify this template" });
-    }
-    
-    const template = await storage.updateTemplate(parseInt(req.params.id), req.body);
-    return res.json(template);
-  });
+  // POST and PUT for template operations removed - feature considered useless
 
   // AI Assistant routes
   const generateProposalSchema = z.object({

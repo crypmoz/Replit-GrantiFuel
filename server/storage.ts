@@ -4,7 +4,7 @@ import {
   artists, type Artist, type InsertArtist,
   applications, type Application, type InsertApplication,
   activities, type Activity, type InsertActivity,
-  templates, type Template, type InsertTemplate,
+  // templates feature removed - considered useless
   subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
   subscriptions, type Subscription, type InsertSubscription,
   documents, type Document, type InsertDocument,
@@ -57,11 +57,11 @@ export interface IStorage {
   getAllActivities(): Promise<Activity[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
   
-  // Templates
-  getAllTemplates(): Promise<Template[]>;
-  getTemplate(id: number): Promise<Template | undefined>;
-  createTemplate(template: InsertTemplate): Promise<Template>;
-  updateTemplate(id: number, template: Partial<InsertTemplate>): Promise<Template | undefined>;
+  // Templates feature removed - considered useless
+  // getAllTemplates(): Promise<Template[]>;
+  // getTemplate(id: number): Promise<Template | undefined>;
+  // createTemplate(template: InsertTemplate): Promise<Template>;
+  // updateTemplate(id: number, template: Partial<InsertTemplate>): Promise<Template | undefined>;
   
   // Knowledge Documents
   getAllDocuments(): Promise<Document[]>;
@@ -237,28 +237,26 @@ export class DatabaseStorage implements IStorage {
     return activity;
   }
   
-  // Template methods
-  async getAllTemplates(): Promise<Template[]> {
-    return await db.select().from(templates);
+  // Template methods - feature removed, considered useless
+  // Commented out to avoid compilation errors due to removed schema
+  async getAllTemplates(): Promise<any[]> {
+    // Templates feature removed
+    return [];
   }
   
-  async getTemplate(id: number): Promise<Template | undefined> {
-    const [template] = await db.select().from(templates).where(eq(templates.id, id));
-    return template;
+  async getTemplate(id: number): Promise<any | undefined> {
+    // Templates feature removed
+    return undefined;
   }
   
-  async createTemplate(insertTemplate: InsertTemplate): Promise<Template> {
-    const [template] = await db.insert(templates).values(insertTemplate).returning();
-    return template;
+  async createTemplate(insertTemplate: any): Promise<any> {
+    // Templates feature removed
+    return { id: 0, name: "Dummy", content: "" };
   }
   
-  async updateTemplate(id: number, updateData: Partial<InsertTemplate>): Promise<Template | undefined> {
-    const [template] = await db
-      .update(templates)
-      .set(updateData)
-      .where(eq(templates.id, id))
-      .returning();
-    return template;
+  async updateTemplate(id: number, updateData: any): Promise<any | undefined> {
+    // Templates feature removed
+    return undefined;
   }
   
   // Subscription Plan methods
@@ -467,6 +465,8 @@ const initializeDatabase = async () => {
       genres: ["Hip-Hop", "R&B", "Electronic"]
     }]).returning();
     
+    // Templates feature removed - considered useless
+    /* 
     // Add initial templates with userId reference
     await db.insert(templates).values([{
       userId: user.id,
@@ -483,6 +483,7 @@ const initializeDatabase = async () => {
       content: "# Artist Statement\n\nAs an artist, my work explores...\n\nMy artistic journey began...\n\nThrough my music, I aim to...",
       type: "statement"
     }]);
+    */
     
     // Add initial applications
     await db.insert(applications).values([{

@@ -13,9 +13,7 @@ import ArtistDetail from "./pages/ArtistDetail";
 import Applications from "./pages/Applications";
 import ApplicationDetail from "./pages/ApplicationDetail";
 import NewApplicationForm from "./pages/NewApplicationForm";
-import Templates from "./pages/Templates";
-import TemplateDetail from "./pages/TemplateDetail";
-import TemplateEdit from "./pages/TemplateEdit";
+// Templates pages removed (considered useless feature)
 import AIAssistant from "./pages/AIAssistant";
 import GrantRecommendations from "./pages/GrantRecommendations";
 import Documents from "./pages/Documents";
@@ -107,10 +105,7 @@ function AppContent() {
               <ArtistRoute path="/applications/:id" component={ApplicationDetail} />
               <ManagerRoute path="/applications" component={Applications} />
               
-              {/* Templates - admin and grant writers can edit */}
-              <GrantWriterRoute path="/templates/:id/edit" component={TemplateEdit} />
-              <ArtistRoute path="/templates/:id" component={TemplateDetail} />
-              <ArtistRoute path="/templates" component={Templates} />
+              {/* Templates feature removed - considered useless */}
               
               {/* AI Assistant is available to premium users (all roles) */}
               <ProtectedRoute path="/ai-assistant" component={AIAssistant} />

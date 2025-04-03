@@ -41,7 +41,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '@/lib/queryClient';
-import { Grant, Template, Artist } from '@shared/schema';
+// Template feature removed - considered useless
+import { Grant, Artist } from '@shared/schema';
 import ChatInterface from '@/components/chat/ChatInterface';
 import ProfileSelector from '@/components/chat/ProfileSelector';
 import { useChatbot, GrantProfileType } from '@/context/ChatbotContext';
@@ -66,8 +67,8 @@ export default function AIAssistant() {
   const [askingQuestion, setAskingQuestion] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   
-  // Templates state
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  // Templates state - feature removed
+  // const [selectedTemplate, setSelectedTemplate] = useState('');
   
   // History state
   const [savedItems, setSavedItems] = useState<Array<{id: string, type: string, title: string, content: string, date: Date}>>([]);
@@ -91,12 +92,16 @@ export default function AIAssistant() {
   // Extract artists array safely
   const artists = Array.isArray(artistsData) ? artistsData : [];
   
+  // Templates feature removed - considered useless
+  /*
   const { data: templatesData } = useQuery({
     queryKey: ['/api/templates'],
   });
   
   // Extract templates array safely
   const templates = Array.isArray(templatesData) ? templatesData : [];
+  */
+  const templates: any[] = []; // Empty array since templates feature is removed
   
   const { toast } = useToast();
   const messageEndRef = useRef<HTMLDivElement>(null);
@@ -248,7 +253,8 @@ export default function AIAssistant() {
     });
   };
   
-  // Handle template selection
+  // Handle template selection - feature removed
+  /*
   const handleTemplateChange = (value: string) => {
     setSelectedTemplate(value);
     const template = templates?.find((t: any) => t.id === parseInt(value));
@@ -256,6 +262,7 @@ export default function AIAssistant() {
       setProjectDescription(template.content);
     }
   };
+  */
   
   return (
     <div>
@@ -348,6 +355,7 @@ export default function AIAssistant() {
                 </Select>
               </div>
               
+              {/* Templates feature removed - considered useless
               <div className="space-y-2">
                 <Label htmlFor="templateSelect">Start from Template (Optional)</Label>
                 <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
@@ -364,6 +372,7 @@ export default function AIAssistant() {
                   </SelectContent>
                 </Select>
               </div>
+              */}
               
               <div className="space-y-2">
                 <Label htmlFor="projectDescription">Project Description</Label>
@@ -429,6 +438,7 @@ export default function AIAssistant() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
+                {/* Templates feature removed - considered useless 
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -492,6 +502,7 @@ export default function AIAssistant() {
                   <FileText className="h-4 w-4" />
                   Save as Template
                 </Button>
+                */}
                 
                 {selectedGrant && selectedGrant !== 'none' && selectedArtist && selectedArtist !== 'none' && (
                   <Button 
