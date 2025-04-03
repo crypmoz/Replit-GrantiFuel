@@ -1,7 +1,7 @@
 import { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateProposal, answerQuestion, getGrantRecommendations, GrantRecommendation } from "./services/ai";
+import { aiService, GrantRecommendation } from "./services/ai-service";
 import { z } from "zod";
 import { setupAuth } from "./auth";
 import Stripe from "stripe";
@@ -684,12 +684,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { projectDescription, grantName, artistName, proposalType } = parsedBody.data;
       
-      const proposal = await generateProposal(
-        projectDescription,
-        grantName,
-        artistName,
-        proposalType
-      );
+      const result = await aiService.generateProposal({
+        projectTitle: projectDescription.substring(0, 50) || "Project Proposal",  // Create a title from description
+        artistName: artistName || "Artist",
+        artistBio: "Professional musician",     // Default bio
+        artistGenre: "Music",                   // Default genre
+        grantName: grantName || "Arts Grant",
+        grantOrganization: "Arts Foundation",   // Default organization
+        grantRequirements: "Music project funding requirements", // Default requirements
+        projectDescription: projectDescription || "Music project proposal"
+      });
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error || "Failed to generate proposal" });
+      }
+      
+      const proposal = result.data;
       
       // Create an activity to record the proposal generation
       await storage.createActivity({
@@ -730,7 +740,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { question, conversationHistory } = parsedBody.data;
       
-      const answer = await answerQuestion(question, conversationHistory);
+      const result = await aiService.answerQuestion({
+        question,
+        conversationHistory
+      });
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error || "Failed to answer question" });
+      }
+      
+      const answer = result.data;
       
       // Create an activity to record the question
       await storage.createActivity({
@@ -740,7 +759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // No need to specify entityId if it's nullable in the schema
         details: {
           question: question.substring(0, 100),
-          answer: answer.substring(0, 100)
+          answer: answer ? answer.substring(0, 100) : "No answer generated"
         }
       });
       
@@ -760,8 +779,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const profile = parsedBody.data;
       
-      // Call the AI service to get recommendations
-      const recommendations = await getGrantRecommendations(profile);
+      // Call the enhanced AI service to get recommendations
+      const result = await aiService.getGrantRecommendations(profile);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error || "Failed to generate grant recommendations" });
+      }
+      
+      const recommendations = result.data;
       
       // Create an activity to record the grant recommendations query
       await storage.createActivity({
@@ -772,7 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           genre: profile.genre,
           careerStage: profile.careerStage,
           instrumentOrRole: profile.instrumentOrRole,
-          recommendationsCount: recommendations.length
+          recommendationsCount: recommendations ? recommendations.length : 0
         }
       });
       
