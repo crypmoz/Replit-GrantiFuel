@@ -584,42 +584,29 @@ export default function UnifiedGrantsPage() {
   
   // Helper function to render grants list with loading states
   function renderGrantsList() {
-    // Check if we're loading data
     if (isLoading) {
       return (
-        <>
-          {/* Improved loading indicator */}
-          <div className="flex flex-col items-center justify-center mb-8 py-4">
-            <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-            <h3 className="text-lg font-medium">Loading grant recommendations...</h3>
-            <p className="text-muted-foreground text-center max-w-md mt-2">
-              Our AI is analyzing your profile against our database of grants. This may take a moment.
-            </p>
-          </div>
-          
-          {/* Loading skeleton UI */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader className="pb-2">
-                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
-                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between pt-2">
-                  <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                  <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        </>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-2">
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between pt-2">
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
       );
     }
     

@@ -1,45 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
-// Define placeholders/fallbacks for slow-loading data to improve user experience
-const DEFAULT_FALLBACK_DATA: Record<string, any> = {
-  '/api/grants': {
-    grants: [
-      {
-        id: -1,
-        name: "Analyzing your profile",
-        organization: "GrantiFuel AI",
-        amount: "$5,000-$15,000",
-        deadline: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days in future
-        description: "Our AI is analyzing your artist profile and available grants to find the best matches. This may take a moment for first-time users.",
-        requirements: "Your results will appear shortly. If this takes longer than expected, please refresh the page.",
-        website: "https://example.org/grants",
-        matchScore: 85,
-        aiRecommended: true,
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: -2,
-        name: "Loading recommendations",
-        organization: "Music Grant Database",
-        amount: "$2,500-$10,000",
-        deadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days in future
-        description: "Searching through our database of music grants to find opportunities that match your artistic focus and career stage.",
-        requirements: "Grant requirements will be displayed once loading is complete.",
-        website: "https://example.org/grants",
-        matchScore: 75,
-        aiRecommended: true,
-        createdAt: new Date().toISOString()
-      }
-    ]
-  },
-  '/api/documents/analysis': {
-    status: "loading",
-    message: "Processing your documents",
-    progress: 60,
-    estimatedTimeRemaining: "2-3 minutes"
-  }
-};
-
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -222,41 +182,6 @@ export const getQueryFn: <T>(options: {
           return null;
         }
       }
-      
-      // Return fallback data for certain endpoints if available
-      const endpoint = queryKey[0] as string;
-      
-      // Check if we have fallback data for this endpoint
-      if (DEFAULT_FALLBACK_DATA[endpoint]) {
-        console.log(`Using fallback data for ${endpoint} due to error:`, error);
-        return DEFAULT_FALLBACK_DATA[endpoint];
-      }
-      
-      // For API timeout errors specifically, provide a more helpful error message
-      if (error instanceof Error && 
-         (error.message.includes('timeout') || error.message.includes('aborted'))) {
-        console.error(`API timeout at ${endpoint}:`, error);
-        
-        // For grant recommendations, return a special timeout message
-        if (endpoint === '/api/grants') {
-          return {
-            grants: [{
-              id: -999,
-              name: "Grant Recommendations Temporarily Unavailable",
-              organization: "GrantiFuel System",
-              amount: "Varies",
-              deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-              description: "Our AI recommendation system is currently experiencing high load. Please try again in a few minutes.",
-              requirements: "Your existing grant recommendations will appear here once our systems are ready.",
-              website: "",
-              matchScore: 0,
-              aiRecommended: true,
-              createdAt: new Date().toISOString()
-            }]
-          };
-        }
-      }
-      
       throw error;
     }
   };
@@ -351,11 +276,6 @@ queryClient.setQueryDefaults(['/api/ai/chat'], {
 queryClient.setQueryDefaults(['/api/dashboard'], {
   staleTime: queryDefaults.dashboard.staleTime,
   gcTime: queryDefaults.dashboard.gcTime,
-});
-
-// Preload fallback data after queryClient is initialized
-Object.entries(DEFAULT_FALLBACK_DATA).forEach(([key, value]) => {
-  queryClient.setQueryData([key], value);
 });
 
 // Add local persistence for improved offline support
