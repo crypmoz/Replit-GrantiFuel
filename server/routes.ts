@@ -898,7 +898,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     projectDescription: z.string(),
     grantName: z.string().optional(),
     artistName: z.string().optional(),
-    proposalType: z.string().optional()
+    proposalType: z.string().optional(),
+    userProfile: z.object({
+      careerStage: z.string().optional(),
+      genre: z.string().optional(),
+      instrumentOrRole: z.string().optional()
+    }).optional()
   });
   
   // Note: The admin route to reset AI circuit breaker is defined at the top of the file
@@ -910,13 +915,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: parsedBody.error });
       }
       
-      const { projectDescription, grantName, artistName, proposalType } = parsedBody.data;
+      const { projectDescription, grantName, artistName, proposalType, userProfile } = parsedBody.data;
+      
+      // Get user profile info if available from database as a fallback
+      let artistProfile = null;
+      if (req.user) {
+        try {
+          const artists = await storage.getArtistsByUserId(req.user.id);
+          if (artists && artists.length > 0) {
+            // Format the artist into the expected profile structure
+            const artist = artists[0];
+            artistProfile = {
+              careerStage: artist.careerStage || undefined,
+              genre: Array.isArray(artist.genres) && artist.genres.length > 0 ? artist.genres[0] : undefined,
+              instrumentOrRole: artist.primaryInstrument || undefined,
+              name: artist.name,
+              bio: artist.bio || undefined,
+              location: artist.location || undefined
+            };
+          }
+        } catch (profileError) {
+          console.error("Error fetching artist profile for context:", profileError);
+          // Continue without profile info
+        }
+      }
+      
+      // Use the user-provided profile from the frontend if available, otherwise use database profile
+      const profile = userProfile || artistProfile;
       
       const result = await aiService.generateProposal({
         projectTitle: projectDescription.substring(0, 50) || "Project Proposal",  // Create a title from description
-        artistName: artistName || "Artist",
-        artistBio: "Professional musician",     // Default bio
-        artistGenre: "Music",                   // Default genre
+        artistName: artistName || profile?.name || "Artist",
+        artistBio: profile?.bio || "Professional musician",     // Use profile bio if available
+        artistGenre: profile?.genre || "Music",                 // Use profile genre if available
         grantName: grantName || "Arts Grant",
         grantOrganization: "Arts Foundation",   // Default organization
         grantRequirements: "Music project funding requirements", // Default requirements
@@ -956,7 +987,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: z.enum(['user', 'assistant']),
         content: z.string()
       })
-    ).optional().default([])
+    ).optional().default([]),
+    userProfile: z.object({
+      careerStage: z.string().optional(),
+      genre: z.string().optional(),
+      instrumentOrRole: z.string().optional()
+    }).optional()
   });
 
   app.post("/api/ai/answer-question", requireAuth, async (req, res) => {
@@ -974,7 +1010,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: parsedBody.error });
       }
       
-      const { question, conversationHistory } = parsedBody.data;
+      const { question, conversationHistory, userProfile } = parsedBody.data;
       
       // Get user profile info if available
       let artistProfile = null;
@@ -982,7 +1018,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const artists = await storage.getArtistsByUserId(req.user.id);
           if (artists && artists.length > 0) {
-            artistProfile = artists[0];
+            // Format the artist into the expected profile structure
+            const artist = artists[0];
+            artistProfile = {
+              careerStage: artist.careerStage || undefined,
+              genre: Array.isArray(artist.genres) && artist.genres.length > 0 ? artist.genres[0] : undefined,
+              instrumentOrRole: artist.primaryInstrument || undefined,
+              name: artist.name,
+              bio: artist.bio || undefined,
+              location: artist.location || undefined
+            };
           }
         } catch (profileError) {
           console.error("Error fetching artist profile for context:", profileError);
@@ -993,10 +1038,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[AI Route] Processing question from user ${req.user!.id}: "${question}"`);
       console.log(`[AI Route] Using ${conversationHistory?.length || 0} conversation history messages`);
       
+      // Log the userProfile if provided
+      if (userProfile) {
+        console.log(`[AI Route] Using user-provided profile: genre=${userProfile.genre}, careerStage=${userProfile.careerStage}, instrumentOrRole=${userProfile.instrumentOrRole}`);
+      }
+      
       const result = await aiService.answerQuestion({
         question,
-        artistProfile,
-        conversationHistory
+        // Need to have a defined object or undefined, not null
+        artistProfile: userProfile || artistProfile || undefined,
+        conversationHistory,
       });
       
       if (!result.success) {

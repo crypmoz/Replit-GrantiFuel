@@ -90,7 +90,15 @@ export interface ProposalGenerationParams {
 
 export interface AnswerQuestionParams {
   question: string;
-  artistProfile?: any;
+  artistProfile?: {
+    careerStage?: string;
+    genre?: string;
+    instrumentOrRole?: string;
+    name?: string;
+    bio?: string;
+    location?: string;
+    primaryInstrument?: string;
+  };
   conversationHistory?: AIMessage[];
 }
 

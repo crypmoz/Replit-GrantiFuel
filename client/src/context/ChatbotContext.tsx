@@ -77,7 +77,7 @@ export const ChatbotProvider = ({ children }: { children: ReactNode }) => {
         .filter(msg => msg.role === 'user' || msg.role === 'assistant')
         .map(msg => ({ role: msg.role, content: msg.content }));
 
-      // Call API
+      // Call API with user profile for context-aware responses
       const response = await fetch('/api/ai/answer-question', {
         method: 'POST',
         headers: {
@@ -86,6 +86,7 @@ export const ChatbotProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify({
           question: messageContent,
           conversationHistory,
+          userProfile, // Include the user profile for context awareness
         }),
       });
 

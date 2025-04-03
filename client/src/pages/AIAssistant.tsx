@@ -128,7 +128,7 @@ export default function AIAssistant() {
       const selectedGrantObj = grants?.find((g: any) => g.id === parseInt(selectedGrant));
       const selectedArtistObj = artists?.find((a: any) => a.id === parseInt(selectedArtist));
       
-      // Call the AI API
+      // Call the AI API with the user profile included for context
       const response = await fetch('/api/ai/generate-proposal', {
         method: 'POST',
         headers: {
@@ -138,7 +138,8 @@ export default function AIAssistant() {
           projectDescription,
           grantName: selectedGrantObj?.name,
           artistName: selectedArtistObj?.name,
-          proposalType
+          proposalType,
+          userProfile: userProfile // Include userProfile for context-aware proposals
         }),
       });
       
@@ -177,6 +178,9 @@ export default function AIAssistant() {
     }
   };
   
+  // Access useChatbot to get the userProfile
+  const { userProfile } = useChatbot();
+  
   // Handle asking a question
   const handleAskQuestion = async () => {
     if (!question.trim()) {
@@ -195,7 +199,7 @@ export default function AIAssistant() {
       const newQuestion = { role: 'user' as const, content: question };
       setConversationHistory(prev => [...prev, newQuestion]);
       
-      // Call the AI API
+      // Call the AI API with the userProfile for context
       const response = await fetch('/api/ai/answer-question', {
         method: 'POST',
         headers: {
@@ -203,7 +207,8 @@ export default function AIAssistant() {
         },
         body: JSON.stringify({
           question,
-          conversationHistory
+          conversationHistory,
+          userProfile: userProfile // Include user profile for context-aware answers
         }),
       });
       
