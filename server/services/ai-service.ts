@@ -122,8 +122,8 @@ export class AIService extends BaseService {
     // Initialize circuit breaker
     this.circuitBreaker = new CircuitBreaker('AI_API', {
       failureThreshold: 3,
-      resetTimeout: 30000,
-      timeoutDuration: 15000
+      resetTimeout: 60000, // 60 seconds (increased from 30s)
+      timeoutDuration: 30000 // 30 seconds (increased from 15s)
     });
     
     // Initialize cache
@@ -163,15 +163,17 @@ export class AIService extends BaseService {
         return cachedRecommendations;
       }
       
-      // Analyze documents for enhanced recommendations if user ID is provided
+      // Always try to analyze documents for enhanced recommendations
       let documentAnalyses: DocumentAnalysisResult[] = [];
-      if (artistProfile.userId) {
-        try {
-          documentAnalyses = await this.analyzeDocumentsForGrantMatching(artistProfile.userId, artistProfile);
-        } catch (error) {
-          console.error('[AIService] Error analyzing documents for recommendations:', error);
-          // Continue even if document analysis fails
-        }
+      let userId = artistProfile.userId || 0; // Default to 0 if not provided
+      
+      try {
+        // This method now always pulls ALL documents for better recommendations
+        documentAnalyses = await this.analyzeDocumentsForGrantMatching(userId, artistProfile);
+        console.log(`[AIService] Retrieved ${documentAnalyses.length} document analyses for grant recommendations`);
+      } catch (error) {
+        console.error('[AIService] Error analyzing documents for recommendations:', error);
+        // Continue even if document analysis fails
       }
       
       // Retrieve relevant documents for context
@@ -191,31 +193,64 @@ export class AIService extends BaseService {
           documents.map(doc => `- ${doc.title}: ${doc.content.substring(0, 200)}...`).join('\n');
       }
       
-      // Prepare the system prompt
+      // Prepare the system prompt with stronger emphasis on using document knowledge
       const systemPrompt = `You are an AI grant specialist for musicians and artists. 
-Generate personalized grant recommendations based on the artist's profile.
+Generate personalized grant recommendations based primarily on the document knowledge provided and the artist's profile.
+IMPORTANT: Prioritize and heavily rely on the information from the documents provided below to create realistic and accurate grant recommendations.
+
 For each grant, include these fields: id (unique string), name, organization, amount, deadline (in YYYY-MM-DD format), 
 description (2-3 sentences), requirements (list of strings), eligibility (list of strings), url (fictional but plausible), 
-and matchScore (integer 0-100 indicating relevance).
+and matchScore (integer 0-100 indicating relevance, calculated based on how well the grant matches the artist profile).
+
 Return exactly 5 grants that would be appropriate for this artist.
+Only recommend grants that would be specifically relevant to the artist's profile details like genre, career stage, instrument, etc.
+
+BASE YOUR RECOMMENDATIONS PRIMARILY ON THIS DOCUMENT KNOWLEDGE:
 ${documentContext}`;
 
       // Get existing grants to potentially reference
       const existingGrants = await storage.getAllGrants();
-      const grantsContext = existingGrants.length > 0 
-        ? `Here are some actual grants in our system you can reference:\n${JSON.stringify(existingGrants.slice(0, 3))}`
-        : '';
+      
+      // Create a more detailed grants context
+      let grantsContext = '';
+      if (existingGrants && existingGrants.length > 0) {
+        // Get details from up to 5 existing grants (more context)
+        const grantsToReference = existingGrants.slice(0, 5).map(grant => ({
+          id: grant.id,
+          name: grant.name,
+          organization: grant.organization,
+          amount: grant.amount,
+          deadline: grant.deadline,
+          description: grant.description,
+          requirements: grant.requirements
+        }));
+        
+        grantsContext = `Here are some actual grants in our system you can reference and adapt:\n${JSON.stringify(grantsToReference, null, 2)}`;
+      }
+      
+      // Get artist profile fields as a structured object
+      const artistProfileObj = {
+        genre: artistProfile.genre || '',
+        careerStage: artistProfile.careerStage || '',
+        instrumentOrRole: artistProfile.instrumentOrRole || '',
+        location: artistProfile.location || '',
+        projectType: artistProfile.projectType || ''
+      };
       
       // Prepare the user message
       const userMessage = `Please recommend grants for an artist with the following profile:
-- Genre: ${artistProfile.genre || 'Not specified'}
-- Career Stage: ${artistProfile.careerStage || 'Not specified'} 
-- Instrument/Role: ${artistProfile.instrumentOrRole || 'Not specified'}
-${artistProfile.location ? `- Location: ${artistProfile.location}` : ''}
-${artistProfile.projectType ? `- Project Type: ${artistProfile.projectType}` : ''}
+\`\`\`json
+${JSON.stringify(artistProfileObj, null, 2)}
+\`\`\`
+
 ${grantsContext}
 
-Make sure each grant recommendation is specific to this artist's profile. Ensure deadlines are in the future and realistic.`;
+Important instructions:
+1. Make sure each grant recommendation is SPECIFICALLY tailored to this artist's profile details.
+2. Focus especially on matching grants to their genre (${artistProfileObj.genre || 'Not specified'}) and instrument (${artistProfileObj.instrumentOrRole || 'Not specified'}).
+3. All deadlines must be in the future (at least 2 months from now).
+4. Ensure each grant has a match score that accurately reflects its relevance to this specific artist.
+5. Return your response as a JSON array of grant objects.`;
       
       const requestData: AICompletionRequest = {
         model: this.defaultModel,
@@ -325,6 +360,8 @@ Make the proposal approximately 1000 words.`;
       // Extract question and other parameters
       const { question, artistProfile, conversationHistory = [] } = params;
       
+      console.log(`[AIService] Answering question: "${question}"`);
+      
       // Create cache key for simple questions (not using history)
       const shouldCache = conversationHistory.length <= 1;
       const cacheKey = shouldCache ? `answer-${question}-${JSON.stringify(artistProfile || {})}` : null;
@@ -333,43 +370,104 @@ Make the proposal approximately 1000 words.`;
       if (cacheKey) {
         const cachedAnswer = this.cache.get<string>(cacheKey);
         if (cachedAnswer) {
+          console.log('[AIService] Using cached answer');
           return cachedAnswer;
         }
       }
       
-      // Get relevant documents
-      const documents = await this.getRelevantDocuments(question);
-      let documentContext = '';
+      // Get all available documents first
+      // We'll use more documents for answering questions than for other AI tasks
+      const allDocuments = await storage.getAllDocuments();
+      console.log(`[AIService] Found ${allDocuments.length} total documents in system`);
       
-      if (documents && documents.length > 0) {
-        documentContext = "Here are some relevant documents that might help answer the question:\n" + 
-          documents.map(doc => `Document: ${doc.title}\nContent: ${doc.content.substring(0, 500)}...\n`).join('\n');
+      // If we have search terms in the question, use those for relevance scoring
+      const searchTerms = this.extractKeywords(question);
+      console.log(`[AIService] Extracted search terms: ${searchTerms.join(', ')}`);
+      
+      // Score documents by relevance to the question
+      const scoredDocuments = allDocuments.map(doc => {
+        const content = (doc.title + ' ' + doc.content).toLowerCase();
+        let score = 0;
+        
+        // Score based on keyword matches in title and content
+        searchTerms.forEach(term => {
+          // Check title matches (weighted higher)
+          const titleMatches = doc.title.toLowerCase().split(term.toLowerCase()).length - 1;
+          score += titleMatches * 3;
+          
+          // Check content matches
+          const contentMatches = content.split(term.toLowerCase()).length - 1;
+          score += contentMatches;
+        });
+        
+        // Give priority to certain document types
+        if (doc.type === 'grant_info') score += 3;
+        if (doc.type === 'artist_guide') score += 2;
+        if (doc.type === 'application_tips') score += 2;
+        
+        return { doc, score };
+      });
+      
+      // Sort by score and get more documents than usual (up to 8)
+      const relevantDocs = scoredDocuments
+        .filter(item => item.score > 0) // Only include docs with some relevance
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8)
+        .map(item => item.doc);
+        
+      console.log(`[AIService] Selected ${relevantDocs.length} relevant documents for question`);
+      
+      // Format document content to include more context
+      let documentContext = '';
+      if (relevantDocs && relevantDocs.length > 0) {
+        documentContext = "Here are relevant documents that provide useful information to answer the question:\n\n";
+        
+        relevantDocs.forEach((doc, index) => {
+          // Include more content for each document (up to 1000 chars)
+          const contentPreview = doc.content.length > 1000 
+            ? doc.content.substring(0, 1000) + "..." 
+            : doc.content;
+            
+          documentContext += `DOCUMENT ${index + 1}: ${doc.title}\nType: ${doc.type}\n\n${contentPreview}\n\n---\n\n`;
+        });
       }
       
+      // Craft a more specific system prompt
       const systemPrompt = `You are an AI assistant for musicians and artists seeking grants and funding opportunities.
-Your goal is to provide helpful, accurate information about grants, application processes, and funding strategies.
-Answer questions based on the provided documents and your knowledge about music grants and funding.
-If you don't know the answer, be honest about not knowing rather than making up information.`;
+You are a grant expert with specialized knowledge about music grants, funding opportunities, and application strategies.
+Your goal is to provide helpful, accurate, and detailed information based on the documents provided.
+
+Important instructions:
+1. Base your answers primarily on the information in the documents provided.
+2. Be detailed and thorough in your responses, but stay focused on the question.
+3. If the documents don't contain information to answer the question, acknowledge that limitation.
+4. When referencing information from documents, mention which document it comes from.
+5. Format your answers in a clear and structured way with headings when appropriate.
+
+Remember, you are responding to a musician or artist who needs practical advice for getting funding.`;
 
       // Prepare all messages
       const messages: AIMessage[] = [
         { role: 'system', content: systemPrompt }
       ];
       
-      // Add any conversation history
+      // Add relevant conversation history (last 3 messages)
       if (conversationHistory.length > 0) {
-        messages.push(...conversationHistory);
+        const recentHistory = conversationHistory.slice(-3);
+        messages.push(...recentHistory);
       }
       
       // Add the current question with context
       let userContent = question;
       
       if (documentContext) {
-        userContent += `\n\nHere is some helpful context:\n${documentContext}`;
+        // Add the document context to the user message
+        userContent += `\n\n${documentContext}`;
       }
       
       if (artistProfile) {
-        userContent += `\n\nArtist Profile:\n${JSON.stringify(artistProfile, null, 2)}`;
+        // Add the artist profile info at the end
+        userContent += `\n\nHere's information about the artist asking this question:\n${JSON.stringify(artistProfile, null, 2)}`;
       }
       
       messages.push({ role: 'user', content: userContent });
@@ -377,7 +475,7 @@ If you don't know the answer, be honest about not knowing rather than making up 
       const requestData: AICompletionRequest = {
         model: this.defaultModel,
         messages,
-        temperature: 0.7,
+        temperature: 0.5, // Lower temperature for more factual responses
         max_tokens: 2048
       };
       
@@ -590,22 +688,73 @@ Return your analysis in JSON format with the following fields:
    */
   async analyzeDocumentsForGrantMatching(userId: number, artistProfile: any): Promise<DocumentAnalysisResult[]> {
     try {
-      // Get documents relevant to the user and artist profile
-      const documents = await storage.getApprovedDocuments();
+      console.log(`[AIService] Analyzing documents for grant matching for user ${userId}`);
+      
+      // ALWAYS get ALL documents from storage to maximize knowledge for matching
+      // This ensures we use all available information for grant recommendations
+      const allDocuments = await storage.getAllDocuments();
+      console.log(`[AIService] Found ${allDocuments.length} total documents in system`);
+      
+      let documents = allDocuments;
+      
       if (!documents || documents.length === 0) {
+        console.log('[AIService] No documents available for analysis');
         return [];
       }
       
-      // Limit to max 5 documents to analyze
-      const relevantDocs = documents.slice(0, 5);
+      console.log(`[AIService] Found ${documents.length} documents for analysis`);
+      
+      // Create a query based on artist profile
+      const artistProfileQuery = `${artistProfile.genre || ''} ${artistProfile.careerStage || ''} ${artistProfile.instrumentOrRole || ''} ${artistProfile.location || ''} ${artistProfile.projectType || ''}`.trim();
+      
+      // Score documents based on relevance to artist profile
+      const scoredDocuments = documents.map(doc => {
+        const content = (doc.title + ' ' + doc.content).toLowerCase();
+        
+        // Basic relevance scoring - check how many profile terms appear in the document
+        const profileTerms = artistProfileQuery.toLowerCase().split(/\s+/);
+        let score = 0;
+        
+        profileTerms.forEach(term => {
+          if (term.length > 2) {
+            const matches = content.split(term).length - 1;
+            score += matches;
+          }
+        });
+        
+        // Give priority to grant_info documents
+        if (doc.type === 'grant_info') {
+          score += 5;
+        }
+        
+        return { doc, score };
+      });
+      
+      // Sort by score
+      const sortedDocs = scoredDocuments
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8); // Analyze top 8 documents (increased from 5)
+      
+      console.log(`[AIService] Selected ${sortedDocs.length} most relevant documents for detailed analysis`);
       
       // Analyze each document in parallel
-      const analysisPromises = relevantDocs.map(async (doc) => {
+      const analysisPromises = sortedDocs.map(async ({ doc }) => {
+        const cacheKey = `doc-analysis-${doc.id}`;
+        
+        // Check cache first
+        const cachedAnalysis = this.cache.get<DocumentAnalysisResult>(cacheKey);
+        if (cachedAnalysis) {
+          console.log(`[AIService] Using cached analysis for document ${doc.id}`);
+          return cachedAnalysis;
+        }
+        
+        console.log(`[AIService] Analyzing document ${doc.id}: ${doc.title}`);
         const result = await this.analyzeDocument(doc.id);
         if (!result.success) {
+          console.log(`[AIService] Analysis failed for document ${doc.id}`);
           return null;
         }
-        return result.data; // Properly extract the DocumentAnalysisResult from the ServiceResponse
+        return result.data;
       });
       
       const analysisResults = await Promise.all(analysisPromises);
@@ -614,10 +763,15 @@ Return your analysis in JSON format with the following fields:
       const validResults: DocumentAnalysisResult[] = [];
       
       for (const result of analysisResults) {
-        if (result && typeof result?.relevanceScore === 'number' && result.relevanceScore > 30) {
-          validResults.push(result);
+        if (result && typeof result?.relevanceScore === 'number') {
+          // Lower threshold to 20 to include more documents (was 30)
+          if (result.relevanceScore > 20) {
+            validResults.push(result);
+          }
         }
       }
+      
+      console.log(`[AIService] Found ${validResults.length} valid document analyses`);
       
       // Sort by relevance score
       return validResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
@@ -643,8 +797,8 @@ Return your analysis in JSON format with the following fields:
         return cachedRequirements;
       }
       
-      // Get approved documents
-      const documents = await storage.getApprovedDocuments();
+      // Get ALL documents for the most comprehensive profile requirements
+      const documents = await storage.getAllDocuments();
       if (!documents || documents.length === 0) {
         // Return default requirements if no documents
         const defaultRequirements: ProfileRequirement[] = [
@@ -676,8 +830,8 @@ Return your analysis in JSON format with the following fields:
       // Analyze documents to extract profile requirements
       const analysisResults: DocumentAnalysisResult[] = [];
       
-      // Limit to a reasonable number of documents
-      const docsToAnalyze = documents.slice(0, 5);
+      // Analyze more documents to get better profile requirements
+      const docsToAnalyze = documents.slice(0, 8);
       for (const doc of docsToAnalyze) {
         try {
           const analysis = await this.analyzeDocument(doc.id);
@@ -843,6 +997,37 @@ Return your analysis in JSON format with the following fields:
   }
   
   /**
+   * Reset the circuit breaker
+   * This can be called through an admin endpoint if needed
+   */
+  resetCircuitBreaker(): { status: string, message: string } {
+    try {
+      // Get the current state
+      const currentState = this.circuitBreaker.getState();
+      console.log(`[AIService] Resetting circuit breaker. Current state: ${currentState.state}, Failures: ${currentState.failureCount}`);
+      
+      // Force a reset by setting a new instance
+      this.circuitBreaker = new CircuitBreaker('AI_API', {
+        failureThreshold: 3,
+        resetTimeout: 60000, // 60 seconds
+        timeoutDuration: 30000 // 30 seconds
+      });
+      
+      console.log('[AIService] Circuit breaker has been reset');
+      return { 
+        status: 'success', 
+        message: 'Circuit breaker has been reset successfully' 
+      };
+    } catch (error) {
+      console.error('[AIService] Error resetting circuit breaker:', error);
+      return { 
+        status: 'error', 
+        message: 'Failed to reset circuit breaker: ' + (error as Error).message 
+      };
+    }
+  }
+  
+  /**
    * Call the AI service based on the current provider
    */
   private async callAI(requestData: AICompletionRequest): Promise<AICompletionResponse> {
@@ -864,6 +1049,9 @@ Return your analysis in JSON format with the following fields:
     }
     
     try {
+      console.log(`[AIService] Making API request to Deepseek: model=${requestData.model}, messages=${requestData.messages.length}`);
+      
+      const startTime = Date.now();
       const response = await axios.post(
         'https://api.deepseek.com/v1/chat/completions',
         requestData,
@@ -872,13 +1060,31 @@ Return your analysis in JSON format with the following fields:
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.apiKey}`
           },
-          timeout: 30000 // 30 seconds
+          timeout: 45000 // 45 seconds
         }
       );
       
+      const duration = Date.now() - startTime;
+      console.log(`[AIService] Deepseek API response received in ${duration}ms`);
+      
       return response.data;
     } catch (error: any) {
-      console.error('[AIService] Deepseek API error:', error.message);
+      // Log detailed error information
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error(`[AIService] Deepseek API error: ${error.message}`);
+        console.error(`[AIService] Status: ${error.response.status}`);
+        console.error(`[AIService] Data:`, error.response.data);
+        console.error(`[AIService] Headers:`, error.response.headers);
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error(`[AIService] Deepseek API no response: ${error.message}`);
+        console.error(`[AIService] Request:`, error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error(`[AIService] Deepseek API setup error: ${error.message}`);
+      }
       
       // Add more details to the error
       const enhancedError = new Error(`Deepseek API call failed: ${error.message}`);
@@ -983,15 +1189,20 @@ Return your analysis in JSON format with the following fields:
    */
   private async getRelevantDocuments(query: string): Promise<Document[]> {
     try {
-      // Get approved documents from storage
-      const documents = await storage.getApprovedDocuments();
+      // Get ALL documents from storage to ensure we use all available knowledge
+      const allDocuments = await storage.getAllDocuments();
       
-      if (!documents || documents.length === 0) {
+      if (!allDocuments || allDocuments.length === 0) {
+        console.log('[AIService] No documents at all in system');
         return [];
       }
       
+      const documents = allDocuments;
+      console.log(`[AIService] Found ${documents.length} documents to search through`);
+      
       // Extract keywords from query
       const keywords = this.extractKeywords(query);
+      console.log(`[AIService] Extracted keywords: ${keywords.join(', ')}`);
       
       // Simple relevance scoring based on keyword matching
       const scoredDocuments = documents.map(doc => {
@@ -1004,14 +1215,30 @@ Return your analysis in JSON format with the following fields:
           score += matches;
         });
         
+        // Boost scores for certain document types
+        if (doc.type === 'grant_info') score += 3;
+        if (doc.type === 'artist_guide') score += 2;
+        
+        // Give a minimum score to all documents to ensure all docs are included if we don't have many
+        if (documents.length < 8) {
+          score = Math.max(score, 1);
+        }
+        
         return { doc, score };
       });
       
-      // Sort by score and return top 3
-      return scoredDocuments
+      // Filter out zero-score documents only if we have enough matches
+      const nonZeroScored = scoredDocuments.filter(item => item.score > 0);
+      const documentsToReturn = nonZeroScored.length >= 5 ? nonZeroScored : scoredDocuments;
+      
+      // Sort by score and return up to 8 documents (increased from 5)
+      const result = documentsToReturn
         .sort((a, b) => b.score - a.score)
-        .slice(0, 3)
+        .slice(0, 8) // Increased to 8 from 5 to include more knowledge
         .map(item => item.doc);
+        
+      console.log(`[AIService] Returning ${result.length} relevant documents for query "${query}"`);
+      return result;
     } catch (error) {
       console.error('[AIService] Error getting relevant documents:', error);
       return [];

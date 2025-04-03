@@ -1915,38 +1915,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return null;
     }
   }
-  
-  // Admin route to clear AI cache
-  app.post("/api/admin/ai/clear-cache", requireAdmin, async (req, res) => {
-    try {
-      console.log(`[Admin] AI cache clear requested by user ${req.user!.id}`);
-      
-      // Clear the cache
-      aiService.clearCache();
-      
-      // Log the activity
-      await storage.createActivity({
-        userId: req.user!.id,
-        action: "ADMIN",
-        entityType: "AI_CACHE",
-        details: {
-          action: "cleared",
-          timestamp: new Date().toISOString()
-        }
-      });
-      
-      return res.json({
-        status: 'success',
-        message: 'AI service cache has been successfully cleared'
-      });
-    } catch (error: any) {
-      console.error('[Admin] Error clearing AI cache:', error);
-      return res.status(500).json({ 
-        status: 'error',
-        message: error.message || "Failed to clear AI cache"
-      });
-    }
-  });
 
   const httpServer = createServer(app);
 
