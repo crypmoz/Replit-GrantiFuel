@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { DollarSign, CheckCircle, Clock, XCircle, Lightbulb, Loader2 } from 'lucide-react';
+import { DollarSign, CheckCircle, Clock, XCircle, Lightbulb, Loader2, Info } from 'lucide-react';
 import { Link } from 'wouter';
 import StatsCard, { StatsCardProps } from '@/components/dashboard/StatsCard';
 import UpcomingDeadlines from '@/components/dashboard/UpcomingDeadlines';
@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -26,9 +27,9 @@ export default function Dashboard() {
   // Load potentially slow AI-dependent data with a separate query
   const { data: grants, isLoading: isLoadingGrants } = useQuery<Grant[]>({
     queryKey: ['/api/grants'],
-    // Increase timeout for this specific query
+    // Increase stale time for this specific query
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes - use gcTime instead of cacheTime in v5
   });
 
   // Update loading progress
@@ -190,7 +191,7 @@ export default function Dashboard() {
             {loadingState === 'slow' && (
               <CardFooter className="pt-0 text-xs text-muted-foreground">
                 <p>
-                  <InfoIcon className="h-3 w-3 inline mr-1" />
+                  <Info className="h-3 w-3 inline mr-1" />
                   Some AI-powered features are still loading in the background
                 </p>
               </CardFooter>

@@ -156,11 +156,11 @@ export class AIService extends BaseService {
     this.provider = AI_PROVIDERS.DEEPSEEK; // Default provider
     this.defaultModel = 'deepseek-chat';
     
-    // Initialize circuit breaker with higher timeouts for complex document processing
+    // Initialize circuit breaker with optimized settings for AI service stability
     this.circuitBreaker = new CircuitBreaker('AI_API', {
-      failureThreshold: 3,
-      resetTimeout: 120000, // 120 seconds (2 minutes)
-      timeoutDuration: 90000 // 90 seconds (increased from 30s)
+      failureThreshold: 5,     // Increased to avoid premature tripping
+      resetTimeout: 180000,    // 3 minutes - increased recovery time
+      timeoutDuration: 120000  // 2 minutes - increased for complex document processing
     });
     
     // Initialize cache
@@ -1156,11 +1156,11 @@ Return your analysis in JSON format with the following fields:
       const currentState = this.circuitBreaker.getState();
       console.log(`[AIService] Resetting circuit breaker. Current state: ${currentState.state}, Failures: ${currentState.failureCount}`);
       
-      // Force a reset by setting a new instance with higher timeouts
+      // Force a reset with optimized settings for better stability
       this.circuitBreaker = new CircuitBreaker('AI_API', {
-        failureThreshold: 3,
-        resetTimeout: 120000, // 120 seconds (2 minutes)
-        timeoutDuration: 90000 // 90 seconds (increased for document processing)
+        failureThreshold: 5,     // Increased to avoid premature tripping
+        resetTimeout: 180000,    // 3 minutes - increased recovery time
+        timeoutDuration: 120000  // 2 minutes - increased for complex document processing
       });
       
       console.log('[AIService] Circuit breaker has been reset');
@@ -1259,7 +1259,7 @@ Return your analysis in JSON format with the following fields:
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.apiKey}`
           },
-          timeout: 85000 // 85 seconds - increased to handle more complex document processing
+          timeout: 115000 // 115 seconds - increased to match circuit breaker settings
         }
       );
       

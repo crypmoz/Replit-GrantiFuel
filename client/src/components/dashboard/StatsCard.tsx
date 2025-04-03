@@ -1,14 +1,16 @@
 import { ReactNode } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface StatsCardProps {
   title: string;
-  value: string | number;
+  value?: string | number;
   icon: ReactNode;
   description: string;
   variant?: 'default' | 'secondary' | 'success' | 'destructive';
   className?: string;
+  loading?: boolean;
 }
 
 export default function StatsCard({
@@ -18,6 +20,7 @@ export default function StatsCard({
   description,
   variant = 'default',
   className,
+  loading = false,
 }: StatsCardProps) {
   // Color mappings based on variant
   const variantStyles = {
@@ -63,7 +66,11 @@ export default function StatsCard({
               {title}
             </h3>
             <div className="text-2xl font-bold">
-              {value}
+              {loading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                value
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">{description}</p>
           </div>

@@ -20,9 +20,9 @@ interface CircuitBreakerOptions {
 }
 
 const defaultOptions: CircuitBreakerOptions = {
-  failureThreshold: 3,     // Lower threshold for faster circuit breaking
-  resetTimeout: 120000,    // 2 minutes - increased to give more time for recovery
-  timeoutDuration: 90000,  // 90 seconds - increased to match AI service timeout
+  failureThreshold: 5,     // Increased threshold to avoid premature tripping on temporary slowdowns
+  resetTimeout: 180000,    // 3 minutes - increased further to ensure API has time to recover
+  timeoutDuration: 120000, // 2 minutes - increased timeout for AI large document processing
   monitorInterval: 60000,  // 1 minute
 };
 
