@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
@@ -256,7 +256,9 @@ export default function UnifiedGrantsPage() {
         // Skip invalid dates
         if (!isNaN(deadlineDate.getTime())) {
           // Filter out grants with deadlines in the past
-          if (new Date() > deadlineDate) {
+          const now = new Date();
+          if (now > deadlineDate) {
+            console.log('Filtering out expired grant:', grant.name, deadlineDate);
             return false;
           }
         }
@@ -458,7 +460,12 @@ export default function UnifiedGrantsPage() {
                 <Switch 
                   id="show-expired" 
                   checked={showExpired} 
-                  onCheckedChange={setShowExpired}
+                  onCheckedChange={(checked) => {
+                    console.log('Setting showExpired to:', checked);
+                    setShowExpired(checked);
+                    // Force UI refresh
+                    setCombinedGrants([...combinedGrants]);
+                  }}
                 />
                 <Label htmlFor="show-expired" className="text-sm">
                   Show expired grants

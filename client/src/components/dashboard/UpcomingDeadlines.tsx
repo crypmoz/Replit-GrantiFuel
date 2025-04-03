@@ -108,9 +108,15 @@ export default function UpcomingDeadlines() {
           if (showExpired) return true;
           
           // Otherwise, only include grants with deadlines in the future
-          return isAfter(deadlineDate, new Date());
+          const now = new Date();
+          return isAfter(deadlineDate, now);
         })
-        .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+        .sort((a, b) => {
+          // Sort by deadline (nearest first)
+          const dateA = new Date(a.deadline).getTime();
+          const dateB = new Date(b.deadline).getTime();
+          return dateA - dateB;
+        })
     : [];
 
   // Calculate total pages
@@ -175,7 +181,12 @@ export default function UpcomingDeadlines() {
             <Switch 
               id="show-expired-deadlines" 
               checked={showExpired} 
-              onCheckedChange={setShowExpired}
+              onCheckedChange={(checked) => {
+                console.log('UpcomingDeadlines: Setting showExpired to:', checked);
+                setShowExpired(checked);
+                // Force a re-render
+                setPage(1); // Reset to page 1 when toggling
+              }}
               className="scale-75"
             />
             <Label htmlFor="show-expired-deadlines" className="text-xs">
