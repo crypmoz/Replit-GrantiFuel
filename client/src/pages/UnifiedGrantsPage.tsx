@@ -68,13 +68,39 @@ export default function UnifiedGrantsPage() {
       // Invalidate and refetch artist profile data
       queryClient.invalidateQueries({ queryKey: ['/api/artists/by-user', user?.id] });
       toast({
-        title: 'Profile saved',
+        title: 'Profile updated',
         description: 'Your artist profile has been updated in the database.',
       });
     },
     onError: (error: Error) => {
       toast({
         title: 'Failed to save profile',
+        description: error.message || 'Please try again later',
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Artist profile creation mutation
+  const { mutate: createArtistProfile, isPending: isCreatingProfile } = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('POST', `/api/artists`, data);
+      if (!response.ok) {
+        throw new Error('Failed to create artist profile');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate and refetch artist profile data
+      queryClient.invalidateQueries({ queryKey: ['/api/artists/by-user', user?.id] });
+      toast({
+        title: 'Profile created',
+        description: 'Your artist profile has been created. You can now get personalized grant recommendations.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to create profile',
         description: error.message || 'Please try again later',
         variant: 'destructive',
       });
@@ -513,10 +539,22 @@ export default function UnifiedGrantsPage() {
                           setProfile(values);
                           fetchRecommendations(values);
                           
-                          // Also save to the database if user has an artist profile
+                          // Save to the database - update or create profile
                           if (artistProfile && artistProfile.id) {
+                            // Update existing profile
                             updateArtistProfile({
                               id: artistProfile.id,
+                              genres: values.genre,
+                              careerStage: values.careerStage,
+                              primaryInstrument: values.instrumentOrRole,
+                              location: values.location,
+                              projectType: values.projectType
+                            });
+                          } else if (user?.id) {
+                            // Create new profile if user doesn't have one
+                            createArtistProfile({
+                              userId: user.id,
+                              name: user.username || 'Artist',
                               genres: values.genre,
                               careerStage: values.careerStage,
                               primaryInstrument: values.instrumentOrRole,
