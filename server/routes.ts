@@ -2,6 +2,7 @@ import { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { aiService, GrantRecommendation } from "./services/ai-service";
+import { backgroundProcessor } from "./services/background-processor";
 import { z } from "zod";
 import axios from "axios";
 import { setupAuth } from "./auth";
@@ -437,8 +438,183 @@ export async function registerRoutes(app: Express): Promise<Server> {
             projectType: ''
           };
           
-          try {
-            // Create a profile for AI recommendation with default values if needed
+          // First check if we already have cached recommendations
+          const cachedRecommendations = await storage.getGrantRecommendationsForUser(req.user!.id);
+          
+          if (cachedRecommendations && 
+              cachedRecommendations.recommendations && 
+              cachedRecommendations.recommendations.length > 0) {
+            
+            console.log(`[Cache] Using cached recommendations for user ${req.user!.id}`);
+            
+            // We have cached recommendations, use them
+            const aiRecommendations = cachedRecommendations.recommendations;
+            
+            // Create an activity record for using cached recommendations
+            await storage.createActivity({
+              userId: req.user!.id,
+              action: "RETRIEVED",
+              entityType: "CACHED_GRANT_RECOMMENDATIONS",
+              details: {
+                count: aiRecommendations.length,
+                source: "grants_page",
+                cacheAge: cachedRecommendations.updatedAt 
+                  ? Math.floor((Date.now() - new Date(cachedRecommendations.updatedAt).getTime()) / (1000 * 60)) + ' minutes'
+                  : 'unknown'
+              }
+            });
+            
+            // Merge AI recommendations with existing grants
+            const mergedGrants: GrantWithAIRecommendation[] = [...allGrants]; 
+            
+            // Add AI recommendations at the beginning with their match scores
+            aiRecommendations.forEach(rec => {
+              // Check if this recommendation already exists in our database (by name similarity)
+              const existingIndex = mergedGrants.findIndex(g => 
+                g.name.toLowerCase() === rec.name.toLowerCase() || 
+                g.organization?.toLowerCase() === rec.organization?.toLowerCase()
+              );
+              
+              if (existingIndex >= 0) {
+                // Update existing grant with AI match score
+                mergedGrants[existingIndex] = {
+                  ...mergedGrants[existingIndex],
+                  matchScore: rec.matchScore,
+                  aiRecommended: true
+                } as GrantWithAIRecommendation;
+              } else {
+                // Add new AI recommendation as a "virtual grant"
+                mergedGrants.unshift({
+                  id: -1, // Use negative ID to mark as virtual
+                  userId: req.user!.id,
+                  name: rec.name,
+                  organization: rec.organization || "Unknown",
+                  amount: rec.amount || "$0-$10,000",
+                  deadline: typeof rec.deadline === 'string' ? new Date(rec.deadline) : new Date(),
+                  description: rec.description || "",
+                  requirements: Array.isArray(rec.requirements) 
+                    ? rec.requirements.join(", ") 
+                    : typeof rec.requirements === 'string' 
+                      ? rec.requirements 
+                      : "",
+                  website: rec.url || "",
+                  matchScore: rec.matchScore || 50,
+                  aiRecommended: true,
+                  createdAt: new Date()
+                } as GrantWithAIRecommendation);
+              }
+            });
+            
+            // Sort by AI match score or regular match score
+            const sortedGrants = mergedGrants
+              .sort((a, b) => {
+                // Prioritize AI-recommended grants
+                if (a.aiRecommended && !b.aiRecommended) return -1;
+                if (!a.aiRecommended && b.aiRecommended) return 1;
+                
+                // Then sort by match score (if available)
+                const scoreA = a.matchScore || 0;
+                const scoreB = b.matchScore || 0;
+                return scoreB - scoreA;
+              });
+            
+            // Complete the AI assistant onboarding task if needed
+            try {
+              const aiAssistantTask = onboardingTasks.find(t => t.task === 'ai_assistant_used');
+              if (!aiAssistantTask) {
+                await storage.completeOnboardingTask(req.user!.id, 'ai_assistant_used', {
+                  feature: 'integrated_grant_recommendations',
+                  timestamp: new Date()
+                });
+              }
+            } catch (err) {
+              console.error('Error updating onboarding task:', err);
+              // Continue execution even if onboarding task update fails
+            }
+            
+            // Instead of running AI again, schedule a background refresh if cache is old
+            const cacheAgeMs = cachedRecommendations.updatedAt 
+              ? Date.now() - new Date(cachedRecommendations.updatedAt).getTime()
+              : Number.MAX_SAFE_INTEGER;
+            
+            const CACHE_REFRESH_THRESHOLD = 24 * 60 * 60 * 1000; // 24 hours
+            
+            if (cacheAgeMs > CACHE_REFRESH_THRESHOLD) {
+              // Queue a background refresh without waiting for it
+              console.log(`[Cache] Scheduling background refresh of recommendations for user ${req.user!.id}`);
+              setTimeout(async () => {
+                try {
+                  // Create a profile for AI recommendation with default values if needed
+                  const aiProfile = {
+                    genre: userArtist.genres?.join(', ') || 'music',
+                    careerStage: userArtist.careerStage || 'all stages',
+                    instrumentOrRole: userArtist.primaryInstrument || 'musician',
+                    location: userArtist.location || undefined,
+                    projectType: userArtist.projectType || undefined,
+                    userId: req.user!.id // Always include userId to access all documents
+                  };
+                  
+                  const refreshResult = await aiService.getGrantRecommendations(aiProfile);
+                  if (refreshResult.success && refreshResult.data && refreshResult.data.length > 0) {
+                    console.log(`[Background] Refreshed ${refreshResult.data.length} recommendations for user ${req.user!.id}`);
+                    
+                    // Save updated recommendations to database for future use
+                    await storage.createOrUpdateGrantRecommendations({
+                      userId: req.user!.id,
+                      artistId: userArtist.id || null,
+                      recommendations: refreshResult.data,
+                      queryParams: aiProfile
+                    });
+                  }
+                } catch (backgroundError) {
+                  console.error('[Background] Failed to refresh recommendations:', backgroundError);
+                }
+              }, 100); // Just enough delay to not block the response
+            }
+            
+            return res.json({
+              grants: sortedGrants,
+              isPersonalized: true,
+              profileComplete: true,
+              aiEnhanced: true,
+              fromCache: true
+            });
+          } else {
+            // No cached recommendations, we'll need to create a job to generate them
+            // But first, return placeholder recommendations so the page loads quickly
+            
+            const placeholders = [
+              {
+                id: -1,
+                userId: req.user!.id,
+                name: "Analyzing your profile",
+                organization: "GrantiFuel AI",
+                amount: "$5,000-$15,000",
+                deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                description: "Our AI is analyzing your artist profile and available grants to find the best matches. This may take a moment for first-time users.",
+                requirements: "Your results will appear shortly. If this takes longer than expected, please refresh the page.",
+                website: "https://example.org/grants",
+                matchScore: 85,
+                aiRecommended: true,
+                createdAt: new Date()
+              },
+              {
+                id: -2,
+                userId: req.user!.id,
+                name: "Loading recommendations",
+                organization: "Music Grant Database",
+                amount: "$2,500-$10,000",
+                deadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+                description: "Searching through our database of music grants to find opportunities that match your artistic focus and career stage.",
+                requirements: "Grant requirements will be displayed once loading is complete.",
+                website: "https://example.org/grants",
+                matchScore: 75,
+                aiRecommended: true,
+                createdAt: new Date()
+              }
+            ] as GrantWithAIRecommendation[];
+            
+            // Create a profile for AI recommendation
             const aiProfile = {
               genre: userArtist.genres?.join(', ') || 'music',
               careerStage: userArtist.careerStage || 'all stages',
@@ -448,163 +624,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
               userId: req.user!.id // Always include userId to access all documents
             };
             
-            // Call AI service to get recommendations
-            const aiResult = await aiService.getGrantRecommendations(aiProfile);
-            
-            if (aiResult.success && aiResult.data && aiResult.data.length > 0) {
-              console.log(`[AIService] Generated ${aiResult.data.length} recommendations for user ${req.user!.id}`);
-              
-              // Create an activity record for using AI recommendations
-              await storage.createActivity({
-                userId: req.user!.id,
-                action: "RECEIVED",
-                entityType: "AI_GRANT_RECOMMENDATIONS",
-                details: {
-                  count: aiResult.data.length,
-                  source: "grants_page"
-                }
-              });
-              
-              // Merge AI recommendations with existing grants
-              // For AI recommendations without exact matches in our database, keep them as supplementary
-              const mergedGrants: GrantWithAIRecommendation[] = [...allGrants]; 
-              const aiRecommendations = aiResult.data;
-              
-              // Add AI recommendations at the beginning with their match scores
-              aiRecommendations.forEach(rec => {
-                // Check if this recommendation already exists in our database (by name similarity)
-                const existingIndex = mergedGrants.findIndex(g => 
-                  g.name.toLowerCase() === rec.name.toLowerCase() || 
-                  g.organization.toLowerCase() === rec.organization.toLowerCase()
-                );
-                
-                if (existingIndex >= 0) {
-                  // Update existing grant with AI match score
-                  mergedGrants[existingIndex] = {
-                    ...mergedGrants[existingIndex],
-                    matchScore: rec.matchScore,
-                    aiRecommended: true
-                  } as GrantWithAIRecommendation;
-                } else {
-                  // Add new AI recommendation as a "virtual grant"
-                  mergedGrants.unshift({
-                    id: -1, // Use negative ID to mark as virtual
-                    userId: req.user!.id,
-                    name: rec.name,
-                    organization: rec.organization,
-                    amount: rec.amount,
-                    deadline: typeof rec.deadline === 'string' ? new Date(rec.deadline) : new Date(),
-                    description: rec.description,
-                    requirements: Array.isArray(rec.requirements) 
-                      ? rec.requirements.join(", ") 
-                      : typeof rec.requirements === 'string' 
-                        ? rec.requirements 
-                        : "",
-                    website: rec.url,
-                    matchScore: rec.matchScore,
-                    aiRecommended: true,
-                    createdAt: new Date()
-                  } as GrantWithAIRecommendation);
-                }
-              });
-              
-              // Sort by AI match score or regular match score
-              const sortedGrants = mergedGrants
-                .sort((a, b) => {
-                  // Prioritize AI-recommended grants
-                  if (a.aiRecommended && !b.aiRecommended) return -1;
-                  if (!a.aiRecommended && b.aiRecommended) return 1;
-                  
-                  // Then sort by match score (if available)
-                  const scoreA = a.matchScore || 0;
-                  const scoreB = b.matchScore || 0;
-                  return scoreB - scoreA;
-                });
-              
-              // Complete the AI assistant onboarding task if needed
+            // Trigger background job to generate real recommendations
+            setTimeout(async () => {
               try {
-                const aiAssistantTask = onboardingTasks.find(t => t.task === 'ai_assistant_used');
-                if (!aiAssistantTask) {
-                  await storage.completeOnboardingTask(req.user!.id, 'ai_assistant_used', {
-                    feature: 'integrated_grant_recommendations',
-                    timestamp: new Date()
+                console.log(`[Background] Starting recommendation generation for user ${req.user!.id}`);
+                const backgroundResult = await aiService.getGrantRecommendations(aiProfile);
+                if (backgroundResult.success && backgroundResult.data && backgroundResult.data.length > 0) {
+                  console.log(`[Background] Generated ${backgroundResult.data.length} recommendations for user ${req.user!.id}`);
+                  
+                  // Save to database for future use
+                  await storage.createOrUpdateGrantRecommendations({
+                    userId: req.user!.id,
+                    artistId: userArtist.id || null,
+                    recommendations: backgroundResult.data,
+                    queryParams: aiProfile
                   });
                 }
-              } catch (err) {
-                console.error('Error updating onboarding task:', err);
-                // Continue execution even if onboarding task update fails
+              } catch (backgroundError) {
+                console.error('[Background] Failed to generate recommendations:', backgroundError);
               }
+            }, 100);
+            
+            // Return placeholder grants along with real grants
+            const mergedGrants = [...placeholders, ...allGrants];
+            
+            // Sort grants for display
+            const sortedGrants = mergedGrants.sort((a, b) => {
+              // Prioritize AI-recommended grants
+              if (a.aiRecommended && !b.aiRecommended) return -1;
+              if (!a.aiRecommended && b.aiRecommended) return 1;
               
-              return res.json({
-                grants: sortedGrants,
-                isPersonalized: true,
-                profileComplete: true,
-                aiEnhanced: true
-              });
-            }
-          } catch (aiError) {
-            console.error("Error getting AI grant recommendations:", aiError);
-            // Fall back to basic recommendation algorithm below
-          }
-          
-          // If AI service fails or returns no results, fall back to basic matching
-          const genres = userArtist.genres || [];
-          
-          // Basic filtering/ranking logic for grants as fallback
-          const rankedGrants: GrantWithAIRecommendation[] = allGrants.map(grant => {
-            let matchScore = 50; // Base score
-            
-            // If the grant description or requirements contains any of the user's genres, increase score
-            if (grant.description) {
-              for (const genre of genres) {
-                if (grant.description.toLowerCase().includes(genre.toLowerCase())) {
-                  matchScore += 10;
-                  break;
-                }
-              }
-            }
-            
-            if (grant.requirements) {
-              for (const genre of genres) {
-                if (grant.requirements.toLowerCase().includes(genre.toLowerCase())) {
-                  matchScore += 5;
-                  break;
-                }
-              }
-            }
-            
-            // Higher score for grants with upcoming deadlines (not expired)
-            if (grant.deadline && new Date(grant.deadline) > new Date()) {
-              matchScore += 15;
-              
-              // Even higher for grants with deadlines in the next 30 days
-              const daysTillDeadline = Math.floor((new Date(grant.deadline).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
-              if (daysTillDeadline <= 30) {
-                matchScore += 10;
-              }
-            }
-            
-            return {
-              ...grant,
-              matchScore
-            };
-          });
-          
-          // Sort by match score
-          const topGrants = rankedGrants
-            .sort((a, b) => {
+              // Then sort by match score (if available)
               const scoreA = a.matchScore || 0;
               const scoreB = b.matchScore || 0;
               return scoreB - scoreA;
             });
-          
-          // Return personalized grants with fallback matching
-          return res.json({
-            grants: topGrants,
-            isPersonalized: true,
-            profileComplete: true,
-            aiEnhanced: false
-          });
+            
+            // Log activity
+            await storage.createActivity({
+              userId: req.user!.id,
+              action: "GENERATING",
+              entityType: "GRANT_RECOMMENDATIONS",
+              details: {
+                placeholdersShown: placeholders.length,
+                regularGrantsShown: allGrants.length
+              }
+            });
+            
+            return res.json({
+              grants: sortedGrants,
+              isPersonalized: true,
+              profileComplete: true,
+              aiEnhanced: true,
+              fromCache: false,
+              generatingRecommendations: true
+            });
+          }
         } else {
           // User has no artist profile or incomplete data
           return res.json({
@@ -618,12 +693,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Error getting personalized grants:", error);
         // Fall back to regular grants
         const grants = await storage.getAllGrants();
-        return res.json(grants);
+        return res.json({ grants });
       }
     } else {
       // Not authenticated, just return all grants
       const grants = await storage.getAllGrants();
-      return res.json(grants);
+      return res.json({ grants });
     }
   });
 
