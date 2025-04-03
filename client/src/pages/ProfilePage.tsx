@@ -122,7 +122,49 @@ export default function ProfilePage() {
 
   // Handle profile field click from requirements component
   const handleProfileFieldClick = (fieldName: string) => {
+    // Set the profile to edit mode
     setEditMode(true);
+    
+    // Use setTimeout to allow the edit form to render, then scroll to the field
+    setTimeout(() => {
+      const fieldId = fieldNameToElementId(fieldName);
+      const element = document.getElementById(fieldId);
+      
+      if (element) {
+        // Scroll to the element with smooth behavior
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Add a temporary highlight effect
+        element.classList.add('highlight-field');
+        
+        // Remove the highlight after 2 seconds
+        setTimeout(() => {
+          element.classList.remove('highlight-field');
+        }, 2000);
+        
+        // If it's an input element, try to focus it
+        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') {
+          (element as HTMLElement).focus();
+        }
+      }
+    }, 100);
+  };
+  
+  // Convert profile field names to corresponding form element IDs
+  const fieldNameToElementId = (fieldName: string): string => {
+    const mapping: Record<string, string> = {
+      'Full Name': 'artist-name',
+      'Email': 'artist-email',
+      'Bio': 'artist-bio',
+      'Genres': 'artist-genres',
+      'Career Stage': 'artist-careerStage',
+      'Primary Instrument': 'artist-primaryInstrument',
+      'Location': 'artist-location',
+      'Project Type': 'artist-projectType',
+      // Add more mappings as needed
+    };
+    
+    return mapping[fieldName] || 'artist-form';
   };
 
   return (

@@ -103,6 +103,8 @@ export function ArtistProfileEdit({
               <FormControl>
                 <Input 
                   placeholder="Artist name"
+                  id="artist-name"
+                  className="form-field-highlight"
                   {...field}
                 />
               </FormControl>
@@ -121,6 +123,8 @@ export function ArtistProfileEdit({
                 <Input 
                   placeholder="Email address" 
                   type="email"
+                  id="artist-email"
+                  className="form-field-highlight"
                   {...field}
                 />
               </FormControl>
@@ -152,6 +156,8 @@ export function ArtistProfileEdit({
           <FormLabel>Genres (comma-separated)</FormLabel>
           <Input
             placeholder="e.g. Jazz, Classical, Hip-Hop"
+            id="artist-genres"
+            className="form-field-highlight"
             value={genresInput}
             onChange={(e) => setGenresInput(e.target.value)}
           />
@@ -169,7 +175,8 @@ export function ArtistProfileEdit({
               <FormControl>
                 <Textarea 
                   placeholder="Tell us about this artist..."
-                  className="min-h-[120px]"
+                  className="min-h-[120px] form-field-highlight"
+                  id="artist-bio"
                   {...field}
                   value={field.value ?? ''}
                 />
@@ -197,7 +204,7 @@ export function ArtistProfileEdit({
                 defaultValue={field.value || undefined}
               >
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger id="artist-careerStage" className="form-field-highlight">
                     <SelectValue placeholder="Select career stage" />
                   </SelectTrigger>
                 </FormControl>
@@ -224,7 +231,7 @@ export function ArtistProfileEdit({
                 defaultValue={field.value || undefined}
               >
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger id="artist-primaryInstrument" className="form-field-highlight">
                     <SelectValue placeholder="Select primary role" />
                   </SelectTrigger>
                 </FormControl>
@@ -258,6 +265,8 @@ export function ArtistProfileEdit({
               <FormControl>
                 <Input 
                   placeholder="e.g. New York, USA" 
+                  id="artist-location"
+                  className="form-field-highlight"
                   {...field}
                   value={field.value ?? ''}
                 />
@@ -278,7 +287,7 @@ export function ArtistProfileEdit({
                 defaultValue={field.value || undefined}
               >
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger id="artist-projectType" className="form-field-highlight">
                     <SelectValue placeholder="Select project type" />
                   </SelectTrigger>
                 </FormControl>

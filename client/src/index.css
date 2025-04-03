@@ -11,3 +11,33 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Highlight effect for form fields when focused from profile requirements */
+  .highlight-field {
+    @apply ring-2 ring-primary ring-offset-2 transition-all duration-300;
+    animation: pulse-highlight 2s ease-in-out;
+  }
+  
+  @keyframes pulse-highlight {
+    0% {
+      @apply ring-opacity-30;
+    }
+    50% {
+      @apply ring-opacity-100;
+    }
+    100% {
+      @apply ring-opacity-30;
+    }
+  }
+  
+  /* Improve form field styling */
+  .form-field-highlight:focus-within {
+    @apply ring-1 ring-primary ring-opacity-50;
+  }
+  
+  /* Ensure form labels are visible and have proper spacing */
+  .form-field label {
+    @apply mb-1.5 font-medium text-sm inline-block;
+  }
+}
