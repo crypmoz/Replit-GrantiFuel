@@ -27,6 +27,7 @@ import About from "./pages/About";
 import Pricing from "./pages/Pricing";
 import AuthPage from "./pages/auth-page";
 import ProfilePage from "./pages/ProfilePage";
+import ProgressDashboard from "./pages/ProgressDashboard";
 import SettingsPage from "./pages/SettingsPage";
 import Checkout from "./pages/checkout";
 import SuccessStories from "./pages/SuccessStories";
@@ -122,6 +123,7 @@ function AppContent() {
               
               {/* User profile and settings */}
               <ProtectedRoute path="/profile" component={ProfilePage} />
+              <ProtectedRoute path="/progress" component={ProgressDashboard} />
               <ProtectedRoute path="/settings" component={SettingsPage} />
               
               {/* Admin section */}

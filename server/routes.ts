@@ -143,6 +143,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             else if (url.startsWith("/api/subscription-plans") && method === "GET") {
               mockRes.data = await storage.getAllSubscriptionPlans();
             }
+            else if (url === "/api/user/onboarding" && method === "GET") {
+              // Ensure userId exists before querying
+              if (userId) {
+                const onboardingTasks = await storage.getUserOnboardingTasks(userId);
+                mockRes.data = onboardingTasks;
+              } else {
+                mockRes.status(401).json({ message: "Authentication required" });
+              }
+            }
             else if (url === "/api/user/subscription" && method === "GET") {
               // Ensure userId exists before querying
               if (userId) {
@@ -1200,7 +1209,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Onboarding routes
+  // Onboarding routes - support both path formats for backward compatibility
+  app.get("/api/user/onboarding", requireAuth, async (req, res) => {
+    try {
+      const tasks = await storage.getUserOnboardingTasks(req.user!.id);
+      return res.json(tasks);
+    } catch (error) {
+      console.error("Error getting onboarding tasks:", error);
+      return res.status(500).json({ message: "Error getting onboarding tasks" });
+    }
+  });
+
+  // Keep the old endpoint for backward compatibility
   app.get("/api/onboarding", requireAuth, async (req, res) => {
     try {
       const tasks = await storage.getUserOnboardingTasks(req.user!.id);
@@ -1211,6 +1231,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/user/onboarding/complete", requireAuth, async (req, res) => {
+    try {
+      const { task, data } = req.body;
+      
+      if (!task) {
+        return res.status(400).json({ message: "Task is required" });
+      }
+      
+      const completedTask = await storage.completeOnboardingTask(req.user!.id, task, data);
+      
+      // Create an activity record for task completion
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "COMPLETED",
+        entityType: "ONBOARDING",
+        entityId: completedTask.id,
+        details: { task, completedAt: new Date() }
+      });
+      
+      return res.status(201).json(completedTask);
+    } catch (error) {
+      console.error("Error completing onboarding task:", error);
+      return res.status(500).json({ message: "Error completing onboarding task" });
+    }
+  });
+  
+  // Keep the old endpoint for backward compatibility
   app.post("/api/onboarding/complete", requireAuth, async (req, res) => {
     try {
       const { task, data } = req.body;
@@ -1267,6 +1314,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ error: "Failed to get subscription" });
     }
   });
+  
+  // User onboarding progress endpoint is already defined above
 
   // Stripe payment and subscription routes
   app.post("/api/create-customer", requireAuth, async (req, res) => {

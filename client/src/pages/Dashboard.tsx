@@ -29,11 +29,19 @@ export default function Dashboard() {
 
   return (
     <div className="container mx-auto p-6 max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Welcome to GrantiFuel Music Assist, your grant application management platform
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Welcome to GrantiFuel Music Assist, your grant application management platform
+          </p>
+        </div>
+        <Link href="/progress">
+          <button className="mt-3 sm:mt-0 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors flex items-center">
+            <span className="mr-2">Track Your Progress</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </Link>
       </div>
 
       {/* Upcoming Deadlines - Top Priority */}

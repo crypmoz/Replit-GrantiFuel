@@ -38,10 +38,10 @@ export function OnboardingProvider({
     isLoading,
     error
   } = useQuery({
-    queryKey: ["/api/onboarding"],
+    queryKey: ["/api/user/onboarding"],
     queryFn: async () => {
       try {
-        const res = await apiRequest("GET", "/api/onboarding");
+        const res = await apiRequest("GET", "/api/user/onboarding");
         if (!res.ok) return [];
         return await res.json() as UserOnboarding[];
       } catch (err) {
@@ -59,7 +59,7 @@ export function OnboardingProvider({
     if (hasCompletedTask(task)) return;
 
     try {
-      apiRequest("POST", "/api/onboarding/complete", { task, data }).catch(err => {
+      apiRequest("POST", "/api/user/onboarding/complete", { task, data }).catch(err => {
         console.error("Error completing task in API:", err);
       });
     } catch (err) {

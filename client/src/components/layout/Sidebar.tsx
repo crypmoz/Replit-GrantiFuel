@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { 
   Music, Home, DollarSign, Users, FileText, 
   LayoutTemplate, Zap, LogOut, BookOpen, Settings, User as UserIcon,
-  Shield, UserCog, Search, Gauge, BrainCircuit
+  Shield, UserCog, Search, Gauge, BrainCircuit, BarChart, Award
 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
@@ -79,6 +79,12 @@ const navItems: NavItem[] = [
     label: 'Profile', 
     icon: <UserIcon className="h-5 w-5 mr-3" />,
     // All users can access their profile
+  },
+  { 
+    href: '/progress', 
+    label: 'Your Progress', 
+    icon: <Award className="h-5 w-5 mr-3" />,
+    // All users can access their progress dashboard
   },
   { 
     href: '/settings', 
