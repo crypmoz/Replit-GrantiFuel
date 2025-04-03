@@ -14,12 +14,13 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ArtistProfile, useGrantRecommendations, GrantRecommendation } from '@/hooks/use-grant-recommendations';
 import { apiRequest } from '@/lib/queryClient';
 import { Grant, GrantWithAIRecommendation, userRoleEnum } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowUpDown, Calendar, DollarSign, Filter, Plus, ExternalLink, FileText, Search, 
-         RefreshCw, AlertCircle, Bookmark, Save, Loader2, UserCheck } from 'lucide-react';
+         RefreshCw, AlertCircle, Bookmark, Save, Loader2, UserCheck, User as UserIcon } from 'lucide-react';
 import GrantRecommendationsForm from '@/components/grants/GrantRecommendationsForm';
 
 // Enhanced type to represent both database grants and AI-recommended grants
@@ -466,6 +467,68 @@ export default function UnifiedGrantsPage() {
                 )}
                 {isSubmittingRecommendations ? 'Refreshing...' : 'Refresh Recommendations'} 
               </Button>
+              
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" id="profile-dialog-trigger" className="inline-flex items-center">
+                    <UserIcon className="h-4 w-4 mr-2" />
+                    Artist Profile
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>Your Artist Profile</DialogTitle>
+                    <DialogDescription>
+                      Update your profile to get better grant recommendations
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  {isLoadingProfile ? (
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                      <p className="text-muted-foreground">Loading your artist profile...</p>
+                    </div>
+                  ) : (
+                    <GrantRecommendationsForm 
+                      onFormSubmit={(values) => {
+                        setProfile(values);
+                        fetchRecommendations(values);
+                        
+                        // Save to the database - update or create profile
+                        if (artistProfile && artistProfile.id) {
+                          // Update existing profile
+                          updateArtistProfile({
+                            id: artistProfile.id,
+                            genres: values.genre,
+                            careerStage: values.careerStage,
+                            primaryInstrument: values.instrumentOrRole,
+                            location: values.location,
+                            projectType: values.projectType
+                          });
+                        } else if (user?.id) {
+                          // Create new profile if user doesn't have one
+                          createArtistProfile({
+                            userId: user.id,
+                            name: user.username || 'Artist',
+                            genres: values.genre,
+                            careerStage: values.careerStage,
+                            primaryInstrument: values.instrumentOrRole,
+                            location: values.location,
+                            projectType: values.projectType
+                          });
+                        }
+                        
+                        setActiveTab('ai-recommended');
+                        toast({
+                          title: "Profile updated",
+                          description: "Generating new grant recommendations based on your profile."
+                        });
+                      }} 
+                      defaultValues={profile || undefined} 
+                    />
+                  )}
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </header>
@@ -527,11 +590,10 @@ export default function UnifiedGrantsPage() {
             onValueChange={setActiveTab} 
             className="space-y-6"
           >
-            <TabsList className="grid grid-cols-4 w-full max-w-md">
+            <TabsList className="grid grid-cols-3 w-full max-w-md">
               <TabsTrigger value="all">All Grants</TabsTrigger>
-              <TabsTrigger value="ai-recommended">AI Recommended</TabsTrigger>
+              <TabsTrigger value="ai-recommended">AI Matches</TabsTrigger>
               <TabsTrigger value="my-grants">My Grants</TabsTrigger>
-              <TabsTrigger value="profile">Your Profile</TabsTrigger>
             </TabsList>
             
             {/* Profile Card for AI Recommendations */}
@@ -576,7 +638,7 @@ export default function UnifiedGrantsPage() {
                       variant="outline" 
                       size="sm" 
                       className="text-xs" 
-                      onClick={() => setActiveTab('profile')}
+                      onClick={() => document.getElementById('profile-dialog-trigger')?.click()}
                     >
                       Edit Profile
                     </Button>
@@ -596,7 +658,7 @@ export default function UnifiedGrantsPage() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>No profile submitted</AlertTitle>
                   <AlertDescription>
-                    Please update your <Button variant="link" className="p-0 h-auto" onClick={() => setActiveTab('profile')}>artist profile</Button> to get grant recommendations.
+                    Please update your <Button variant="link" className="p-0 h-auto" onClick={() => document.getElementById('profile-dialog-trigger')?.click()}>artist profile</Button> to get grant recommendations.
                   </AlertDescription>
                 </Alert>
               )}
@@ -605,65 +667,6 @@ export default function UnifiedGrantsPage() {
             
             <TabsContent value="my-grants" className="space-y-6">
               {renderGrantsList()}
-            </TabsContent>
-            
-            <TabsContent value="profile" className="space-y-6">
-              <div className="max-w-3xl mx-auto">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-xl">Your Artist Profile</CardTitle>
-                    <CardDescription>
-                      Update your profile to get better grant recommendations
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {isLoadingProfile ? (
-                      <div className="flex flex-col items-center justify-center py-8">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                        <p className="text-muted-foreground">Loading your artist profile...</p>
-                      </div>
-                    ) : (
-                      <GrantRecommendationsForm 
-                        onFormSubmit={(values) => {
-                          setProfile(values);
-                          fetchRecommendations(values);
-                          
-                          // Save to the database - update or create profile
-                          if (artistProfile && artistProfile.id) {
-                            // Update existing profile
-                            updateArtistProfile({
-                              id: artistProfile.id,
-                              genres: values.genre,
-                              careerStage: values.careerStage,
-                              primaryInstrument: values.instrumentOrRole,
-                              location: values.location,
-                              projectType: values.projectType
-                            });
-                          } else if (user?.id) {
-                            // Create new profile if user doesn't have one
-                            createArtistProfile({
-                              userId: user.id,
-                              name: user.username || 'Artist',
-                              genres: values.genre,
-                              careerStage: values.careerStage,
-                              primaryInstrument: values.instrumentOrRole,
-                              location: values.location,
-                              projectType: values.projectType
-                            });
-                          }
-                          
-                          setActiveTab('ai-recommended');
-                          toast({
-                            title: "Profile updated",
-                            description: "Generating new grant recommendations based on your profile."
-                          });
-                        }} 
-                        defaultValues={profile || undefined} 
-                      />
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
             </TabsContent>
           </Tabs>
         </div>
