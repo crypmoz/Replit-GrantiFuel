@@ -46,56 +46,120 @@ export function ProfileRequirements({
   const [activeTab, setActiveTab] = useState<'todo' | 'completed' | 'all'>('todo');
   const [expanded, setExpanded] = useState<string | null>(null);
   
-  // Group requirements by importance
-  const requiredFields = profileRequirements.filter((r: ProfileRequirement) => r.importance === 'required');
-  const recommendedFields = profileRequirements.filter((r: ProfileRequirement) => r.importance === 'recommended');
-  const optionalFields = profileRequirements.filter((r: ProfileRequirement) => r.importance === 'optional');
-  
-  // Calculate completion rates
-  const requiredCompleted = requiredFields.filter((r: ProfileRequirement) => 
-    completedFields.includes(r.fieldName)).length;
-  const recommendedCompleted = recommendedFields.filter((r: ProfileRequirement) => 
-    completedFields.includes(r.fieldName)).length;
-  const optionalCompleted = optionalFields.filter((r: ProfileRequirement) => 
-    completedFields.includes(r.fieldName)).length;
-  
-  const totalFields = profileRequirements.length;
-  const totalCompleted = completedFields.length;
-  
-  // Calculate percentages for progress bars
-  const requiredPercentage = requiredFields.length > 0 
-    ? Math.round((requiredCompleted / requiredFields.length) * 100) 
-    : 100;
-  
-  const totalPercentage = totalFields > 0
-    ? Math.round((totalCompleted / totalFields) * 100)
-    : 0;
-  
-  // Filter requirements based on active tab
-  const filteredRequirements = [...profileRequirements].filter((r: ProfileRequirement) => {
-    const isComplete = completedFields.includes(r.fieldName);
-    if (activeTab === 'todo') return !isComplete;
-    if (activeTab === 'completed') return isComplete;
-    return true; // 'all' tab
+  const [groupedData, setGroupedData] = useState<{
+    requiredFields: ProfileRequirement[];
+    recommendedFields: ProfileRequirement[];
+    optionalFields: ProfileRequirement[];
+    requiredCompleted: number;
+    recommendedCompleted: number;
+    optionalCompleted: number;
+    totalFields: number;
+    totalCompleted: number;
+    requiredPercentage: number;
+    totalPercentage: number;
+    filteredRequirements: ProfileRequirement[];
+    sortedRequirements: ProfileRequirement[];
+  }>({
+    requiredFields: [],
+    recommendedFields: [],
+    optionalFields: [],
+    requiredCompleted: 0,
+    recommendedCompleted: 0,
+    optionalCompleted: 0,
+    totalFields: 0,
+    totalCompleted: 0,
+    requiredPercentage: 0,
+    totalPercentage: 0,
+    filteredRequirements: [],
+    sortedRequirements: []
   });
-  
-  // Sort requirements by importance and completion
-  const sortedRequirements = [...filteredRequirements].sort((a: ProfileRequirement, b: ProfileRequirement) => {
-    // First, prioritize by importance
-    const importanceOrder: Record<string, number> = { required: 0, recommended: 1, optional: 2 };
-    const importanceDiff = importanceOrder[a.importance] - importanceOrder[b.importance];
-    if (importanceDiff !== 0) return importanceDiff;
+
+  // Process requirements data when dependencies change
+  useEffect(() => {
+    if (!profileRequirements || !completedFields) return;
     
-    // Then by completion status (incomplete items first) - only if we're viewing all items
-    if (activeTab === 'all') {
-      const aCompleted = completedFields.includes(a.fieldName);
-      const bCompleted = completedFields.includes(b.fieldName);
-      if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
-    }
+    // Group requirements by importance
+    const requiredFields = profileRequirements.filter((r: ProfileRequirement) => r.importance === 'required');
+    const recommendedFields = profileRequirements.filter((r: ProfileRequirement) => r.importance === 'recommended');
+    const optionalFields = profileRequirements.filter((r: ProfileRequirement) => r.importance === 'optional');
     
-    // Finally, sort alphabetically by field name
-    return a.fieldName.localeCompare(b.fieldName);
-  });
+    // Calculate completion rates
+    const requiredCompleted = requiredFields.filter((r: ProfileRequirement) => 
+      completedFields.includes(r.fieldName)).length;
+    const recommendedCompleted = recommendedFields.filter((r: ProfileRequirement) => 
+      completedFields.includes(r.fieldName)).length;
+    const optionalCompleted = optionalFields.filter((r: ProfileRequirement) => 
+      completedFields.includes(r.fieldName)).length;
+    
+    const totalFields = profileRequirements.length;
+    const totalCompleted = completedFields.length;
+    
+    // Calculate percentages for progress bars
+    const requiredPercentage = requiredFields.length > 0 
+      ? Math.round((requiredCompleted / requiredFields.length) * 100) 
+      : 100;
+    
+    const totalPercentage = totalFields > 0
+      ? Math.round((totalCompleted / totalFields) * 100)
+      : 0;
+    
+    // Filter requirements based on active tab
+    const filteredRequirements = [...profileRequirements].filter((r: ProfileRequirement) => {
+      const isComplete = completedFields.includes(r.fieldName);
+      if (activeTab === 'todo') return !isComplete;
+      if (activeTab === 'completed') return isComplete;
+      return true; // 'all' tab
+    });
+    
+    // Sort requirements by importance and completion
+    const sortedRequirements = [...filteredRequirements].sort((a: ProfileRequirement, b: ProfileRequirement) => {
+      // First, prioritize by importance
+      const importanceOrder: Record<string, number> = { required: 0, recommended: 1, optional: 2 };
+      const importanceDiff = importanceOrder[a.importance] - importanceOrder[b.importance];
+      if (importanceDiff !== 0) return importanceDiff;
+      
+      // Then by completion status (incomplete items first) - only if we're viewing all items
+      if (activeTab === 'all') {
+        const aCompleted = completedFields.includes(a.fieldName);
+        const bCompleted = completedFields.includes(b.fieldName);
+        if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
+      }
+      
+      // Finally, sort alphabetically by field name
+      return a.fieldName.localeCompare(b.fieldName);
+    });
+
+    setGroupedData({
+      requiredFields,
+      recommendedFields,
+      optionalFields,
+      requiredCompleted,
+      recommendedCompleted,
+      optionalCompleted,
+      totalFields,
+      totalCompleted,
+      requiredPercentage,
+      totalPercentage,
+      filteredRequirements,
+      sortedRequirements
+    });
+  }, [profileRequirements, completedFields, activeTab]);
+
+  // Destructure processed data
+  const {
+    requiredFields,
+    recommendedFields,
+    optionalFields,
+    requiredCompleted,
+    recommendedCompleted,
+    optionalCompleted,
+    totalFields,
+    totalCompleted,
+    requiredPercentage,
+    totalPercentage,
+    filteredRequirements,
+    sortedRequirements
+  } = groupedData;
   
   // If there are no profile requirements and we're not loading, don't render
   if (!isLoading && profileRequirements.length === 0) {

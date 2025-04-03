@@ -169,135 +169,202 @@ export class BackgroundProcessor {
     }
 
     this.isProcessing = true;
-    console.log(`[BackgroundProcessor] Processing ${this.processingQueue.size} documents`);
-
+    
     try {
-      // Create a processing job to track this batch
+      // Get all documents in the queue
+      const queueArray = Array.from(this.processingQueue);
+      const totalDocuments = queueArray.length;
+      
+      // Process documents in batches of 5 to avoid overloading the system
+      const BATCH_SIZE = 5;
+      const totalBatches = Math.ceil(totalDocuments / BATCH_SIZE);
+      
+      console.log(`[BackgroundProcessor] Processing ${totalDocuments} documents in ${totalBatches} batches of max ${BATCH_SIZE}`);
+      
+      // Create a processing job to track progress across all batches
       const job = await storage.createProcessingJob({
         jobType: 'document_analysis',
-        status: 'pending',
+        status: 'running',
         entityType: 'document',
-        entityId: Array.from(this.processingQueue)[0] || 0,
+        entityId: 0, // Not specific to any one document
         params: {
-          documentCount: this.processingQueue.size,
-          documentIds: Array.from(this.processingQueue)
-        }
+          documentCount: totalDocuments,
+          documentIds: queueArray,
+          batchSize: BATCH_SIZE,
+          totalBatches: totalBatches
+        },
+        startedAt: new Date(),
       });
       
       console.log(`[BackgroundProcessor] Created processing job ${job.id}`);
-      
-      // Process each document in the queue by converting Set to Array
-      const queueArray = Array.from(this.processingQueue);
+
       let processedCount = 0;
       let errorCount = 0;
       
-      for (const documentId of queueArray) {
-        // Check if we already have a persisted analysis
-        const existingAnalysis = await storage.getDocumentAnalysis(documentId);
-        if (existingAnalysis) {
-          console.log(`[BackgroundProcessor] Document ${documentId} already has persisted analysis`);
-          // Also cache in memory for quicker access
-          // Convert the analysis structure to a format our code expects
-          const analysisData = {
-            summary: existingAnalysis.summary,
-            topics: existingAnalysis.topics,
-            relevanceScore: existingAnalysis.relevanceScore,
-            keyInsights: existingAnalysis.keyInsights,
-            targetAudience: existingAnalysis.targetAudience,
-            profileRequirements: existingAnalysis.profileRequirements
-          };
-          this.analysisResults.set(`doc_${documentId}`, analysisData);
-          this.processingStatus.set(`doc_${documentId}`, 'completed');
-          this.processingQueue.delete(documentId);
-          processedCount++;
-          continue;
-        }
-
-        try {
-          // Update status to processing
-          this.processingStatus.set(`doc_${documentId}`, 'processing');
-          
-          // Update the job status
-          await storage.updateProcessingJob(job.id, {
-            status: 'processing',
-            result: {
-              progress: Math.floor((processedCount / queueArray.length) * 100),
-              currentDocument: documentId,
-              processedCount,
-              errorCount
-            }
-          });
-          
-          // Get document from storage
+      // Process documents in batches
+      for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+        const start = batchIndex * BATCH_SIZE;
+        const end = Math.min(start + BATCH_SIZE, totalDocuments);
+        const currentBatch = queueArray.slice(start, end);
+        
+        console.log(`[BackgroundProcessor] Processing batch ${batchIndex + 1}/${totalBatches} with ${currentBatch.length} documents`);
+        
+        // Update job status at batch start
+        await storage.updateProcessingJob(job.id, {
+          status: 'processing',
+          result: {
+            progress: Math.floor((processedCount / totalDocuments) * 100),
+            currentBatch: batchIndex + 1,
+            totalBatches: totalBatches,
+            processedCount: processedCount,
+            errorCount: errorCount,
+            message: `Starting batch ${batchIndex + 1} of ${totalBatches}`
+          }
+        });
+        
+        // Process each document in the current batch
+        for (const documentId of currentBatch) {
+          // Check if document exists and if it already has analysis
           const document = await storage.getDocument(documentId);
-          
           if (!document) {
-            console.warn(`[BackgroundProcessor] Document ${documentId} not found`);
-            this.processingStatus.set(`doc_${documentId}`, 'not_found');
+            console.log(`[BackgroundProcessor] Document ${documentId} not found, removing from queue`);
             this.processingQueue.delete(documentId);
+            this.processingStatus.set(`doc_${documentId}`, 'not_found');
+            processedCount++;
             errorCount++;
             continue;
           }
+          
+          // Check if we already have a persisted analysis for this document
+          const existingAnalysis = await storage.getDocumentAnalysis(documentId);
+          
+          if (existingAnalysis) {
+            console.log(`[BackgroundProcessor] Document ${documentId} already has persisted analysis`);
+            // Cache in memory for quicker access
+            const analysisData = {
+              summary: existingAnalysis.summary,
+              topics: existingAnalysis.topics,
+              relevanceScore: existingAnalysis.relevanceScore,
+              keyInsights: existingAnalysis.keyInsights,
+              targetAudience: existingAnalysis.targetAudience,
+              profileRequirements: existingAnalysis.profileRequirements
+            };
+            this.analysisResults.set(`doc_${documentId}`, analysisData);
+            this.processingStatus.set(`doc_${documentId}`, 'completed');
+            this.processingQueue.delete(documentId);
+            processedCount++;
+            continue;
+          }
 
-          // Process the document
-          const analysis = await this.analyzeDocument(document);
-          
-          // Store result in persistent storage
-          const dbAnalysis = await storage.createOrUpdateDocumentAnalysis({
-            documentId,
-            summary: analysis.summary || "No summary available",
-            topics: analysis.topics || [],
-            relevanceScore: analysis.relevanceScore || 0,
-            keyInsights: analysis.keyInsights || [],
-            targetAudience: analysis.targetAudience || [],
-            profileRequirements: analysis.profileRequirements || {}
-          });
-          
-          // Also cache in memory for quicker access
-          this.analysisResults.set(`doc_${documentId}`, analysis);
-          this.processingStatus.set(`doc_${documentId}`, 'completed');
-          
-          processedCount++;
-          console.log(`[BackgroundProcessor] Completed analysis for document ${documentId}`);
-        } catch (error) {
-          console.error(`[BackgroundProcessor] Error processing document ${documentId}:`, error);
-          this.processingStatus.set(`doc_${documentId}`, 'error');
-          errorCount++;
-          
-          // Create a failed entry in DB
           try {
+            // Update status to processing
+            this.processingStatus.set(`doc_${documentId}`, 'processing');
+            
+            // Update the job status for individual document
+            await storage.updateProcessingJob(job.id, {
+              status: 'processing',
+              result: {
+                progress: Math.floor((processedCount / totalDocuments) * 100),
+                currentBatch: batchIndex + 1,
+                totalBatches: totalBatches,
+                currentDocument: documentId,
+                processedCount: processedCount,
+                errorCount: errorCount
+              }
+            });
+            
+            // Analyze the document
+            const analysisResults = await this.analyzeDocument(document);
+            
+            // Cache the results in memory
+            this.analysisResults.set(`doc_${documentId}`, analysisResults);
+            
+            // Save analysis results to the database to persist them
             await storage.createOrUpdateDocumentAnalysis({
               documentId,
-              summary: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-              topics: [],
-              relevanceScore: 0,
-              keyInsights: [],
-              targetAudience: [],
-              profileRequirements: { error: error instanceof Error ? error.message : 'Unknown error' }
+              summary: analysisResults.summary || "No summary available",
+              topics: analysisResults.topics || [],
+              relevanceScore: analysisResults.relevanceScore || 0,
+              keyInsights: analysisResults.keyInsights || [],
+              targetAudience: analysisResults.targetAudience || [],
+              profileRequirements: typeof analysisResults.profileRequirements === 'object' 
+                ? analysisResults.profileRequirements 
+                : {}
             });
-          } catch (dbError) {
-            console.error(`[BackgroundProcessor] Error saving failed analysis to DB:`, dbError);
+            
+            // Update status to completed
+            this.processingStatus.set(`doc_${documentId}`, 'completed');
+            
+            // Remove from processing queue
+            this.processingQueue.delete(documentId);
+            
+            processedCount++;
+            
+            console.log(`[BackgroundProcessor] Completed analysis for document ${documentId}`);
+          } catch (error) {
+            console.error(`[BackgroundProcessor] Error processing document ${documentId}:`, error);
+            this.processingStatus.set(`doc_${documentId}`, 'error');
+            errorCount++;
+            
+            // Create a failed analysis entry in the database
+            try {
+              await storage.createOrUpdateDocumentAnalysis({
+                documentId,
+                summary: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                topics: [],
+                relevanceScore: 0,
+                keyInsights: [],
+                targetAudience: [],
+                profileRequirements: { error: error instanceof Error ? error.message : 'Unknown error' }
+              });
+            } catch (dbError) {
+              console.error(`[BackgroundProcessor] Error saving failed analysis to DB:`, dbError);
+            }
+            
+            // Remove from queue so we don't try again immediately
+            this.processingQueue.delete(documentId);
           }
-        } finally {
-          // Remove from queue regardless of outcome
-          this.processingQueue.delete(documentId);
+        }
+        
+        // If there are more batches to process, pause briefly to prevent overwhelming the system
+        if (batchIndex < totalBatches - 1) {
+          console.log(`[BackgroundProcessor] Completed batch ${batchIndex + 1}/${totalBatches}, pausing before next batch`);
+          
+          // Update job status between batches
+          await storage.updateProcessingJob(job.id, {
+            status: 'processing',
+            result: {
+              progress: Math.floor((processedCount / totalDocuments) * 100),
+              processedCount: processedCount,
+              errorCount: errorCount,
+              currentBatch: batchIndex + 1,
+              totalBatches: totalBatches,
+              message: `Completed batch ${batchIndex + 1} of ${totalBatches}, pausing before next batch`
+            }
+          });
+          
+          // Pause for 10 seconds between batches to let the system breathe
+          await new Promise(resolve => setTimeout(resolve, 10000));
         }
       }
       
-      // Update job status to completed
+      // Update the job status to completed
       await storage.updateProcessingJob(job.id, {
         status: 'completed',
         completedAt: new Date(),
         result: {
           progress: 100,
-          processedCount,
-          errorCount
+          processedCount: processedCount,
+          errorCount: errorCount,
+          totalDocuments: totalDocuments,
+          totalBatches: totalBatches,
+          message: 'All documents processed'
         }
       });
       
       console.log(`[BackgroundProcessor] Job ${job.id} completed. Processed: ${processedCount}, Errors: ${errorCount}`);
     } catch (error) {
-      console.error(`[BackgroundProcessor] Error in processing queue:`, error);
+      console.error('[BackgroundProcessor] Error processing queue:', error);
     } finally {
       this.isProcessing = false;
     }
