@@ -65,6 +65,16 @@ export interface AnswerQuestionParams {
   conversationHistory?: AIMessage[];
 }
 
+export interface DocumentAnalysisResult {
+  documentId: number;
+  title: string;
+  summary: string;
+  topics: string[];
+  relevanceScore: number;
+  keyInsights: string[];
+  targetAudience: string[];
+}
+
 // Define AI provider options
 const AI_PROVIDERS = {
   DEEPSEEK: 'deepseek',
@@ -75,7 +85,8 @@ const AI_PROVIDERS = {
 const CACHE_TTL = {
   RECOMMENDATIONS: 3600, // 1 hour
   ANSWERS: 1800,         // 30 minutes
-  PROPOSALS: 7200        // 2 hours
+  PROPOSALS: 7200,       // 2 hours
+  DOCUMENT_ANALYSIS: 86400 // 24 hours
 };
 
 export class AIService extends BaseService {
@@ -121,6 +132,7 @@ export class AIService extends BaseService {
       instrumentOrRole: string;
       location?: string;
       projectType?: string;
+      userId?: number;
     }
   ): Promise<ServiceResponse<GrantRecommendation[]>> {
     return this.executeWithErrorHandling(async () => {
@@ -134,11 +146,30 @@ export class AIService extends BaseService {
         return cachedRecommendations;
       }
       
+      // Analyze documents for enhanced recommendations if user ID is provided
+      let documentAnalyses: DocumentAnalysisResult[] = [];
+      if (artistProfile.userId) {
+        try {
+          documentAnalyses = await this.analyzeDocumentsForGrantMatching(artistProfile.userId, artistProfile);
+        } catch (error) {
+          console.error('[AIService] Error analyzing documents for recommendations:', error);
+          // Continue even if document analysis fails
+        }
+      }
+      
       // Retrieve relevant documents for context
       const documents = await this.getRelevantDocuments('grants for musicians');
       let documentContext = '';
       
-      if (documents && documents.length > 0) {
+      // If we have document analyses, use those for enhanced context
+      if (documentAnalyses && documentAnalyses.length > 0) {
+        documentContext = "Here are some analyzed documents that provide context for grant recommendations:\n" + 
+          documentAnalyses.map(analysis => {
+            return `Document: ${analysis.title}\nSummary: ${analysis.summary}\nKey Insights: ${analysis.keyInsights.join(', ')}\nRelevance: ${analysis.relevanceScore}/100\n`;
+          }).join('\n---\n');
+      } 
+      // Otherwise use basic document context
+      else if (documents && documents.length > 0) {
         documentContext = "Here are some example grants that might be relevant:\n" + 
           documents.map(doc => `- ${doc.title}: ${doc.content.substring(0, 200)}...`).join('\n');
       }
@@ -347,6 +378,187 @@ If you don't know the answer, be honest about not knowing rather than making up 
     }, 'Failed to answer question');
   }
   
+  /**
+   * Analyze a document using AI
+   */
+  async analyzeDocument(documentId: number): Promise<ServiceResponse<DocumentAnalysisResult>> {
+    return this.executeWithErrorHandling(async () => {
+      // Create cache key based on document ID
+      const cacheKey = `doc-analysis-${documentId}`;
+      
+      // Check cache first
+      const cachedAnalysis = this.cache.get<DocumentAnalysisResult>(cacheKey);
+      if (cachedAnalysis) {
+        console.log(`[AIService] Using cached document analysis for document ${documentId}`);
+        return cachedAnalysis;
+      }
+      
+      // Get the document from storage
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        throw new Error(`Document with ID ${documentId} not found`);
+      }
+      
+      // Prepare the system prompt
+      const systemPrompt = `You are an AI assistant specialized in analyzing grant-related documents for musicians and artists.
+Your task is to analyze the provided document and extract key information that would be useful for grant matching.
+Provide a structured analysis with the following components:
+1. A concise summary of the document
+2. Main topics covered in the document
+3. Relevance score for grant matching (0-100)
+4. Key insights from the document
+5. Target audience information
+`;
+
+      // Prepare the user message
+      const userMessage = `Please analyze the following document:
+
+Title: ${document.title}
+Type: ${document.type}
+Content: ${document.content}
+
+Return your analysis in JSON format with the following fields:
+{
+  "summary": "A concise summary of the document (100-150 words)",
+  "topics": ["List of main topics covered"],
+  "relevanceScore": number between 0-100,
+  "keyInsights": ["List of key insights or important points"],
+  "targetAudience": ["List of target audience groups"]
+}`;
+
+      const requestData: AICompletionRequest = {
+        model: this.defaultModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        temperature: 0.5,
+        max_tokens: 2048
+      };
+      
+      return await this.executeWithLogging('analyzeDocument', async () => {
+        try {
+          const response = await this.circuitBreaker.execute(this.callAI.bind(this), requestData);
+          
+          // Parse the response
+          try {
+            const content = response.choices[0].message.content;
+            const analysis = this.parseDocumentAnalysis(content, documentId, document.title);
+            
+            // Add to cache
+            this.cache.set(cacheKey, analysis, CACHE_TTL.DOCUMENT_ANALYSIS);
+            
+            return analysis;
+          } catch (parseError) {
+            console.error('[AIService] Failed to parse document analysis:', parseError);
+            throw new Error('Failed to parse document analysis');
+          }
+        } catch (error) {
+          console.error('[AIService] Error analyzing document:', error);
+          
+          // Create a minimal analysis result as fallback
+          return {
+            documentId,
+            title: document.title,
+            summary: "Analysis unavailable at this time.",
+            topics: ["Music grants"],
+            relevanceScore: 50,
+            keyInsights: ["Please try analyzing this document again later."],
+            targetAudience: ["Musicians", "Artists"]
+          };
+        }
+      });
+    }, 'Failed to analyze document');
+  }
+  
+  /**
+   * Analyze multiple documents to enhance grant recommendations
+   */
+  async analyzeDocumentsForGrantMatching(userId: number, artistProfile: any): Promise<DocumentAnalysisResult[]> {
+    try {
+      // Get documents relevant to the user and artist profile
+      const documents = await storage.getApprovedDocuments();
+      if (!documents || documents.length === 0) {
+        return [];
+      }
+      
+      // Limit to max 5 documents to analyze
+      const relevantDocs = documents.slice(0, 5);
+      
+      // Analyze each document in parallel
+      const analysisPromises = relevantDocs.map(async (doc) => {
+        const result = await this.analyzeDocument(doc.id);
+        if (!result.success) {
+          return null;
+        }
+        return result.data; // Properly extract the DocumentAnalysisResult from the ServiceResponse
+      });
+      
+      const analysisResults = await Promise.all(analysisPromises);
+      
+      // Filter out nulls and sort by relevance score
+      const validResults: DocumentAnalysisResult[] = [];
+      
+      for (const result of analysisResults) {
+        if (result && typeof result?.relevanceScore === 'number' && result.relevanceScore > 30) {
+          validResults.push(result);
+        }
+      }
+      
+      // Sort by relevance score
+      return validResults.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    } catch (error) {
+      console.error('[AIService] Error analyzing documents for grant matching:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Parse document analysis result from AI response
+   */
+  private parseDocumentAnalysis(content: string, documentId: number, documentTitle: string): DocumentAnalysisResult {
+    try {
+      // Try to find JSON in the response
+      const jsonMatch = content.match(/```json([\s\S]*?)```/) || 
+                        content.match(/```([\s\S]*?)```/) ||
+                        content.match(/(\{[\s\S]*?\})/);
+      
+      if (jsonMatch && jsonMatch[1]) {
+        // Parse the JSON within the code block
+        const jsonContent = jsonMatch[1].trim();
+        const parsedResult = JSON.parse(jsonContent);
+        
+        // Ensure the result has the documentId and title
+        return {
+          documentId,
+          title: documentTitle,
+          ...parsedResult
+        };
+      } else {
+        // Try parsing the entire response as JSON
+        const parsedResult = JSON.parse(content);
+        return {
+          documentId,
+          title: documentTitle,
+          ...parsedResult
+        };
+      }
+    } catch (e) {
+      console.error('[AIService] Failed to parse document analysis JSON:', e);
+      
+      // Create a simple analysis result with default values
+      return {
+        documentId,
+        title: documentTitle,
+        summary: "Unable to parse analysis result.",
+        topics: ["Document analysis"],
+        relevanceScore: 40,
+        keyInsights: ["Analysis parsing failed"],
+        targetAudience: ["Musicians"]
+      };
+    }
+  }
+
   /**
    * Clear the cache
    */

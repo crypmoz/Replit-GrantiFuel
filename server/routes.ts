@@ -937,6 +937,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ error: "Failed to generate grant recommendations" });
     }
   });
+  
+  // Document analysis endpoint
+  app.post("/api/ai/analyze-document/:id", requireAuth, async (req, res) => {
+    try {
+      const documentId = parseInt(req.params.id);
+      
+      if (isNaN(documentId)) {
+        return res.status(400).json({ error: "Invalid document ID" });
+      }
+      
+      // Check if the document exists and user has access
+      const document = await storage.getDocument(documentId);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      // Only allow document owners or admins to analyze
+      if (document.userId !== req.user!.id && req.user!.role !== 'admin') {
+        return res.status(403).json({ error: "You don't have permission to analyze this document" });
+      }
+      
+      // Get document analysis from AI service
+      const result = await aiService.analyzeDocument(documentId);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error || "Failed to analyze document" });
+      }
+      
+      // Create an activity to record the document analysis
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "ANALYZED",
+        entityType: "DOCUMENT",
+        entityId: documentId,
+        details: {
+          documentTitle: document.title,
+          documentType: document.type
+        }
+      });
+      
+      return res.json({ analysis: result.data });
+    } catch (error) {
+      console.error("Error analyzing document:", error);
+      return res.status(500).json({ error: "Failed to analyze document" });
+    }
+  });
 
   // Onboarding routes
   app.get("/api/onboarding", requireAuth, async (req, res) => {

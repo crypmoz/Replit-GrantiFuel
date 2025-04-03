@@ -22,6 +22,7 @@ export interface ArtistProfile {
   instrumentOrRole: string;
   location?: string;
   projectType?: string;
+  userId?: number; // This will be set by the server, not client
 }
 
 export function useGrantRecommendations() {
