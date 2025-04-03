@@ -90,43 +90,64 @@ export default function NewApplicationForm() {
         try {
           const recommendations = JSON.parse(cachedRecommendations);
           
-          // Find the recommendation that matches our ID pattern
-          // First try to match with a more exact approach
+          // We need to find the right recommendation from the array that matches our ID
           let matchingGrant;
           
-          // Extract the hostname from grantId if possible
-          let targetHostname = '';
-          const hostnameMatch = grantId.match(/doc-based-(.*?)-/);
-          if (hostnameMatch && hostnameMatch[1]) {
-            targetHostname = hostnameMatch[1];
+          // First, extract the index from the grantId (doc-based-xxx-INDEX)
+          const indexMatch = grantId.match(/(\d+)$/);
+          let index = -1;
+          
+          if (indexMatch && indexMatch[1]) {
+            index = parseInt(indexMatch[1], 10);
+            // If we have a valid index, use it directly
+            if (!isNaN(index) && index >= 0 && index < recommendations.length) {
+              matchingGrant = recommendations[index];
+              console.log(`Found grant by index ${index}:`, matchingGrant.name);
+            }
           }
           
-          // Try to find an exact match
-          if (targetHostname) {
-            matchingGrant = recommendations.find((rec: any) => {
-              if (!rec.url) return false;
-              
-              try {
-                const hostname = new URL(rec.url).hostname;
-                return hostname === targetHostname || hostname.includes(targetHostname) || targetHostname.includes(hostname);
-              } catch (e) {
-                return false;
-              }
-            });
-          }
-          
-          // If no exact match, fall back to a broader search
+          // If no match by index, try hostname matching
           if (!matchingGrant) {
-            // Try to match based on any similar properties in the URL or name
-            matchingGrant = recommendations.find((rec: any) => {
-              // Try to match by URL first
-              if (rec.url && grantId.includes(rec.url.replace(/https?:\/\//g, '').split('/')[0])) {
-                return true;
-              }
+            // Extract the hostname from grantId if possible
+            let targetHostname = '';
+            const hostnameMatch = grantId.match(/doc-based-(.*?)-/);
+            
+            if (hostnameMatch && hostnameMatch[1] && hostnameMatch[1] !== 'recommendation') {
+              targetHostname = hostnameMatch[1];
+              console.log('Looking for grant with hostname:', targetHostname);
               
-              // If that fails, just get the first recommendation
-              return true;
-            });
+              // Try to find an exact match by hostname
+              matchingGrant = recommendations.find((rec: any) => {
+                if (!rec.url) return false;
+                
+                try {
+                  // Extract hostname from URL and normalize it
+                  const hostname = new URL(
+                    rec.url.startsWith('http') ? rec.url : `https://${rec.url}`
+                  ).hostname.replace(/^www\./, '');
+                  
+                  const normalizedTarget = targetHostname.replace(/^www\./, '');
+                  
+                  // Check for exact match or partial match in either direction
+                  return hostname === normalizedTarget || 
+                         hostname.includes(normalizedTarget) || 
+                         normalizedTarget.includes(hostname);
+                } catch (e) {
+                  console.error('Error parsing URL:', rec.url, e);
+                  return false;
+                }
+              });
+              
+              if (matchingGrant) {
+                console.log('Found grant by hostname:', matchingGrant.name);
+              }
+            }
+          }
+          
+          // If no match yet, use the first recommendation (fallback)
+          if (!matchingGrant && recommendations.length > 0) {
+            matchingGrant = recommendations[0];
+            console.log('No matching grant found, using first recommendation:', matchingGrant.name);
           }
           
           // If still no match, just use the first recommendation as fallback
@@ -446,10 +467,31 @@ ${form.getValues('projectImpact')}
           This tool helps you prepare your application content for <strong>{effectiveGrant.name}</strong>. 
           You'll need to submit the final application through their 
           <a 
-            href={effectiveGrant.url || effectiveGrant.website || "#"} 
+            href={(() => {
+              // Get the URL from either field
+              const url = effectiveGrant.url || effectiveGrant.website;
+              if (!url) return "#";
+              
+              try {
+                // Ensure URL is properly formatted
+                const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
+                new URL(formattedUrl); // Will throw if invalid
+                return formattedUrl;
+              } catch (e) {
+                console.error('Invalid URL in grant:', url);
+                return "#";
+              }
+            })()} 
             target="_blank" 
             rel="noopener noreferrer"
             className="mx-1 text-primary underline hover:text-primary/80"
+            onClick={(e) => {
+              const url = effectiveGrant.url || effectiveGrant.website;
+              if (!url) {
+                e.preventDefault();
+                // Could show a toast here
+              }
+            }}
           >
             official website
           </a>.
@@ -639,8 +681,34 @@ ${form.getValues('projectImpact')}
                   </Button>
                   
                   <Button 
-                    onClick={() => window.open(effectiveGrant.url || effectiveGrant.website || "#", '_blank')}
+                    onClick={() => {
+                      // Get the URL from either field
+                      const url = effectiveGrant.url || effectiveGrant.website;
+                      if (!url) {
+                        toast({
+                          title: "No website available",
+                          description: "This grant doesn't have an official website link.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      
+                      try {
+                        // Ensure URL is properly formatted before opening
+                        const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
+                        new URL(formattedUrl); // Will throw if invalid
+                        window.open(formattedUrl, '_blank');
+                      } catch (e) {
+                        console.error('Invalid URL in grant:', url);
+                        toast({
+                          title: "Invalid website URL",
+                          description: "Unable to open the website due to an invalid URL format.",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
                     className="w-full"
+                    disabled={!effectiveGrant.url && !effectiveGrant.website}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Go to Official Application Portal
