@@ -1435,17 +1435,31 @@ Return your response in this JSON format:
       
       console.log(`[AI Route] Getting profile requirements for user ${req.user!.id}`);
       
-      // Get profile requirements from AI service
-      const result = await aiService.getRequiredProfileFields();
+      // First import the background processor
+      const { backgroundProcessor } = require('./services/background-processor');
       
-      if (!result.success) {
-        console.error(`[AI Route] Profile requirements failed: ${result.error}`);
-        return res.status(500).json({ error: result.error || "Failed to get profile requirements" });
+      try {
+        // Get profile requirements from the background processor
+        const profileRequirements = await backgroundProcessor.getProfileRequirements();
+        
+        console.log(`[AI Route] Successfully retrieved ${profileRequirements?.length || 0} profile requirements`);
+        
+        return res.json({ profileRequirements });
+      } catch (bgpError) {
+        console.warn(`[AI Route] Background processor error, falling back to direct API call: ${bgpError}`);
+        
+        // Fallback to direct AI service call if background processor fails
+        const result = await aiService.getRequiredProfileFields();
+        
+        if (!result.success) {
+          console.error(`[AI Route] Profile requirements failed: ${result.error}`);
+          return res.status(500).json({ error: result.error || "Failed to get profile requirements" });
+        }
+        
+        console.log(`[AI Route] Successfully retrieved ${result.data?.length || 0} profile requirements`);
+        
+        return res.json({ profileRequirements: result.data });
       }
-      
-      console.log(`[AI Route] Successfully retrieved ${result.data?.length || 0} profile requirements`);
-      
-      return res.json({ profileRequirements: result.data });
     } catch (error) {
       console.error("Error getting profile requirements:", error);
       return res.status(500).json({ 
@@ -2279,13 +2293,50 @@ Return your response in this JSON format:
         }
       });
       
-      // Return the original result
       return res.json(clearResult);
     } catch (error: any) {
-      console.error('[Admin] Error clearing AI cache:', error);
+      console.error('Error clearing AI cache:', error);
       return res.status(500).json({ 
         status: 'error',
         message: error.message || "Failed to clear AI cache"
+      });
+    }
+  });
+  
+  // Background processor queue management routes for admin
+  app.post("/api/admin/background/queue-documents", requireAdmin, async (req, res) => {
+    try {
+      console.log(`[Admin] Document queue processing requested by user ${req.user!.id}`);
+      
+      // First import the background processor
+      const { backgroundProcessor } = require('./services/background-processor');
+      
+      // Queue all unprocessed documents
+      const result = await backgroundProcessor.queueAllDocuments();
+      
+      // Log the activity
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "ADMIN",
+        entityType: "BACKGROUND_PROCESSOR",
+        details: {
+          action: "queue_documents",
+          count: result.queued,
+          timestamp: new Date().toISOString()
+        }
+      });
+      
+      // Return the result
+      return res.json({
+        status: 'success',
+        message: `Successfully queued ${result.queued} documents for processing`,
+        queued: result.queued
+      });
+    } catch (error: any) {
+      console.error('[Admin] Error queueing documents for processing:', error);
+      return res.status(500).json({ 
+        status: 'error',
+        message: error.message || "Failed to queue documents for processing"
       });
     }
   });
