@@ -1464,14 +1464,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No file uploaded" });
       }
       
-      // Get JSON data from request body
-      const { title, content, type, tags, isPublic } = req.body;
-      
-      if (!title || !content || !type) {
-        // Clean up uploaded file if data is invalid
-        fs.unlinkSync(file.path);
-        return res.status(400).json({ error: "Missing required fields: title, content, and type are required" });
-      }
+      // Determine if this is an admin user (for auto-classification)
+      const isAdmin = req.user!.role === 'admin';
       
       // Determine file type for database
       let fileType: 'pdf' | 'docx' | 'txt' = 'none' as any;
@@ -1484,20 +1478,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create relative URL for file
       const fileUrl = `/uploads/${path.basename(file.path)}`;
       
-      // Prepare document data
-      let documentData: any = {
-        userId: req.user!.id,
-        title,
-        content,
-        type,
-        tags: tags ? JSON.parse(tags) : [],
-        isPublic: isPublic === 'true',
-        // File data
-        fileName: file.originalname,
-        fileType,
-        fileUrl,
-        fileSize: file.size,
-      };
+      let documentData: any;
+      
+      // If admin is uploading, we can use AI to extract info automatically
+      if (isAdmin && req.body.autoClassify === 'true') {
+        try {
+          // Read file content
+          const fileContent = fs.readFileSync(file.path, 'utf8');
+          
+          // Use AI to classify document
+          const classificationResult = await aiService.classifyDocument(fileContent, file.originalname);
+          
+          if (!classificationResult.success || !classificationResult.data) {
+            throw new Error('AI classification failed');
+          }
+          
+          // Use the AI-generated metadata
+          const { 
+            title, 
+            content, 
+            type, 
+            tags, 
+            confidence
+          } = classificationResult.data;
+          
+          documentData = {
+            userId: req.user!.id,
+            title,
+            content,
+            type,
+            tags,
+            isPublic: req.body.isPublic === 'true',
+            // File data
+            fileName: file.originalname,
+            fileType,
+            fileUrl,
+            fileSize: file.size,
+            // Classification confidence
+            aiClassified: true,
+            aiConfidence: confidence
+          };
+        } catch (aiError) {
+          console.error('[Server] AI document classification failed:', aiError);
+          // Fall back to manual fields if AI fails
+          
+          // Get JSON data from request body
+          const { title, content, type, tags, isPublic } = req.body;
+          
+          if (!title || !content || !type) {
+            // Clean up uploaded file if data is invalid
+            fs.unlinkSync(file.path);
+            return res.status(400).json({ 
+              error: "AI classification failed and required fields are missing. Please provide title, content, and type." 
+            });
+          }
+          
+          documentData = {
+            userId: req.user!.id,
+            title,
+            content,
+            type,
+            tags: tags ? JSON.parse(tags) : [],
+            isPublic: isPublic === 'true',
+            // File data
+            fileName: file.originalname,
+            fileType,
+            fileUrl,
+            fileSize: file.size,
+            aiClassified: false
+          };
+        }
+      } else {
+        // Regular upload process (non-admin or admin without auto-classification)
+        // Get JSON data from request body
+        const { title, content, type, tags, isPublic } = req.body;
+        
+        if (!title || !content || !type) {
+          // Clean up uploaded file if data is invalid
+          fs.unlinkSync(file.path);
+          return res.status(400).json({ error: "Missing required fields: title, content, and type are required" });
+        }
+        
+        documentData = {
+          userId: req.user!.id,
+          title,
+          content,
+          type,
+          tags: tags ? JSON.parse(tags) : [],
+          isPublic: isPublic === 'true',
+          // File data
+          fileName: file.originalname,
+          fileType,
+          fileUrl,
+          fileSize: file.size,
+          aiClassified: false
+        };
+      }
       
       // All documents are automatically approved for AI training
       documentData.isApproved = true;
@@ -1514,7 +1590,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           title: document.title,
           type: document.type,
           fileName: document.fileName,
-          fileType: document.fileType
+          fileType: document.fileType,
+          aiClassified: documentData.aiClassified || false
         }
       });
       

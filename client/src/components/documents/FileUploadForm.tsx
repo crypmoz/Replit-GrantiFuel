@@ -69,9 +69,22 @@ interface FileUploadFormProps {
 export default function FileUploadForm({ userRole, onSuccess }: FileUploadFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [useAI, setUseAI] = useState(userRole === 'admin');
+  const isAdmin = userRole === 'admin';
 
+  // Create a schema for AI-enabled admin uploads (only file required)
+  const aiEnabledSchema = z.object({
+    file: fileUploadSchema.shape.file,
+    isPublic: fileUploadSchema.shape.isPublic,
+    // Make other fields optional when AI is used
+    title: z.string().optional(),
+    content: z.string().optional(),
+    type: z.enum(['grant_info', 'artist_guide', 'application_tips', 'admin_knowledge', 'user_upload']).optional(),
+    tags: z.string().optional(),
+  });
+  
   const form = useForm<FileUploadFormValues>({
-    resolver: zodResolver(fileUploadSchema),
+    resolver: zodResolver(isAdmin && useAI ? aiEnabledSchema : fileUploadSchema),
     defaultValues: {
       title: '',
       content: '',
@@ -89,19 +102,39 @@ export default function FileUploadForm({ userRole, onSuccess }: FileUploadFormPr
         // Create FormData for file upload
         const formData = new FormData();
         formData.append('file', data.file);
-        formData.append('title', data.title);
-        formData.append('content', data.content);
-        formData.append('type', data.type);
         
-        // Convert tags string to array and add to form data
-        if (data.tags) {
-          const tagsArray = data.tags.split(',').map(tag => tag.trim());
-          formData.append('tags', JSON.stringify(tagsArray));
+        // If admin is using AI classification, only the file is required
+        if (isAdmin && useAI) {
+          formData.append('autoClassify', 'true');
+          formData.append('isPublic', data.isPublic.toString());
+          
+          // Still add form data in case AI classification fails
+          formData.append('title', data.title || '');
+          formData.append('content', data.content || '');
+          formData.append('type', data.type || 'user_upload');
+          if (data.tags) {
+            const tagsArray = data.tags.split(',').map(tag => tag.trim());
+            formData.append('tags', JSON.stringify(tagsArray));
+          } else {
+            formData.append('tags', JSON.stringify([]));
+          }
         } else {
-          formData.append('tags', JSON.stringify([]));
+          // Regular upload process
+          formData.append('title', data.title);
+          formData.append('content', data.content);
+          formData.append('type', data.type);
+          
+          // Convert tags string to array and add to form data
+          if (data.tags) {
+            const tagsArray = data.tags.split(',').map(tag => tag.trim());
+            formData.append('tags', JSON.stringify(tagsArray));
+          } else {
+            formData.append('tags', JSON.stringify([]));
+          }
+          
+          formData.append('isPublic', data.isPublic.toString());
+          formData.append('autoClassify', 'false');
         }
-        
-        formData.append('isPublic', data.isPublic.toString());
         
         // Use fetch directly for FormData
         const response = await fetch('/api/documents/upload', {
@@ -166,9 +199,16 @@ export default function FileUploadForm({ userRole, onSuccess }: FileUploadFormPr
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Title</FormLabel>
+                  <FormLabel className="flex gap-2 items-center">
+                    Title {isAdmin && useAI && <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">Auto-filled by AI</span>}
+                  </FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Enter document title" />
+                    <Input 
+                      {...field} 
+                      placeholder="Enter document title" 
+                      disabled={isAdmin && useAI}
+                      className={isAdmin && useAI ? "bg-muted/50 text-muted-foreground" : ""}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -180,13 +220,16 @@ export default function FileUploadForm({ userRole, onSuccess }: FileUploadFormPr
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Document Type</FormLabel>
+                  <FormLabel className="flex gap-2 items-center">
+                    Document Type {isAdmin && useAI && <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">Auto-detected by AI</span>}
+                  </FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
+                    disabled={isAdmin && useAI}
                   >
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger className={isAdmin && useAI ? "bg-muted/50 text-muted-foreground" : ""}>
                         <SelectValue placeholder="Select document type" />
                       </SelectTrigger>
                     </FormControl>
@@ -201,7 +244,9 @@ export default function FileUploadForm({ userRole, onSuccess }: FileUploadFormPr
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Select the category that best describes this document.
+                    {isAdmin && useAI 
+                      ? "AI will automatically detect the document type."
+                      : "Select the category that best describes this document."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -213,16 +258,21 @@ export default function FileUploadForm({ userRole, onSuccess }: FileUploadFormPr
               name="content"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Summary</FormLabel>
+                  <FormLabel className="flex gap-2 items-center">
+                    Summary {isAdmin && useAI && <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">Auto-generated by AI</span>}
+                  </FormLabel>
                   <FormControl>
                     <Textarea 
                       {...field} 
                       placeholder="Enter a summary of the document content" 
-                      className="min-h-[100px]" 
+                      className={`min-h-[100px] ${isAdmin && useAI ? "bg-muted/50 text-muted-foreground" : ""}`}
+                      disabled={isAdmin && useAI}
                     />
                   </FormControl>
                   <FormDescription>
-                    Provide a summary or description of the document's content.
+                    {isAdmin && useAI 
+                      ? "AI will automatically generate a summary of the document content."
+                      : "Provide a summary or description of the document's content."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -234,15 +284,21 @@ export default function FileUploadForm({ userRole, onSuccess }: FileUploadFormPr
               name="tags"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tags</FormLabel>
+                  <FormLabel className="flex gap-2 items-center">
+                    Tags {isAdmin && useAI && <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">Auto-generated by AI</span>}
+                  </FormLabel>
                   <FormControl>
                     <Input 
                       {...field} 
                       placeholder="Enter comma-separated tags (e.g. jazz, funding, orchestra)" 
+                      disabled={isAdmin && useAI}
+                      className={isAdmin && useAI ? "bg-muted/50 text-muted-foreground" : ""}
                     />
                   </FormControl>
                   <FormDescription>
-                    Tags help categorize and find documents. Separate with commas.
+                    {isAdmin && useAI 
+                      ? "AI will automatically extract relevant tags from the document."
+                      : "Tags help categorize and find documents. Separate with commas."}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -270,6 +326,32 @@ export default function FileUploadForm({ userRole, onSuccess }: FileUploadFormPr
                 </FormItem>
               )}
             />
+            
+            {isAdmin && (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-muted/50">
+                <FormControl>
+                  <Checkbox
+                    checked={useAI}
+                    onCheckedChange={(checked) => {
+                      setUseAI(!!checked);
+                      
+                      // If AI is enabled, we only need file and isPublic
+                      // If it's disabled, all fields are required
+                      if (checked) {
+                        // Clear validation errors for fields AI will handle
+                        form.clearErrors(['title', 'content', 'type', 'tags']);
+                      }
+                    }}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel className="text-primary font-semibold">Use AI Auto-Classification</FormLabel>
+                  <FormDescription>
+                    Let AI automatically extract document title, content, type and tags
+                  </FormDescription>
+                </div>
+              </FormItem>
+            )}
             
             <FormField
               control={form.control}

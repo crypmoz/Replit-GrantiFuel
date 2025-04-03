@@ -504,7 +504,7 @@ export default function Documents() {
   };
 
   // Query documents
-  const { data: documents = [], isLoading, error } = useQuery<Document[], { message: string }>({
+  const { data: documents = [], isLoading, error } = useQuery<Document[], Error>({
     queryKey: ['/api/documents'],
     queryFn: async () => {
       const res = await apiRequest('GET', '/api/documents');
@@ -975,7 +975,7 @@ export default function Documents() {
                       <AlertCircle className="h-4 w-4" />
                       <AlertTitle>Error</AlertTitle>
                       <AlertDescription>
-                        Failed to load documents: {error.message}
+                        Failed to load documents: {(error as any).message}
                       </AlertDescription>
                     </Alert>
                   ) : documents.length === 0 ? (

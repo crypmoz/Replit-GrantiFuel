@@ -75,6 +75,14 @@ export interface DocumentAnalysisResult {
   targetAudience: string[];
 }
 
+export interface DocumentClassificationResult {
+  title: string;
+  content: string;
+  type: 'grant_info' | 'artist_guide' | 'application_tips' | 'admin_knowledge' | 'user_upload';
+  tags: string[];
+  confidence: number;
+}
+
 // Define AI provider options
 const AI_PROVIDERS = {
   DEEPSEEK: 'deepseek',
@@ -86,7 +94,8 @@ const CACHE_TTL = {
   RECOMMENDATIONS: 3600, // 1 hour
   ANSWERS: 1800,         // 30 minutes
   PROPOSALS: 7200,       // 2 hours
-  DOCUMENT_ANALYSIS: 86400 // 24 hours
+  DOCUMENT_ANALYSIS: 86400, // 24 hours
+  DOCUMENT_CLASSIFICATION: 3600 // 1 hour
 };
 
 export class AIService extends BaseService {
@@ -472,6 +481,92 @@ Return your analysis in JSON format with the following fields:
   }
   
   /**
+   * Classify and extract information from a document
+   * This is used for the admin document upload to auto-detect fields
+   */
+  async classifyDocument(fileContent: string, fileName: string): Promise<ServiceResponse<DocumentClassificationResult>> {
+    return this.executeWithErrorHandling(async () => {
+      // Create cache key based on filename and first 100 chars of content
+      const contentPreview = fileContent.substring(0, 100).replace(/\s+/g, '');
+      const cacheKey = `doc-classification-${fileName}-${contentPreview}`;
+      
+      // Check cache first
+      const cachedClassification = this.cache.get<DocumentClassificationResult>(cacheKey);
+      if (cachedClassification) {
+        console.log(`[AIService] Using cached document classification for file ${fileName}`);
+        return cachedClassification;
+      }
+      
+      // Prepare the system prompt
+      const systemPrompt = `You are an AI assistant specialized in analyzing documents for a music grant application system.
+Your task is to analyze the provided document and classify it into one of the following categories:
+- grant_info: Information about specific grants or funding opportunities
+- artist_guide: Guides and resources for musicians and artists
+- application_tips: Tips and advice for grant applications
+- admin_knowledge: Administrative information for system administrators
+- user_upload: General user-uploaded content that doesn't fit other categories
+
+You'll also need to extract key information from the document and suggest appropriate tags.`;
+
+      // Prepare the user message
+      const userMessage = `Please analyze the following document:
+
+Filename: ${fileName}
+Content: ${fileContent.substring(0, 5000)}${fileContent.length > 5000 ? '...' : ''}
+
+Return your analysis in JSON format with the following fields:
+{
+  "title": "Suggested title for this document (concise and descriptive)",
+  "content": "A 2-3 sentence summary of the document's contents",
+  "type": "One of: grant_info, artist_guide, application_tips, admin_knowledge, user_upload",
+  "tags": ["Suggested tags for this document (3-5 tags)"],
+  "confidence": number between 0-100 representing confidence in classification
+}`;
+
+      const requestData: AICompletionRequest = {
+        model: this.defaultModel,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        temperature: 0.3,
+        max_tokens: 1024
+      };
+      
+      return await this.executeWithLogging('classifyDocument', async () => {
+        try {
+          const response = await this.circuitBreaker.execute(this.callAI.bind(this), requestData);
+          
+          // Parse the response
+          try {
+            const content = response.choices[0].message.content;
+            const classification = this.parseDocumentClassification(content);
+            
+            // Add to cache
+            this.cache.set(cacheKey, classification, CACHE_TTL.DOCUMENT_CLASSIFICATION);
+            
+            return classification;
+          } catch (parseError) {
+            console.error('[AIService] Failed to parse document classification:', parseError);
+            throw new Error('Failed to parse document classification');
+          }
+        } catch (error) {
+          console.error('[AIService] Error classifying document:', error);
+          
+          // Create a minimal classification result as fallback
+          return {
+            title: fileName,
+            content: "This document appears to contain information relevant to music grants.",
+            type: "user_upload",
+            tags: ["upload", "music", "document"],
+            confidence: 30
+          };
+        }
+      });
+    }, 'Failed to classify document');
+  }
+
+  /**
    * Analyze multiple documents to enhance grant recommendations
    */
   async analyzeDocumentsForGrantMatching(userId: number, artistProfile: any): Promise<DocumentAnalysisResult[]> {
@@ -755,6 +850,72 @@ Return your analysis in JSON format with the following fields:
       .split(/\s+/)
       .filter(word => word.length > 3 && !stopWords.includes(word))
       .slice(0, 5);
+  }
+  
+  /**
+   * Parse document classification result from AI response
+   */
+  private parseDocumentClassification(content: string): DocumentClassificationResult {
+    try {
+      // Try to find JSON in the response
+      const jsonMatch = content.match(/```json([\s\S]*?)```/) || 
+                        content.match(/```([\s\S]*?)```/) ||
+                        content.match(/(\{[\s\S]*?\})/);
+      
+      if (jsonMatch && jsonMatch[1]) {
+        // Parse the JSON within the code block
+        const jsonContent = jsonMatch[1].trim();
+        const parsedResult = JSON.parse(jsonContent);
+        
+        // Validate the result has all required fields
+        const result: DocumentClassificationResult = {
+          title: parsedResult.title || "Untitled Document",
+          content: parsedResult.content || "No summary available",
+          type: this.validateDocumentType(parsedResult.type),
+          tags: Array.isArray(parsedResult.tags) ? parsedResult.tags : [],
+          confidence: typeof parsedResult.confidence === 'number' ? 
+                      Math.min(100, Math.max(0, parsedResult.confidence)) : 50
+        };
+        
+        return result;
+      } else {
+        // Try parsing the entire response as JSON
+        const parsedResult = JSON.parse(content);
+        
+        return {
+          title: parsedResult.title || "Untitled Document",
+          content: parsedResult.content || "No summary available",
+          type: this.validateDocumentType(parsedResult.type),
+          tags: Array.isArray(parsedResult.tags) ? parsedResult.tags : [],
+          confidence: typeof parsedResult.confidence === 'number' ? 
+                      Math.min(100, Math.max(0, parsedResult.confidence)) : 50
+        };
+      }
+    } catch (e) {
+      console.error('[AIService] Failed to parse document classification JSON:', e);
+      
+      // Create a default classification
+      return {
+        title: "Untitled Document",
+        content: "This document couldn't be automatically classified.",
+        type: "user_upload",
+        tags: ["unclassified"],
+        confidence: 0
+      };
+    }
+  }
+  
+  /**
+   * Validate document type value
+   */
+  private validateDocumentType(type: string): DocumentClassificationResult['type'] {
+    const validTypes = ['grant_info', 'artist_guide', 'application_tips', 'admin_knowledge', 'user_upload'];
+    
+    if (type && validTypes.includes(type)) {
+      return type as DocumentClassificationResult['type'];
+    }
+    
+    return 'user_upload';
   }
 }
 
