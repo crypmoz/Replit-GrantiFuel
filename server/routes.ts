@@ -777,27 +777,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/applications", requireAuth, async (req, res) => {
-    const application = await storage.createApplication({
-      ...req.body,
-      userId: req.user!.id
-    });
-    return res.status(201).json(application);
+    try {
+      // Find the first artist for this user
+      const userArtists = await storage.getArtistsByUserId(req.user!.id);
+      
+      if (!userArtists || userArtists.length === 0) {
+        return res.status(400).json({ 
+          message: "You need to create an artist profile before submitting applications",
+          code: "ARTIST_REQUIRED"
+        });
+      }
+      
+      // Use the first artist ID if none is specified
+      const application = await storage.createApplication({
+        ...req.body,
+        userId: req.user!.id,
+        artistId: req.body.artistId || userArtists[0].id
+      });
+      
+      return res.status(201).json(application);
+    } catch (error: any) {
+      console.error("Error creating application:", error);
+      return res.status(500).json({ 
+        message: "Error creating application", 
+        error: error.message 
+      });
+    }
   });
 
   app.patch("/api/applications/:id", requireAuth, async (req, res) => {
-    // Get existing application to verify ownership
-    const existingApplication = await storage.getApplication(parseInt(req.params.id));
-    if (!existingApplication) {
-      return res.status(404).json({ message: "Application not found" });
+    try {
+      // Get existing application to verify ownership
+      const existingApplication = await storage.getApplication(parseInt(req.params.id));
+      if (!existingApplication) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+      
+      // Check if the application belongs to the current user
+      if (existingApplication.userId !== req.user!.id) {
+        return res.status(403).json({ message: "You don't have permission to modify this application" });
+      }
+      
+      // Only update if artistId is specified or remains unchanged
+      const updateData = {...req.body};
+      
+      // If artistId is being changed to null, use the first artist of the user
+      if ('artistId' in updateData && !updateData.artistId) {
+        const userArtists = await storage.getArtistsByUserId(req.user!.id);
+        if (!userArtists || userArtists.length === 0) {
+          return res.status(400).json({ 
+            message: "You need to create an artist profile before updating applications",
+            code: "ARTIST_REQUIRED"  
+          });
+        }
+        updateData.artistId = userArtists[0].id;
+      }
+      
+      const application = await storage.updateApplication(parseInt(req.params.id), updateData);
+      return res.json(application);
+    } catch (error: any) {
+      console.error("Error updating application:", error);
+      return res.status(500).json({ 
+        message: "Error updating application", 
+        error: error.message 
+      });
     }
-    
-    // Check if the application belongs to the current user
-    if (existingApplication.userId !== req.user!.id) {
-      return res.status(403).json({ message: "You don't have permission to modify this application" });
-    }
-    
-    const application = await storage.updateApplication(parseInt(req.params.id), req.body);
-    return res.json(application);
   });
 
   // Activities routes
