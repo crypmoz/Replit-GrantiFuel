@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { 
   Card, 
@@ -70,10 +70,14 @@ export default function AiControls() {
   } = useQuery<AIStatusResponse>({
     queryKey: ['/api/admin/ai/status'],
     refetchInterval: 30000, // Refresh every 30 seconds
-    onSuccess: (data) => {
-      setDetailedStatus(data);
-    }
   });
+  
+  // Update detailed status when data changes
+  useEffect(() => {
+    if (aiStatus) {
+      setDetailedStatus(aiStatus);
+    }
+  }, [aiStatus]);
 
   // Mutation for clearing AI cache
   const clearCacheMutation = useMutation({
@@ -145,7 +149,7 @@ export default function AiControls() {
       case 'OPEN':
         return <Badge variant="destructive">TRIPPED</Badge>;
       case 'HALF_OPEN':
-        return <Badge variant="warning" className="bg-yellow-100 text-yellow-800">RECOVERING</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800">RECOVERING</Badge>;
       default:
         return <Badge variant="outline">UNKNOWN</Badge>;
     }
@@ -367,10 +371,10 @@ export default function AiControls() {
               requests, use this to reset it and allow new AI requests to be processed.
             </p>
             {detailedStatus?.circuitBreakerState?.state?.toUpperCase() === 'OPEN' && (
-              <Alert variant="warning" className="mt-2">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Circuit Breaker is OPEN</AlertTitle>
-                <AlertDescription>
+              <Alert className="mt-2 bg-yellow-50 border-yellow-200">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertTitle className="text-yellow-800">Circuit Breaker is OPEN</AlertTitle>
+                <AlertDescription className="text-yellow-700">
                   The circuit breaker is currently tripped. Reset recommended.
                 </AlertDescription>
               </Alert>

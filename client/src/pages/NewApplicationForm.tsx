@@ -1,23 +1,28 @@
 
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Sparkles, Download, ExternalLink, Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { apiRequest } from '@/lib/queryClient';
+import { useOnboarding } from '@/hooks/use-onboarding';
 
 const applicationFormSchema = z.object({
   projectTitle: z.string().min(1, "Project title is required"),
   projectDescription: z.string().min(1, "Project description is required"),
-  budget: z.string().min(1, "Budget is required"),
-  timeline: z.string().min(1, "Timeline is required"),
+  artistGoals: z.string().min(1, "Artist goals are required"),
+  projectImpact: z.string().min(1, "Project impact is required"),
 });
 
 type ApplicationFormValues = z.infer<typeof applicationFormSchema>;
@@ -25,7 +30,19 @@ type ApplicationFormValues = z.infer<typeof applicationFormSchema>;
 export default function NewApplicationForm() {
   const [_, navigate] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { completeTask } = useOnboarding();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [activeTab, setActiveTab] = useState('essentials');
+  const [copied, setCopied] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<{
+    projectTitle?: string;
+    projectDescription?: string;
+    artistGoals?: string;
+    projectImpact?: string;
+  }>({});
 
   // Get grantId from URL query params
   const searchParams = new URLSearchParams(window.location.search);
@@ -42,42 +59,71 @@ export default function NewApplicationForm() {
     }
   });
 
+  // Fetch artist profiles
+  const { data: artists } = useQuery({
+    queryKey: ['/api/artists'],
+    enabled: !!user,
+  });
+
+  // Get first artist if available
+  const primaryArtist = artists && Array.isArray(artists) && artists.length > 0 ? artists[0] : null;
+
   const form = useForm<ApplicationFormValues>({
     resolver: zodResolver(applicationFormSchema),
     defaultValues: {
       projectTitle: '',
       projectDescription: '',
-      budget: '',
-      timeline: '',
+      artistGoals: '',
+      projectImpact: '',
     },
   });
 
+  // Use generated content when available
+  useEffect(() => {
+    if (generatedContent.projectTitle) {
+      form.setValue('projectTitle', generatedContent.projectTitle);
+    }
+    if (generatedContent.projectDescription) {
+      form.setValue('projectDescription', generatedContent.projectDescription);
+    }
+    if (generatedContent.artistGoals) {
+      form.setValue('artistGoals', generatedContent.artistGoals);
+    }
+    if (generatedContent.projectImpact) {
+      form.setValue('projectImpact', generatedContent.projectImpact);
+    }
+  }, [generatedContent, form]);
+
   const createApplicationMutation = useMutation({
     mutationFn: async (data: ApplicationFormValues) => {
-      const response = await fetch('/api/applications', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          grantId: Number(grantId),
-          ...data,
-          status: 'draft',
-          progress: 25,
-        }),
+      const response = await apiRequest('POST', '/api/applications', {
+        grantId: Number(grantId),
+        artistId: primaryArtist?.id,
+        ...data,
+        status: 'draft',
+        progress: 40,
       });
 
       if (!response.ok) {
         throw new Error('Failed to create application');
       }
 
-      return response.json();
+      return await response.json();
     },
     onSuccess: () => {
       toast({
-        title: "Application created",
-        description: "Your application has been started successfully.",
+        title: "Application prepared",
+        description: "Your application draft has been saved successfully.",
       });
+      
+      // Complete onboarding task if needed
+      try {
+        completeTask('first_application_created');
+      } catch (error) {
+        console.error('Error completing onboarding task:', error);
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/applications'] });
       navigate('/applications');
     },
     onError: (error: any) => {
@@ -98,12 +144,94 @@ export default function NewApplicationForm() {
     }
   };
 
+  const generateAIContent = async () => {
+    if (!grant || !primaryArtist) {
+      toast({
+        title: "Missing information",
+        description: "Grant details or artist profile information is missing.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const response = await apiRequest('POST', '/api/ai/generate-application-content', {
+        grantId: grant.id,
+        artistId: primaryArtist.id,
+        grantName: grant.name,
+        grantOrganization: grant.organization,
+        grantRequirements: grant.requirements?.join(', ') || '',
+        artistName: primaryArtist.name,
+        artistBio: primaryArtist.bio || '',
+        artistGenre: primaryArtist.genres?.join(', ') || '',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate content');
+      }
+
+      const result = await response.json();
+      setGeneratedContent(result.content || {});
+      
+      toast({
+        title: "Content generated",
+        description: "AI-generated content is ready for your review and editing.",
+      });
+      
+      // Complete onboarding task if needed
+      try {
+        completeTask('ai_assistant_used', { feature: 'application_content_generation' });
+      } catch (error) {
+        console.error('Error completing onboarding task:', error);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error generating content",
+        description: error.message || "Failed to generate content. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    const textToCopy = `
+# ${form.getValues('projectTitle')}
+
+## Project Description
+${form.getValues('projectDescription')}
+
+## Artist Goals
+${form.getValues('artistGoals')}
+
+## Project Impact
+${form.getValues('projectImpact')}
+    `;
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      setCopied(true);
+      toast({
+        title: "Copied to clipboard",
+        description: "Application content copied successfully.",
+      });
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      toast({
+        title: "Failed to copy",
+        description: "Could not copy to clipboard. Please try again.",
+        variant: "destructive"
+      });
+    });
+  };
+
   if (!grantId) {
     return (
       <div className="container max-w-4xl mx-auto py-6">
         <Card>
           <CardContent className="p-6">
-            <p>No grant selected. Please select a grant to apply for.</p>
+            <p>No grant selected. Please select a grant to prepare an application for.</p>
             <Button onClick={() => navigate('/grants')} className="mt-4">
               View Grants
             </Button>
@@ -131,7 +259,7 @@ export default function NewApplicationForm() {
       <div className="container max-w-4xl mx-auto py-6">
         <Card>
           <CardContent className="p-6">
-            <p>Grant not found. Please select a valid grant to apply for.</p>
+            <p>Grant not found. Please select a valid grant to prepare for.</p>
             <Button onClick={() => navigate('/grants')} className="mt-4">
               View Grants
             </Button>
@@ -150,104 +278,227 @@ export default function NewApplicationForm() {
         </Button>
       </div>
 
-      <Card>
+      <Alert className="mb-6 bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-900">
+        <AlertTitle className="text-amber-800 dark:text-amber-300 flex items-center">
+          <ExternalLink className="h-4 w-4 mr-2" />
+          Preparation Tool Only
+        </AlertTitle>
+        <AlertDescription className="text-amber-700 dark:text-amber-400">
+          This tool helps you prepare your application content for <strong>{grant.name}</strong>. 
+          You'll need to submit the final application through their 
+          <a 
+            href={grant.url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="mx-1 text-primary underline hover:text-primary/80"
+          >
+            official website
+          </a>.
+        </AlertDescription>
+      </Alert>
+
+      <Card className="mb-6">
         <CardHeader>
-          <CardTitle>New Application</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>Prepare Application</span>
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={generateAIContent}
+              disabled={isGenerating || !primaryArtist}
+              className="ml-auto"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2 text-yellow-500" />
+                  Generate with AI
+                </>
+              )}
+            </Button>
+          </CardTitle>
           <CardDescription>
-            Applying for: {grant.name} - {grant.organization}
+            {grant.name} - {grant.organization}
           </CardDescription>
         </CardHeader>
+        
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="projectTitle"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter your project title" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="essentials">Essential Information</TabsTrigger>
+              <TabsTrigger value="preview">Preview & Export</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="essentials">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="projectTitle"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your project title" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          A concise, memorable title for your grant project.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="projectDescription"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Description</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Describe your project in detail..."
-                        className="min-h-[150px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="projectDescription"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project Description</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe your project in detail..."
+                            className="min-h-[150px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          A comprehensive description of what your project entails and how it will be executed.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="budget"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Budget</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter your project budget" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="artistGoals"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Artist Goals</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="What are your goals as an artist for this project?"
+                            className="min-h-[100px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Explain your personal or professional goals that this grant would help you achieve.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <FormField
-                control={form.control}
-                name="timeline"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Timeline</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Outline your project timeline..."
-                        className="min-h-[100px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  <FormField
+                    control={form.control}
+                    name="projectImpact"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project Impact</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Describe the impact this project will have..."
+                            className="min-h-[100px]"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Explain how your project will impact your audience, community, or the music field.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-              <CardFooter className="flex justify-between px-0 pb-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('/grants')}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating Application...
-                    </>
-                  ) : (
-                    'Create Application'
-                  )}
-                </Button>
-              </CardFooter>
-            </form>
-          </Form>
+                  <div className="flex justify-between pt-6">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => navigate('/grants')}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving Draft...
+                        </>
+                      ) : (
+                        'Save Draft'
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </TabsContent>
+            
+            <TabsContent value="preview">
+              <div className="space-y-6">
+                <div className="space-y-4 border border-border rounded-md p-6 bg-card/50">
+                  <div>
+                    <h3 className="text-xl font-bold mb-1">{form.getValues('projectTitle') || 'Project Title'}</h3>
+                    <div className="h-px w-full bg-border mb-4"></div>
+                    
+                    <h4 className="text-sm uppercase font-semibold text-muted-foreground mt-4 mb-2">Project Description</h4>
+                    <p className="whitespace-pre-line">{form.getValues('projectDescription') || 'No project description provided.'}</p>
+                    
+                    <h4 className="text-sm uppercase font-semibold text-muted-foreground mt-4 mb-2">Artist Goals</h4>
+                    <p className="whitespace-pre-line">{form.getValues('artistGoals') || 'No artist goals provided.'}</p>
+                    
+                    <h4 className="text-sm uppercase font-semibold text-muted-foreground mt-4 mb-2">Project Impact</h4>
+                    <p className="whitespace-pre-line">{form.getValues('projectImpact') || 'No project impact provided.'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col gap-4">
+                  <Button 
+                    onClick={copyToClipboard}
+                    className="w-full" 
+                    variant="outline"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Copied to Clipboard
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy to Clipboard
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => window.open(grant.url, '_blank')}
+                    className="w-full"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Go to Official Application Portal
+                  </Button>
+                  
+                  <Button
+                    onClick={() => setActiveTab('essentials')}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Editing
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

@@ -73,13 +73,21 @@ export default function GrantRecommendationsList({
 
   return (
     <div className="space-y-6">
-      <div className="text-xl font-semibold">
-        Found {recommendations.length} grant opportunities for you
+      <div className="mb-6">
+        <div className="text-xl font-semibold mb-2">
+          Found {recommendations.length} grant opportunities for you
+        </div>
+        <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-900">
+          <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertDescription className="text-sm text-blue-700 dark:text-blue-300">
+            GrantiFuel helps you prepare your applications for external submission. Final applications must be submitted through each grant's official website.
+          </AlertDescription>
+        </Alert>
       </div>
       
       <div className="space-y-6">
         {recommendations.map((grant) => (
-          <Card key={grant.id} className="w-full overflow-hidden">
+          <Card key={grant.id} className="w-full overflow-hidden border-l-4 border-l-primary">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
                 <div>
@@ -148,13 +156,13 @@ export default function GrantRecommendationsList({
                 <Button size="sm" variant="outline" asChild>
                   <a href={grant.url} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="h-4 w-4 mr-1" />
-                    Website
+                    Official Website
                   </a>
                 </Button>
                 <Button size="sm" asChild>
                   <a href={`/applications/new?grantId=${grant.id}`}>
                     <FileText className="h-4 w-4 mr-1" />
-                    Apply Now
+                    Prepare Application
                   </a>
                 </Button>
               </div>

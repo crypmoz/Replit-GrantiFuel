@@ -69,7 +69,7 @@ export default function Templates() {
       case 'biography':
         return <Badge variant="info">Biography</Badge>;
       case 'question':
-        return <Badge variant="warning">Question</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Question</Badge>;
       default:
         return <Badge variant="secondary">{type}</Badge>;
     }
@@ -204,7 +204,7 @@ export default function Templates() {
                         {getTypeBadge(template.type)}
                       </div>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {format(new Date(template.createdAt), 'MMM d, yyyy')}
+                        {template.createdAt ? format(new Date(template.createdAt.toString()), 'MMM d, yyyy') : 'Unknown date'}
                       </span>
                     </div>
                   </CardContent>

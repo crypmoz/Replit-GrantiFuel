@@ -63,7 +63,7 @@ export default function TemplateDetail() {
       case 'biography':
         return <Badge variant="info">Biography</Badge>;
       case 'question':
-        return <Badge variant="warning">Question</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Question</Badge>;
       default:
         return <Badge variant="secondary">{type}</Badge>;
     }

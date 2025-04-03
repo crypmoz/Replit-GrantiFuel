@@ -196,6 +196,10 @@ export default function ProfilePage() {
                       bio: user.bio || '',
                       phone: '',
                       genres: [],
+                      careerStage: '',
+                      primaryInstrument: '',
+                      location: '',
+                      projectType: '',
                       createdAt: new Date()
                     }}
                     onSubmit={(data) => updateProfileMutation.mutate(data)}

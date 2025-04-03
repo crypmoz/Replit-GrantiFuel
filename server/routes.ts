@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { aiService, GrantRecommendation } from "./services/ai-service";
 import { z } from "zod";
+import axios from "axios";
 import { setupAuth } from "./auth";
 import Stripe from "stripe";
 import { db } from "./db";
@@ -1174,6 +1175,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ 
         error: "Failed to analyze document. Please try again or contact support if the issue persists."
       });
+    }
+  });
+  
+  // Generate application content using AI
+  app.post("/api/ai/generate-application-content", requireAuth, async (req, res) => {
+    try {
+      // Check if Deepseek API key is configured
+      if (!process.env.DEEPSEEK_API_KEY) {
+        console.error("[AI Route] No Deepseek API key configured");
+        return res.status(503).json({ 
+          error: "AI service is currently unavailable. Please contact the administrator to set up the AI integration."
+        });
+      }
+      
+      const { 
+        grantId, 
+        artistId, 
+        grantName, 
+        grantOrganization, 
+        grantRequirements, 
+        artistName, 
+        artistBio, 
+        artistGenre 
+      } = req.body;
+      
+      if (!grantName || !artistName) {
+        return res.status(400).json({ error: "Missing required parameters" });
+      }
+      
+      // Get existing grant details if grantId is provided
+      let grantDetails = null;
+      if (grantId) {
+        grantDetails = await storage.getGrant(grantId);
+      }
+      
+      // Get existing artist details if artistId is provided
+      let artistDetails = null;
+      if (artistId) {
+        artistDetails = await storage.getArtist(artistId);
+      }
+      
+      // Combine provided data with existing data
+      const combinedParams = {
+        grantName: grantName || grantDetails?.name || '',
+        grantOrganization: grantOrganization || grantDetails?.organization || '',
+        grantRequirements: grantRequirements || (grantDetails?.requirements && Array.isArray(grantDetails.requirements) ? grantDetails.requirements.join(', ') : ''),
+        artistName: artistName || artistDetails?.name || '',
+        artistBio: artistBio || artistDetails?.bio || '',
+        artistGenre: artistGenre || (artistDetails?.genres && Array.isArray(artistDetails.genres) ? artistDetails.genres.join(', ') : ''),
+        projectTitle: '',  // To be generated
+        projectDescription: ''  // To be generated
+      };
+      
+      console.log(`[AI Route] Generating application content for grant "${combinedParams.grantName}" and artist "${combinedParams.artistName}"`);
+      
+      // Create system prompt for application content generation
+      const systemPrompt = `You are an expert grant writer specializing in helping musicians and artists.
+Your task is to generate compelling content for a grant application based on the artist profile and grant details provided.
+Focus on creating content that effectively communicates the artist's qualifications and project goals while meeting the requirements of the grant.`;
+
+      const userPrompt = `Please generate application content for:
+Artist: ${combinedParams.artistName}
+Artist Bio: ${combinedParams.artistBio}
+Genre: ${combinedParams.artistGenre}
+Grant: ${combinedParams.grantName} by ${combinedParams.grantOrganization}
+Grant Requirements: ${combinedParams.grantRequirements}
+
+Generate the following sections:
+1. Project Title (short, memorable, and relevant to the artist's work)
+2. Project Description (detailed explanation of what the project entails)
+3. Artist Goals (what the artist hopes to achieve personally and professionally)
+4. Project Impact (how this project will impact the artist's community or field)
+
+Return your response in this JSON format:
+{
+  "projectTitle": "Your generated title",
+  "projectDescription": "Your detailed project description...",
+  "artistGoals": "The artist's goals for this project...",
+  "projectImpact": "The impact of this project..."
+}`;
+
+      // Call AI service to generate content
+      const requestData = {
+        model: "deepseek-chat",
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048
+      };
+      
+      try {
+        const response = await axios.post(
+          'https://api.deepseek.com/v1/chat/completions',
+          requestData,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
+            },
+            timeout: 30000 // 30 second timeout
+          }
+        );
+        
+        const content = response.data.choices[0].message.content;
+        
+        // Parse the JSON response
+        let generatedContent;
+        try {
+          // Sometimes the AI might include markdown code blocks, so we need to handle that
+          const jsonContent = content.replace(/```json\n?|\n?```/g, '').trim();
+          generatedContent = JSON.parse(jsonContent);
+          
+          console.log(`[AI Route] Successfully generated application content`);
+        } catch (parseError) {
+          console.error('Error parsing AI response as JSON:', parseError);
+          return res.status(500).json({ error: "Failed to parse AI response" });
+        }
+        
+        // Create activity record for using AI to generate application content
+        await storage.createActivity({
+          userId: req.user!.id,
+          action: "GENERATED",
+          entityType: "APPLICATION_CONTENT",
+          details: { 
+            grantName: combinedParams.grantName,
+            artistName: combinedParams.artistName
+          }
+        });
+        
+        return res.json({ content: generatedContent });
+      } catch (error) {
+        console.error('Error calling AI service:', error);
+        return res.status(500).json({ error: "Failed to generate application content" });
+      }
+    } catch (error) {
+      console.error('Error in generate application content endpoint:', error);
+      return res.status(500).json({ error: "Failed to generate application content" });
     }
   });
 

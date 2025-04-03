@@ -95,7 +95,7 @@ export default function ApplicationDetail() {
       case 'draft':
         return <Badge variant="info">Draft</Badge>;
       case 'in_progress':
-        return <Badge variant="warning">In Progress</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">In Progress</Badge>;
       case 'submitted':
         return <Badge variant="secondary">Submitted</Badge>;
       case 'approved':

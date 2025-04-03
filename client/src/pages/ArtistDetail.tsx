@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRoute } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
+import { z } from 'zod';
 import { 
   Artist, 
   Application, 
@@ -9,6 +10,7 @@ import {
   Activity,
   insertArtistSchema
 } from '@shared/schema';
+
 import { 
   Card, 
   CardContent, 
@@ -28,7 +30,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { z } from 'zod';
 import { 
   FileText, 
   Clock, 
@@ -42,7 +43,12 @@ import { ArtistProfileCard } from '@/components/profile/ArtistProfileCard';
 import { ArtistProfileEdit } from '@/components/profile/ArtistProfileEdit';
 
 // Form state type
-type ArtistFormValues = z.infer<typeof insertArtistSchema>;
+type ArtistFormValues = Omit<z.infer<typeof insertArtistSchema>, 'userId'>;
+
+// Activity details interface
+interface ActivityDetails {
+  [key: string]: string | number | boolean | null | object;
+}
 
 export default function ArtistDetail() {
   // Get artist ID from URL
@@ -248,7 +254,7 @@ export default function ArtistDetail() {
                           <CardFooter className="p-4 pt-2 flex justify-between">
                             <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                               <Clock className="h-3 w-3 mr-1" />
-                              {app.updatedAt ? format(new Date(app.updatedAt.toString()), 'MMM d, yyyy') : 'Unknown'}
+                              {app.startedAt ? format(new Date(app.startedAt.toString()), 'MMM d, yyyy') : 'Unknown'}
                             </div>
                             <Button size="sm" variant="ghost" onClick={() => window.location.href = `/applications/${app.id}`}>
                               View Details
@@ -301,14 +307,23 @@ export default function ArtistDetail() {
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                               {activity.createdAt ? format(new Date(activity.createdAt.toString()), 'MMMM d, yyyy h:mm a') : 'Unknown date'}
                             </p>
-                            {activity.details && (
+                            {activity.details && typeof activity.details === 'object' && (
                               <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                {Object.entries(activity.details).map(([key, value]) => (
-                                  <div key={key} className="flex items-start gap-2">
-                                    <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
-                                    <span>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
-                                  </div>
-                                ))}
+                                {(() => {
+                                  const details = activity.details as ActivityDetails;
+                                  return Object.entries(details).map(([key, value]) => {
+                                    const displayValue = typeof value === 'object' && value !== null 
+                                      ? JSON.stringify(value) 
+                                      : String(value);
+                                    
+                                    return (
+                                      <div key={key} className="flex items-start gap-2">
+                                        <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
+                                        <span>{displayValue}</span>
+                                      </div>
+                                    );
+                                  });
+                                })()}
                               </div>
                             )}
                           </div>
