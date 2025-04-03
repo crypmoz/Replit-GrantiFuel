@@ -583,36 +583,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // No cached recommendations, we'll need to create a job to generate them
             // But first, return placeholder recommendations so the page loads quickly
             
-            const placeholders = [
-              {
-                id: -1,
-                userId: req.user!.id,
-                name: "Analyzing your profile",
-                organization: "GrantiFuel AI",
-                amount: "$5,000-$15,000",
-                deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-                description: "Our AI is analyzing your artist profile and available grants to find the best matches. This may take a moment for first-time users.",
-                requirements: "Your results will appear shortly. If this takes longer than expected, please refresh the page.",
-                website: "https://example.org/grants",
-                matchScore: 85,
-                aiRecommended: true,
-                createdAt: new Date()
-              },
-              {
-                id: -2,
-                userId: req.user!.id,
-                name: "Loading recommendations",
-                organization: "Music Grant Database",
-                amount: "$2,500-$10,000",
-                deadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-                description: "Searching through our database of music grants to find opportunities that match your artistic focus and career stage.",
-                requirements: "Grant requirements will be displayed once loading is complete.",
-                website: "https://example.org/grants",
-                matchScore: 75,
-                aiRecommended: true,
-                createdAt: new Date()
-              }
-            ] as GrantWithAIRecommendation[];
+            // Return grants without placeholders
+            const loading = {
+              message: "Loading personalized grant recommendations...",
+              status: "loading"
+            };
             
             // Create a profile for AI recommendation
             const aiProfile = {
@@ -645,39 +620,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }, 100);
             
-            // Return placeholder grants along with real grants
-            const mergedGrants = [...placeholders, ...allGrants];
-            
-            // Sort grants for display
-            const sortedGrants = mergedGrants.sort((a, b) => {
-              // Prioritize AI-recommended grants
-              if (a.aiRecommended && !b.aiRecommended) return -1;
-              if (!a.aiRecommended && b.aiRecommended) return 1;
-              
-              // Then sort by match score (if available)
-              const scoreA = a.matchScore || 0;
-              const scoreB = b.matchScore || 0;
-              return scoreB - scoreA;
-            });
-            
             // Log activity
             await storage.createActivity({
               userId: req.user!.id,
               action: "GENERATING",
               entityType: "GRANT_RECOMMENDATIONS",
               details: {
-                placeholdersShown: placeholders.length,
+                loadingState: true,
                 regularGrantsShown: allGrants.length
               }
             });
             
             return res.json({
-              grants: sortedGrants,
+              grants: allGrants,
               isPersonalized: true,
               profileComplete: true,
-              aiEnhanced: true,
+              aiEnhanced: false,
               fromCache: false,
-              generatingRecommendations: true
+              generatingRecommendations: true,
+              loadingMessage: loading.message
             });
           }
         } else {
