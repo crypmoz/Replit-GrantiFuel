@@ -66,12 +66,14 @@ export default function NewApplicationForm() {
   const [aiGrant, setAiGrant] = useState<any>(null);
   
   useEffect(() => {
+    console.log('Checking for grants in sessionStorage');
     // First check if we have a directly selected grant from UnifiedGrantsPage
     const selectedGrantStr = sessionStorage.getItem('selectedGrant');
     if (selectedGrantStr) {
       try {
+        console.log('Raw selectedGrant from sessionStorage:', selectedGrantStr);
         const selectedGrant = JSON.parse(selectedGrantStr);
-        console.log('Found selected grant in sessionStorage:', selectedGrant.name);
+        console.log('Parsed selected grant in sessionStorage:', selectedGrant);
         setAiGrant(selectedGrant);
         
         // Clear the storage to avoid reusing this data accidentally
@@ -80,6 +82,8 @@ export default function NewApplicationForm() {
       } catch (error) {
         console.error('Error parsing selected grant:', error);
       }
+    } else {
+      console.log('No selectedGrant found in sessionStorage');
     }
     
     // If no directly selected grant, check for doc-based grants

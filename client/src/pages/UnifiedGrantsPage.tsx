@@ -707,11 +707,23 @@ export default function UnifiedGrantsPage() {
                       <div className="h-2 flex-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-primary rounded-full"
-                          style={{ width: `${Math.round(grant.matchScore * 100)}%` }}
+                          style={{ 
+                            width: `${Math.min(Math.max(Math.round(
+                              // Convert any matchScore format to a percentage between 0-100%
+                              typeof grant.matchScore === 'number' 
+                                ? (grant.matchScore > 1 ? grant.matchScore : grant.matchScore * 100) 
+                                : 50
+                            ), 0), 100)}%` 
+                          }}
                         />
                       </div>
                       <span className="text-xs font-medium">
-                        {Math.round(grant.matchScore * 100)}%
+                        {Math.min(Math.max(Math.round(
+                          // Convert any matchScore format to a percentage between 0-100%
+                          typeof grant.matchScore === 'number' 
+                            ? (grant.matchScore > 1 ? grant.matchScore : grant.matchScore * 100) 
+                            : 50
+                        ), 0), 100)}%
                       </span>
                     </div>
                   )}
@@ -738,7 +750,7 @@ export default function UnifiedGrantsPage() {
                     <Button size="sm" onClick={() => {
                       if (!grant.id || typeof grant.id !== 'number' || grant.id < 0) {
                         try {
-                          sessionStorage.setItem('selectedGrant', JSON.stringify({
+                          const grantData = {
                             name: grant.name,
                             organization: grant.organization,
                             amount: grant.amount,
@@ -747,8 +759,10 @@ export default function UnifiedGrantsPage() {
                             requirements: grant.requirements,
                             url: grant.url || grant.website,
                             aiRecommended: true
-                          }));
-                          window.location.href = '/applications/new';
+                          };
+                          console.log("Storing grant data in sessionStorage:", grantData);
+                          sessionStorage.setItem('selectedGrant', JSON.stringify(grantData));
+                          navigate('/applications/new');
                         } catch (err) {
                           console.error('Error storing grant data:', err);
                           toast({
@@ -758,7 +772,7 @@ export default function UnifiedGrantsPage() {
                           });
                         }
                       } else {
-                        window.location.href = `/applications/new?grantId=${grant.id}`;
+                        navigate(`/applications/new?grantId=${grant.id}`);
                       }
                     }}>
                       <FileText className="h-4 w-4 mr-1" />
@@ -857,11 +871,23 @@ export default function UnifiedGrantsPage() {
                   <div className="h-2 flex-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-primary rounded-full"
-                      style={{ width: `${Math.round(grant.matchScore * 100)}%` }}
+                      style={{ 
+                        width: `${Math.min(Math.max(Math.round(
+                          // Convert any matchScore format to a percentage between 0-100%
+                          typeof grant.matchScore === 'number' 
+                            ? (grant.matchScore > 1 ? grant.matchScore : grant.matchScore * 100) 
+                            : 50
+                        ), 0), 100)}%` 
+                      }}
                     />
                   </div>
                   <span className="text-xs font-medium">
-                    {Math.round(grant.matchScore * 100)}%
+                    {Math.min(Math.max(Math.round(
+                      // Convert any matchScore format to a percentage between 0-100%
+                      typeof grant.matchScore === 'number' 
+                        ? (grant.matchScore > 1 ? grant.matchScore : grant.matchScore * 100) 
+                        : 50
+                    ), 0), 100)}%
                   </span>
                 </div>
               )}
@@ -891,7 +917,7 @@ export default function UnifiedGrantsPage() {
                   if (!grant.id || typeof grant.id !== 'number' || grant.id < 0) {
                     try {
                       // Store the grant details in session storage for the application form to use
-                      sessionStorage.setItem('selectedGrant', JSON.stringify({
+                      const grantData = {
                         name: grant.name,
                         organization: grant.organization,
                         amount: grant.amount,
@@ -900,9 +926,12 @@ export default function UnifiedGrantsPage() {
                         requirements: grant.requirements,
                         url: grant.url || grant.website,
                         aiRecommended: true
-                      }));
+                      };
+                      console.log("Storing grant data in sessionStorage:", grantData);
+                      sessionStorage.setItem('selectedGrant', JSON.stringify(grantData));
+                      
                       // Navigate to the new application form without an ID parameter
-                      window.location.href = '/applications/new';
+                      navigate('/applications/new');
                     } catch (err) {
                       console.error('Error storing grant data:', err);
                       toast({
@@ -913,7 +942,7 @@ export default function UnifiedGrantsPage() {
                     }
                   } else {
                     // For database grants with valid IDs, use the ID in the URL
-                    window.location.href = `/applications/new?grantId=${grant.id}`;
+                    navigate(`/applications/new?grantId=${grant.id}`);
                   }
                 }}>
                   <FileText className="h-4 w-4 mr-1" />
