@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from './use-toast';
+import { useEffect } from 'react';
 
 export interface ProfileRequirement {
   fieldName: string;
@@ -40,14 +41,16 @@ export function useProfileRequirements() {
     retry: 1,
   });
 
-  // Handle errors outside the query
-  if (error) {
-    toast({
-      title: 'Failed to fetch profile requirements',
-      description: (error as Error).message || 'Please try again later',
-      variant: 'destructive',
-    });
-  }
+  // Use an effect to handle errors instead of during render
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Failed to fetch profile requirements',
+        description: (error as Error).message || 'Please try again later',
+        variant: 'destructive',
+      });
+    }
+  }, [error, toast]);
 
   return {
     profileRequirements: profileRequirements || [],

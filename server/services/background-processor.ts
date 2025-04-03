@@ -192,9 +192,11 @@ export class BackgroundProcessor {
           documentIds: queueArray,
           batchSize: BATCH_SIZE,
           totalBatches: totalBatches
-        },
-        startedAt: new Date(),
+        }
       });
+      
+      // Update the startedAt field in a separate call since it's not part of InsertProcessingJob type
+      await storage.updateProcessingJob(job.id, { startedAt: new Date() });
       
       console.log(`[BackgroundProcessor] Created processing job ${job.id}`);
 
