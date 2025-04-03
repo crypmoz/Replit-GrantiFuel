@@ -5,7 +5,7 @@ import { Toaster } from "./components/ui/toaster";
 import NotFound from "./pages/not-found";
 import UnauthorizedPage from "./pages/UnauthorizedPage";
 import Dashboard from "./pages/Dashboard";
-import Grants from "./pages/Grants";
+import UnifiedGrantsPage from "./pages/UnifiedGrantsPage";
 import NewGrantForm from "./pages/NewGrantForm";
 import GrantDetail from "./pages/GrantDetail";
 import Artists from "./pages/Artists";
@@ -15,7 +15,6 @@ import ApplicationDetail from "./pages/ApplicationDetail";
 import NewApplicationForm from "./pages/NewApplicationForm";
 // Templates pages removed (considered useless feature)
 import AIAssistant from "./pages/AIAssistant";
-import FindGrantsPage from "./pages/FindGrants";
 import Documents from "./pages/Documents";
 import UserManagement from "./pages/admin/UserManagement";
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -91,9 +90,9 @@ function AppContent() {
               {/* Dashboard is accessible by all authenticated users */}
               <ProtectedRoute path="/dashboard" component={Dashboard} />
               
-              {/* Grant management - accessible by grant writers and admins */}
+              {/* Unified grants interface - combines regular grants and AI recommendations */}
               <GrantWriterRoute path="/grants/new" component={NewGrantForm} />
-              <ProtectedRoute path="/grants" component={Grants} />
+              <ProtectedRoute path="/grants" component={UnifiedGrantsPage} />
               <ProtectedRoute path="/grants/:id" component={GrantDetail} />
               
               {/* Artist management - accessible by appropriate roles */}
@@ -110,13 +109,17 @@ function AppContent() {
               {/* AI Assistant is available to premium users (all roles) */}
               <ProtectedRoute path="/ai-assistant" component={AIAssistant} />
               
-              {/* Find Grants - accessible to all authenticated users */}
-              <ProtectedRoute path="/find-grants" component={FindGrantsPage} />
+              {/* Legacy redirects for backward compatibility */}
+              <Route path="/find-grants">
+                {() => {
+                  window.location.href = "/grants";
+                  return null;
+                }}
+              </Route>
               
-              {/* Redirect from old path to new path for backward compatibility */}
               <Route path="/grant-recommendations">
                 {() => {
-                  window.location = "/find-grants";
+                  window.location.href = "/grants";
                   return null;
                 }}
               </Route>

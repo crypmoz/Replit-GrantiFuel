@@ -1,0 +1,636 @@
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
+import { useAuth } from '@/hooks/use-auth';
+import { PageLayout } from '../components/layout/PageLayout';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ArtistProfile, useGrantRecommendations, GrantRecommendation } from '@/hooks/use-grant-recommendations';
+import { apiRequest } from '@/lib/queryClient';
+import { Grant, GrantWithAIRecommendation, userRoleEnum } from '@shared/schema';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowUpDown, Calendar, DollarSign, Filter, Plus, ExternalLink, FileText, Search, RefreshCw, AlertCircle, Bookmark, Save, Loader2 } from 'lucide-react';
+
+// Common type to represent both database grants and AI-recommended grants
+interface GrantRecommendationExtended {
+  id?: string | number;
+  userId?: number;
+  name: string;
+  organization: string;
+  amount: string;
+  deadline?: string | Date;
+  description?: string;
+  requirements?: string | string[];
+  eligibility?: string[];
+  matchScore?: number;
+  url?: string;
+  website?: string;
+}
+
+type UnifiedGrant = (Grant | GrantRecommendationExtended | GrantWithAIRecommendation) & {
+  aiRecommended?: boolean;
+  matchScore?: number;
+  url?: string;
+  website?: string;
+  userId?: number;
+};
+
+export default function UnifiedGrantsPage() {
+  const [_, navigate] = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('relevance');
+  const [filterStatus, setFilterStatus] = useState('all');
+  
+  // State for artist profile and recommendations
+  const {
+    recommendations: aiRecommendations,
+    isLoading: isLoadingRecommendations,
+    error: recommendationsError,
+    profile,
+    setProfile,
+    fetchRecommendations
+  } = useGrantRecommendations();
+
+  // Get artist profile for recommendations
+  const { 
+    data: artistProfile,
+    isLoading: isLoadingProfile,
+  } = useQuery({
+    queryKey: ['/api/artists/by-user', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const res = await fetch(`/api/artists/by-user/${user.id}`);
+      if (!res.ok) {
+        throw new Error('Could not fetch artist profile');
+      }
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
+
+  // Get all grants from database (both user-created and system grants)
+  const { data: grantsData, isLoading: isLoadingGrants, error: grantsError } = useQuery({
+    queryKey: ['/api/grants'],
+    queryFn: async () => {
+      const response = await fetch('/api/grants');
+      if (!response.ok) {
+        throw new Error('Failed to fetch grants');
+      }
+      return response.json();
+    },
+  });
+  
+  // Combine database grants with AI recommendations
+  const [combinedGrants, setCombinedGrants] = useState<UnifiedGrant[]>([]);
+  
+  useEffect(() => {
+    let grants: UnifiedGrant[] = [];
+    
+    // Add database grants if available
+    if (grantsData && grantsData.grants && Array.isArray(grantsData.grants)) {
+      grants = [...grantsData.grants];
+    }
+    
+    // Add AI recommendations that aren't already in the database
+    const recommendationsArray = (aiRecommendations || []) as GrantRecommendationExtended[];
+    if (recommendationsArray.length > 0) {
+      recommendationsArray.forEach(rec => {
+        // Check if this recommendation is already in our list (avoid duplicates)
+        const existingIndex = grants.findIndex(g => 
+          g.name?.toLowerCase() === rec.name?.toLowerCase() || 
+          g.organization?.toLowerCase() === rec.organization?.toLowerCase()
+        );
+        
+        if (existingIndex === -1) {
+          // Add new recommendation
+          grants.push({
+            ...rec,
+            aiRecommended: true
+          });
+        } else if (!grants[existingIndex].aiRecommended) {
+          // Update existing grant with AI match score if not already an AI recommendation
+          grants[existingIndex] = {
+            ...grants[existingIndex],
+            matchScore: rec.matchScore,
+            aiRecommended: true
+          };
+        }
+      });
+    }
+    
+    setCombinedGrants(grants);
+  }, [grantsData, aiRecommendations]);
+
+  // Automatically use the artist profile data when available to fetch recommendations
+  const [processedInitialProfile, setProcessedInitialProfile] = useState(false);
+  
+  useEffect(() => {
+    // Only run once when artistProfile is first loaded and not null
+    if (artistProfile && typeof artistProfile === 'object' && !processedInitialProfile) {
+      setProcessedInitialProfile(true);
+      
+      // Map artist profile fields to ArtistProfile format
+      // Handle both array and string formats for genres
+      let genreStr = '';
+      if (artistProfile.genres) {
+        if (Array.isArray(artistProfile.genres)) {
+          genreStr = artistProfile.genres.join(', ');
+        } else if (typeof artistProfile.genres === 'string') {
+          genreStr = artistProfile.genres;
+        }
+      }
+      
+      const careerStage = artistProfile.careerStage || '';
+      const instrumentOrRole = artistProfile.primaryInstrument || '';
+      
+      const artistProfileData: ArtistProfile = {
+        genre: genreStr,
+        careerStage: typeof careerStage === 'string' ? careerStage : '',
+        instrumentOrRole: typeof instrumentOrRole === 'string' ? instrumentOrRole : '',
+        location: artistProfile.location || '',
+        projectType: artistProfile.projectType || '',
+      };
+      
+      // Update profile data
+      setProfile(artistProfileData);
+      
+      // Only fetch if we have some data
+      if (artistProfileData.genre || artistProfileData.careerStage || artistProfileData.instrumentOrRole) {
+        fetchRecommendations(artistProfileData);
+      }
+    }
+  }, [artistProfile, processedInitialProfile, setProfile, fetchRecommendations]);
+
+  // Filter and sort the grants based on user input
+  const filteredAndSortedGrants = combinedGrants
+    .filter(grant => {
+      // First apply tab filtering
+      if (activeTab === 'ai-recommended' && !grant.aiRecommended) {
+        return false;
+      }
+      if (activeTab === 'my-grants' && (grant.userId !== user?.id)) {
+        return false;
+      }
+      
+      // Then apply search filtering if there's a search query
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const name = (grant.name || '').toLowerCase();
+        const organization = (grant.organization || '').toLowerCase();
+        const description = (grant.description || '').toLowerCase();
+        
+        return name.includes(query) || 
+               organization.includes(query) || 
+               description.includes(query);
+      }
+      
+      return true;
+    })
+    .sort((a, b) => {
+      // Sort based on the selected sort option
+      switch (sortBy) {
+        case 'relevance':
+          // AI recommended grants first, then by match score
+          if (a.aiRecommended && !b.aiRecommended) return -1;
+          if (!a.aiRecommended && b.aiRecommended) return 1;
+          
+          // If both have match scores, compare them
+          if (a.matchScore !== undefined && b.matchScore !== undefined) {
+            return b.matchScore - a.matchScore;
+          }
+          
+          // Fall back to name sorting
+          return (a.name || '').localeCompare(b.name || '');
+          
+        case 'deadline':
+          // Parse dates and handle non-date values
+          const dateA = a.deadline ? new Date(a.deadline) : new Date(9999, 0, 1);
+          const dateB = b.deadline ? new Date(b.deadline) : new Date(9999, 0, 1);
+          
+          // Check if valid dates
+          const validDateA = !isNaN(dateA.getTime());
+          const validDateB = !isNaN(dateB.getTime());
+          
+          // Handle invalid dates
+          if (validDateA && !validDateB) return -1;
+          if (!validDateA && validDateB) return 1;
+          if (!validDateA && !validDateB) return 0;
+          
+          return dateA.getTime() - dateB.getTime();
+          
+        case 'amount':
+          // Parse amount strings to numbers if possible
+          const amountA = parseAmount(a.amount || '');
+          const amountB = parseAmount(b.amount || '');
+          return amountB - amountA;
+          
+        default:
+          return 0;
+      }
+    });
+  
+  // Helper function to parse amount strings
+  function parseAmount(amountStr: string): number {
+    // Remove currency symbols and commas
+    const cleaned = amountStr.replace(/[$,]/g, '');
+    
+    // Extract numbers from the string
+    const match = cleaned.match(/(\d+(\.\d+)?)/);
+    if (match && match[1]) {
+      return parseFloat(match[1]);
+    }
+    
+    // If amount has "k" or "K" (thousands)
+    if (/\d+(\.\d+)?k/i.test(amountStr)) {
+      const match = amountStr.match(/(\d+(\.\d+)?)[kK]/);
+      if (match && match[1]) {
+        return parseFloat(match[1]) * 1000;
+      }
+    }
+    
+    // Return 0 if we can't parse it
+    return 0;
+  }
+  
+  // Format deadline for display
+  function formatDeadline(deadline: string | Date | undefined): string {
+    if (!deadline) return 'No deadline';
+    
+    try {
+      const date = new Date(deadline);
+      if (isNaN(date.getTime())) return 'No deadline';
+      
+      // Format the date
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
+  }
+  
+  // Handle refreshing AI recommendations
+  const handleRefreshRecommendations = () => {
+    if (profile) {
+      fetchRecommendations(profile);
+      toast({
+        title: "Refreshing recommendations",
+        description: "We're finding the latest grant opportunities for you."
+      });
+    } else {
+      toast({
+        title: "Profile needed",
+        description: "Please set up your artist profile first to get recommendations.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Handle creating a new grant (for grant writers)
+  const handleCreateGrant = () => {
+    navigate('/grants/new');
+  };
+  
+  const isLoading = isLoadingGrants || isLoadingRecommendations || isLoadingProfile;
+  const error = grantsError || recommendationsError;
+
+  return (
+    <PageLayout>
+      <div className="container max-w-6xl mx-auto py-6 px-4 sm:px-6">
+        <header className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Music Grants Center
+              </h1>
+              <p className="text-lg text-muted-foreground max-w-3xl mt-2">
+                Discover, track, and prepare applications for music grants in one place
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              {user && user.role === 'grant_writer' && (
+                <Button onClick={handleCreateGrant} className="inline-flex items-center">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Grant
+                </Button>
+              )}
+              <Button 
+                variant="outline" 
+                onClick={handleRefreshRecommendations} 
+                disabled={isLoading || !profile}
+                className="inline-flex items-center"
+              >
+                {isLoadingRecommendations ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Refresh Recommendations
+              </Button>
+            </div>
+          </div>
+        </header>
+        
+        <div className="space-y-6">
+          {/* Filter and Search Controls */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                className="pl-10" 
+                placeholder="Search grants by name or organization..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              <div className="w-40">
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger id="sort-by">
+                    <span className="flex items-center">
+                      <ArrowUpDown className="h-4 w-4 mr-2" />
+                      <span className="text-sm">Sort by</span>
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="relevance">Best Match</SelectItem>
+                    <SelectItem value="deadline">Deadline</SelectItem>
+                    <SelectItem value="amount">Amount</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          
+          {/* Grant Categories */}
+          <Tabs 
+            value={activeTab} 
+            onValueChange={setActiveTab} 
+            className="space-y-6"
+          >
+            <TabsList className="grid grid-cols-3 w-full max-w-md">
+              <TabsTrigger value="all">All Grants</TabsTrigger>
+              <TabsTrigger value="ai-recommended">AI Recommended</TabsTrigger>
+              <TabsTrigger value="my-grants">My Grants</TabsTrigger>
+            </TabsList>
+            
+            {/* Profile Card for AI Recommendations */}
+            {activeTab === 'ai-recommended' && profile && (
+              <Card className="bg-muted/30 mb-4">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">Your Artist Profile</CardTitle>
+                  <CardDescription>
+                    Recommendations are based on these details
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <div className="font-medium">Genre</div>
+                      <div className="text-muted-foreground capitalize">{profile.genre}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium">Career Stage</div>
+                      <div className="text-muted-foreground capitalize">{profile.careerStage}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium">Instrument/Role</div>
+                      <div className="text-muted-foreground capitalize">{profile.instrumentOrRole}</div>
+                    </div>
+                    {profile.location && (
+                      <div className="space-y-1">
+                        <div className="font-medium">Location</div>
+                        <div className="text-muted-foreground">{profile.location}</div>
+                      </div>
+                    )}
+                    {profile.projectType && (
+                      <div className="space-y-1">
+                        <div className="font-medium">Project Type</div>
+                        <div className="text-muted-foreground capitalize">{profile.projectType}</div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex mt-4 space-x-3">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs" 
+                      onClick={() => navigate('/profile')}
+                    >
+                      Edit Profile
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Grants Display Area */}
+            <TabsContent value="all" className="space-y-6">
+              {renderGrantsList()}
+            </TabsContent>
+            
+            <TabsContent value="ai-recommended" className="space-y-6">
+              {!profile && !aiRecommendations && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>No profile submitted</AlertTitle>
+                  <AlertDescription>
+                    Please update your <Button variant="link" className="p-0 h-auto" onClick={() => navigate('/profile')}>artist profile</Button> to get grant recommendations.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {renderGrantsList()}
+            </TabsContent>
+            
+            <TabsContent value="my-grants" className="space-y-6">
+              {renderGrantsList()}
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </PageLayout>
+  );
+  
+  // Helper function to render grants list with loading states
+  function renderGrantsList() {
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="pb-2">
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between pt-2">
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {error.message || 'Failed to load grants. Please try again later.'}
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    
+    if (filteredAndSortedGrants.length === 0) {
+      return (
+        <div className="text-center p-8">
+          <h3 className="text-lg font-medium mb-2">No grants found</h3>
+          <p className="text-muted-foreground mb-4">
+            {activeTab === 'my-grants'
+              ? "You haven't created any grants yet."
+              : activeTab === 'ai-recommended'
+              ? "There are no AI recommended grants matching your profile."
+              : "There are no grants matching your search criteria."}
+          </p>
+          {activeTab === 'my-grants' && user && user.role === 'grant_writer' && (
+            <Button onClick={handleCreateGrant}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create your first grant
+            </Button>
+          )}
+        </div>
+      );
+    }
+    
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredAndSortedGrants.map((grant) => (
+          <Card 
+            key={grant.id || Math.random().toString()} 
+            className={`hover:shadow-md transition-shadow ${grant.aiRecommended 
+              ? 'border-l-4 border-l-primary' 
+              : ''}`}
+          >
+            <CardHeader className="pb-2">
+              <div className="flex justify-between">
+                <div>
+                  <CardTitle 
+                    className="text-lg font-bold hover:text-primary transition-colors"
+                    onClick={() => {
+                      // For database grants, go to detail page
+                      if (typeof grant.id === 'number' && grant.id > 0) {
+                        navigate(`/grants/${grant.id}`);
+                      } else if (grant.url) {
+                        // For AI recommendations with URL, open in new tab
+                        window.open(grant.url, '_blank');
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {grant.name}
+                  </CardTitle>
+                  <CardDescription>{grant.organization}</CardDescription>
+                </div>
+                {grant.aiRecommended && (
+                  <Badge className="bg-primary/10 text-primary border-primary/20">
+                    AI Match
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            
+            <CardContent className="space-y-4">
+              <div className="text-sm line-clamp-3 text-muted-foreground">
+                {grant.description || 'No description provided.'}
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-sm">
+                <div className="flex items-center">
+                  <Calendar className="h-4 w-4 text-muted-foreground mr-1" />
+                  <span>
+                    {formatDeadline(grant.deadline)}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <DollarSign className="h-4 w-4 text-muted-foreground mr-1" />
+                  <span>
+                    {grant.amount || 'Amount varies'}
+                  </span>
+                </div>
+              </div>
+              
+              {grant.matchScore !== undefined && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-muted-foreground">Match Score:</span>
+                  <div className="h-2 flex-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary rounded-full"
+                      style={{ width: `${Math.round(grant.matchScore * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium">
+                    {Math.round(grant.matchScore * 100)}%
+                  </span>
+                </div>
+              )}
+            </CardContent>
+            
+            <CardFooter className="flex justify-between space-x-2 bg-muted/20 py-3">
+              <Button variant="outline" size="sm">
+                <Bookmark className="h-4 w-4 mr-1" />
+                Save
+              </Button>
+              <div className="space-x-2">
+                {grant.website || grant.url ? (
+                  <Button size="sm" variant="outline" asChild>
+                    <a 
+                      href={grant.website || grant.url || '#'} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-4 w-4 mr-1" />
+                      Website
+                    </a>
+                  </Button>
+                ) : null}
+                <Button size="sm" asChild>
+                  <a href={`/applications/new?grantId=${grant.id || `rec-${Date.now()}`}`}>
+                    <FileText className="h-4 w-4 mr-1" />
+                    Prepare App
+                  </a>
+                </Button>
+              </div>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+}

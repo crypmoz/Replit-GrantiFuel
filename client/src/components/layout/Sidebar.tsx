@@ -3,7 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { 
   Music, Home, DollarSign, Users, FileText, 
   LayoutTemplate, Zap, LogOut, BookOpen, Settings, User as UserIcon,
-  Shield, UserCog, Search, Gauge, BrainCircuit, BarChart, Award
+  Shield, UserCog, Search, Gauge, BrainCircuit, BarChart, Award, Plus
 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 import { useQuery } from '@tanstack/react-query';
@@ -28,14 +28,14 @@ const navItems: NavItem[] = [
   },
   { 
     href: '/grants', 
-    label: 'My Grants', 
+    label: 'Grants Center', 
     icon: <DollarSign className="h-5 w-5 mr-3" />,
     // Grants overview is visible to all users
   },
   { 
     href: '/grants/new', 
     label: 'Create Grant', 
-    icon: <DollarSign className="h-5 w-5 mr-3" />,
+    icon: <Plus className="h-5 w-5 mr-3" />,
     allowedRoles: ['grant_writer'] // Only grant writers can create grants
   },
   { 
@@ -64,12 +64,6 @@ const navItems: NavItem[] = [
     label: 'AI Assistant', 
     icon: <Zap className="h-5 w-5 mr-3" />,
     // AI Assistant visible to all authenticated users with proper subscription
-  },
-  { 
-    href: '/find-grants', 
-    label: 'Find Grants', 
-    icon: <Search className="h-5 w-5 mr-3" />,
-    // Find Grants visible to all authenticated users
   },
   { 
     href: '/documents', 
