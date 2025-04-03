@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import compression from "compression";
 import { requestLogger } from "./middleware/request-logger";
+import { backgroundProcessor } from "./services/background-processor";
 
 const app = express();
 // Add compression middleware
@@ -99,5 +100,14 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Start the background processor
+    backgroundProcessor.startProcessingInterval();
+    log('Background document processor started');
+    
+    // Queue any pending documents that might need processing
+    backgroundProcessor.queueAllDocuments()
+      .then(result => log(`Queued ${result.queued} documents for analysis`))
+      .catch(err => console.error('Error queueing documents:', err));
   });
 })();

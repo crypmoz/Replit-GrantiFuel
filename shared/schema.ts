@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -157,6 +157,44 @@ export const subscriptions = pgTable("subscriptions", {
   canceledAt: timestamp("canceled_at"),
 });
 
+// New tables for AI analysis caching
+export const documentAnalyses = pgTable("document_analyses", {
+  id: serial("id").primaryKey(),
+  documentId: integer("document_id").notNull().references(() => documents.id),
+  summary: text("summary").notNull(),
+  topics: text("topics").array(),
+  relevanceScore: integer("relevance_score"),
+  keyInsights: text("key_insights").array(),
+  targetAudience: text("target_audience").array(),
+  profileRequirements: jsonb("profile_requirements"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const grantRecommendations = pgTable("grant_recommendations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  artistId: integer("artist_id").references(() => artists.id),
+  recommendations: jsonb("recommendations").notNull(),
+  queryParams: jsonb("query_params"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const processingJobs = pgTable("processing_jobs", {
+  id: serial("id").primaryKey(),
+  jobType: text("job_type").notNull(),
+  status: text("status").notNull().default("pending"),
+  entityType: text("entity_type").notNull(),
+  entityId: integer("entity_id").notNull(),
+  params: jsonb("params"),
+  result: jsonb("result"),
+  error: text("error"),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Define relations
 export const grantsRelations = relations(grants, ({ many, one }) => ({
   applications: many(applications),
@@ -204,10 +242,29 @@ export const activitiesRelations = relations(activities, ({ one }) => ({
 //   }),
 // }));
 
-export const documentsRelations = relations(documents, ({ one }) => ({
+export const documentsRelations = relations(documents, ({ one, many }) => ({
   user: one(users, {
     fields: [documents.userId],
     references: [users.id],
+  }),
+  analyses: many(documentAnalyses),
+}));
+
+export const documentAnalysesRelations = relations(documentAnalyses, ({ one }) => ({
+  document: one(documents, {
+    fields: [documentAnalyses.documentId],
+    references: [documents.id],
+  }),
+}));
+
+export const grantRecommendationsRelations = relations(grantRecommendations, ({ one }) => ({
+  user: one(users, {
+    fields: [grantRecommendations.userId],
+    references: [users.id],
+  }),
+  artist: one(artists, {
+    fields: [grantRecommendations.artistId],
+    references: [artists.id],
   }),
 }));
 
@@ -335,6 +392,31 @@ export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 export type UserOnboarding = typeof userOnboarding.$inferSelect;
+export type DocumentAnalysis = typeof documentAnalyses.$inferSelect;
+export type GrantRecommendation = typeof grantRecommendations.$inferSelect;
+export type ProcessingJob = typeof processingJobs.$inferSelect;
+
+// Insert schemas for the new tables
+export const insertDocumentAnalysisSchema = createInsertSchema(documentAnalyses).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertGrantRecommendationSchema = createInsertSchema(grantRecommendations).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export const insertProcessingJobSchema = createInsertSchema(processingJobs).omit({ 
+  id: true, 
+  createdAt: true, 
+  startedAt: true, 
+  completedAt: true 
+});
+
+export type InsertDocumentAnalysis = z.infer<typeof insertDocumentAnalysisSchema>;
+export type InsertGrantRecommendation = z.infer<typeof insertGrantRecommendationSchema>;
+export type InsertProcessingJob = z.infer<typeof insertProcessingJobSchema>;
 
 // Export enums
 export const userRoleEnum = userRole;

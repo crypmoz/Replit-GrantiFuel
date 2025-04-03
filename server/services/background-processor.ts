@@ -172,18 +172,61 @@ export class BackgroundProcessor {
     console.log(`[BackgroundProcessor] Processing ${this.processingQueue.size} documents`);
 
     try {
+      // Create a processing job to track this batch
+      const job = await storage.createProcessingJob({
+        jobType: 'document_analysis',
+        status: 'pending',
+        entityType: 'document',
+        entityId: Array.from(this.processingQueue)[0] || 0,
+        params: {
+          documentCount: this.processingQueue.size,
+          documentIds: Array.from(this.processingQueue)
+        }
+      });
+      
+      console.log(`[BackgroundProcessor] Created processing job ${job.id}`);
+      
       // Process each document in the queue by converting Set to Array
       const queueArray = Array.from(this.processingQueue);
+      let processedCount = 0;
+      let errorCount = 0;
+      
       for (const documentId of queueArray) {
-        // Skip if already processed
-        if (this.analysisResults.get(`doc_${documentId}`)) {
+        // Check if we already have a persisted analysis
+        const existingAnalysis = await storage.getDocumentAnalysis(documentId);
+        if (existingAnalysis) {
+          console.log(`[BackgroundProcessor] Document ${documentId} already has persisted analysis`);
+          // Also cache in memory for quicker access
+          // Convert the analysis structure to a format our code expects
+          const analysisData = {
+            summary: existingAnalysis.summary,
+            topics: existingAnalysis.topics,
+            relevanceScore: existingAnalysis.relevanceScore,
+            keyInsights: existingAnalysis.keyInsights,
+            targetAudience: existingAnalysis.targetAudience,
+            profileRequirements: existingAnalysis.profileRequirements
+          };
+          this.analysisResults.set(`doc_${documentId}`, analysisData);
+          this.processingStatus.set(`doc_${documentId}`, 'completed');
           this.processingQueue.delete(documentId);
+          processedCount++;
           continue;
         }
 
         try {
           // Update status to processing
           this.processingStatus.set(`doc_${documentId}`, 'processing');
+          
+          // Update the job status
+          await storage.updateProcessingJob(job.id, {
+            status: 'processing',
+            result: {
+              progress: Math.floor((processedCount / queueArray.length) * 100),
+              currentDocument: documentId,
+              processedCount,
+              errorCount
+            }
+          });
           
           // Get document from storage
           const document = await storage.getDocument(documentId);
@@ -192,25 +235,69 @@ export class BackgroundProcessor {
             console.warn(`[BackgroundProcessor] Document ${documentId} not found`);
             this.processingStatus.set(`doc_${documentId}`, 'not_found');
             this.processingQueue.delete(documentId);
+            errorCount++;
             continue;
           }
 
           // Process the document
           const analysis = await this.analyzeDocument(document);
           
-          // Store result
+          // Store result in persistent storage
+          const dbAnalysis = await storage.createOrUpdateDocumentAnalysis({
+            documentId,
+            summary: analysis.summary || "No summary available",
+            topics: analysis.topics || [],
+            relevanceScore: analysis.relevanceScore || 0,
+            keyInsights: analysis.keyInsights || [],
+            targetAudience: analysis.targetAudience || [],
+            profileRequirements: analysis.profileRequirements || {}
+          });
+          
+          // Also cache in memory for quicker access
           this.analysisResults.set(`doc_${documentId}`, analysis);
           this.processingStatus.set(`doc_${documentId}`, 'completed');
           
+          processedCount++;
           console.log(`[BackgroundProcessor] Completed analysis for document ${documentId}`);
         } catch (error) {
           console.error(`[BackgroundProcessor] Error processing document ${documentId}:`, error);
           this.processingStatus.set(`doc_${documentId}`, 'error');
+          errorCount++;
+          
+          // Create a failed entry in DB
+          try {
+            await storage.createOrUpdateDocumentAnalysis({
+              documentId,
+              summary: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              topics: [],
+              relevanceScore: 0,
+              keyInsights: [],
+              targetAudience: [],
+              profileRequirements: { error: error instanceof Error ? error.message : 'Unknown error' }
+            });
+          } catch (dbError) {
+            console.error(`[BackgroundProcessor] Error saving failed analysis to DB:`, dbError);
+          }
         } finally {
           // Remove from queue regardless of outcome
           this.processingQueue.delete(documentId);
         }
       }
+      
+      // Update job status to completed
+      await storage.updateProcessingJob(job.id, {
+        status: 'completed',
+        completedAt: new Date(),
+        result: {
+          progress: 100,
+          processedCount,
+          errorCount
+        }
+      });
+      
+      console.log(`[BackgroundProcessor] Job ${job.id} completed. Processed: ${processedCount}, Errors: ${errorCount}`);
+    } catch (error) {
+      console.error(`[BackgroundProcessor] Error in processing queue:`, error);
     } finally {
       this.isProcessing = false;
     }
@@ -248,7 +335,49 @@ export class BackgroundProcessor {
     }
 
     try {
-      // Get all approved documents from storage
+      // Check if we have profile requirements in the database
+      const allDocumentAnalyses = await storage.getAllDocumentAnalyses();
+      if (allDocumentAnalyses && allDocumentAnalyses.length > 0) {
+        console.log(`[BackgroundProcessor] Found ${allDocumentAnalyses.length} document analyses for profile requirements`);
+        
+        // Extract profile requirements from document analyses
+        const profileRequirements: {field: string, importance: string, description: string}[] = [];
+        
+        for (const analysis of allDocumentAnalyses) {
+          try {
+            // The profileRequirements field should contain our data directly
+            if (analysis.profileRequirements) {
+              // Check if it's already an object with the fields we need
+              const profileReqs = analysis.profileRequirements as any;
+              
+              if (Array.isArray(profileReqs)) {
+                // Map the field structure
+                for (const req of profileReqs) {
+                  // Only add if it's not already in the list (deduplicate by fieldName)
+                  if (!profileRequirements.some(pr => pr.field === req.fieldName)) {
+                    profileRequirements.push({
+                      field: req.fieldName,
+                      importance: req.importance || 'recommended',
+                      description: req.description || ''
+                    });
+                  }
+                }
+              }
+            }
+          } catch (parseError) {
+            console.warn(`[BackgroundProcessor] Could not parse profile requirements for document ${analysis.documentId}:`, parseError);
+          }
+        }
+        
+        // If we found profile requirements in the analyses, use those
+        if (profileRequirements.length > 0) {
+          console.log(`[BackgroundProcessor] Extracted ${profileRequirements.length} profile requirements from document analyses`);
+          this.analysisResults.set('profile_requirements', profileRequirements);
+          return profileRequirements;
+        }
+      }
+      
+      // If we don't have profile requirements from analyses, get all approved documents
       const documents = await storage.getApprovedDocuments();
       
       // If we have documents, analyze them through the AI service
@@ -289,6 +418,69 @@ export class BackgroundProcessor {
         return cachedReqs;
       }
       
+      throw error;
+    }
+  }
+  
+  /**
+   * Get grant recommendations for a user
+   * This method checks for cached recommendations in the database first
+   */
+  public async getGrantRecommendations(userId: number, artistId?: number): Promise<any[]> {
+    try {
+      // First, check the database for persisted recommendations
+      const persistedRecommendations = await storage.getGrantRecommendationsForUser(userId, artistId);
+      
+      if (persistedRecommendations && persistedRecommendations.recommendations) {
+        try {
+          console.log(`[BackgroundProcessor] Using persisted grant recommendations for user ${userId}${artistId ? ` and artist ${artistId}` : ''}`);
+          // The recommendations field should directly contain our data
+          return persistedRecommendations.recommendations as any[];
+        } catch (error) {
+          console.warn(`[BackgroundProcessor] Could not use persisted recommendations:`, error);
+        }
+      }
+      
+      console.log(`[BackgroundProcessor] No persisted recommendations found, generating new ones for user ${userId}${artistId ? ` and artist ${artistId}` : ''}`);
+      
+      // Get the artist profile if an artistId was provided
+      let artistProfile: any = { userId };
+      
+      if (artistId) {
+        const artist = await storage.getArtist(artistId);
+        if (artist) {
+          artistProfile = {
+            userId,
+            genre: artist.genres?.join(', ') || '',
+            careerStage: artist.careerStage || '',
+            instrumentOrRole: artist.primaryInstrument || '',
+            location: artist.location || '',
+            projectType: artist.projectType || ''
+          };
+        }
+      }
+      
+      // If no persisted recommendations, get them from the AI service
+      const result = await aiService.getGrantRecommendations(artistProfile);
+      
+      if (result.success && result.data) {
+        // Store the recommendations in the database for future use
+        await storage.createOrUpdateGrantRecommendations({
+          userId,
+          artistId: artistId || null,
+          recommendations: result.data,
+          queryParams: { timestamp: new Date().toISOString() }
+        });
+        
+        return result.data;
+      } else {
+        const errorMessage = typeof result.error === 'string' 
+          ? result.error 
+          : 'Failed to get grant recommendations';
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      console.error(`[BackgroundProcessor] Error getting grant recommendations:`, error);
       throw error;
     }
   }

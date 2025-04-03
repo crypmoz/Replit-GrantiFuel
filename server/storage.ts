@@ -9,10 +9,13 @@ import {
   subscriptions, type Subscription, type InsertSubscription,
   documents, type Document, type InsertDocument,
   userOnboarding, type UserOnboarding, type InsertUserOnboarding,
+  documentAnalyses, type DocumentAnalysis, type InsertDocumentAnalysis,
+  grantRecommendations, type GrantRecommendation, type InsertGrantRecommendation,
+  processingJobs, type ProcessingJob, type InsertProcessingJob,
   userRoleEnum
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, asc } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -84,6 +87,21 @@ export interface IStorage {
   
   // Session store
   sessionStore: session.Store;
+  
+  // Document Analysis (AI Cache)
+  getDocumentAnalysis(documentId: number): Promise<DocumentAnalysis | undefined>;
+  createOrUpdateDocumentAnalysis(analysis: InsertDocumentAnalysis): Promise<DocumentAnalysis>;
+  getAllDocumentAnalyses(): Promise<DocumentAnalysis[]>;
+  
+  // Grant Recommendations (AI Cache)
+  getGrantRecommendationsForUser(userId: number, artistId?: number): Promise<GrantRecommendation | undefined>;
+  createOrUpdateGrantRecommendations(recommendations: InsertGrantRecommendation): Promise<GrantRecommendation>;
+  
+  // Background Processing
+  createProcessingJob(job: InsertProcessingJob): Promise<ProcessingJob>;
+  getProcessingJob(id: number): Promise<ProcessingJob | undefined>;
+  getPendingProcessingJobs(): Promise<ProcessingJob[]>;
+  updateProcessingJob(id: number, updateData: Partial<ProcessingJob>): Promise<ProcessingJob | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -397,6 +415,163 @@ export class DatabaseStorage implements IStorage {
       .returning();
       
     return onboardingTask;
+  }
+
+  // Document Analysis (AI Cache) methods
+  async getDocumentAnalysis(documentId: number): Promise<DocumentAnalysis | undefined> {
+    const [analysis] = await db
+      .select()
+      .from(documentAnalyses)
+      .where(eq(documentAnalyses.documentId, documentId));
+    return analysis;
+  }
+
+  async createOrUpdateDocumentAnalysis(analysis: InsertDocumentAnalysis): Promise<DocumentAnalysis> {
+    try {
+      // Check if analysis for this document already exists
+      const existing = await this.getDocumentAnalysis(analysis.documentId);
+      
+      if (existing) {
+        // Update existing analysis
+        const [updated] = await db
+          .update(documentAnalyses)
+          .set({
+            ...analysis,
+            updatedAt: new Date()
+          })
+          .where(eq(documentAnalyses.id, existing.id))
+          .returning();
+        return updated;
+      } else {
+        // Create new analysis
+        const [created] = await db
+          .insert(documentAnalyses)
+          .values(analysis)
+          .returning();
+        return created;
+      }
+    } catch (error) {
+      console.error("Error creating/updating document analysis:", error);
+      throw error;
+    }
+  }
+
+  async getAllDocumentAnalyses(): Promise<DocumentAnalysis[]> {
+    return await db
+      .select()
+      .from(documentAnalyses)
+      .orderBy(desc(documentAnalyses.updatedAt));
+  }
+
+  // Grant Recommendations (AI Cache) methods
+  async getGrantRecommendationsForUser(userId: number, artistId?: number): Promise<GrantRecommendation | undefined> {
+    let query;
+    
+    if (artistId) {
+      query = db
+        .select()
+        .from(grantRecommendations)
+        .where(and(
+          eq(grantRecommendations.userId, userId),
+          eq(grantRecommendations.artistId, artistId)
+        ));
+    } else {
+      query = db
+        .select()
+        .from(grantRecommendations)
+        .where(eq(grantRecommendations.userId, userId));
+    }
+    
+    const [recommendation] = await query.orderBy(desc(grantRecommendations.updatedAt)).limit(1);
+    return recommendation;
+  }
+
+  async createOrUpdateGrantRecommendations(recommendations: InsertGrantRecommendation): Promise<GrantRecommendation> {
+    try {
+      // Look for existing recommendations with the same userId and artistId
+      let existing;
+      
+      if (recommendations.artistId) {
+        // If artistId is specified, find recommendations for specific artist
+        existing = await db
+          .select()
+          .from(grantRecommendations)
+          .where(and(
+            eq(grantRecommendations.userId, recommendations.userId),
+            eq(grantRecommendations.artistId, recommendations.artistId)
+          ))
+          .limit(1);
+      } else {
+        // Otherwise just find by userId
+        existing = await db
+          .select()
+          .from(grantRecommendations)
+          .where(eq(grantRecommendations.userId, recommendations.userId))
+          .limit(1);
+      }
+      
+      if (existing.length > 0) {
+        // Update existing recommendations
+        const [updated] = await db
+          .update(grantRecommendations)
+          .set({
+            ...recommendations,
+            updatedAt: new Date()
+          })
+          .where(eq(grantRecommendations.id, existing[0].id))
+          .returning();
+        return updated;
+      } else {
+        // Create new recommendations
+        const [created] = await db
+          .insert(grantRecommendations)
+          .values(recommendations)
+          .returning();
+        return created;
+      }
+    } catch (error) {
+      console.error("Error creating/updating grant recommendations:", error);
+      throw error;
+    }
+  }
+
+  // Background Processing methods
+  async createProcessingJob(job: InsertProcessingJob): Promise<ProcessingJob> {
+    try {
+      const [created] = await db
+        .insert(processingJobs)
+        .values(job)
+        .returning();
+      return created;
+    } catch (error) {
+      console.error("Error creating processing job:", error);
+      throw error;
+    }
+  }
+
+  async getProcessingJob(id: number): Promise<ProcessingJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(processingJobs)
+      .where(eq(processingJobs.id, id));
+    return job;
+  }
+
+  async getPendingProcessingJobs(): Promise<ProcessingJob[]> {
+    return await db
+      .select()
+      .from(processingJobs)
+      .where(eq(processingJobs.status, 'pending'))
+      .orderBy(asc(processingJobs.createdAt));
+  }
+
+  async updateProcessingJob(id: number, updateData: Partial<ProcessingJob>): Promise<ProcessingJob | undefined> {
+    const [job] = await db
+      .update(processingJobs)
+      .set(updateData)
+      .where(eq(processingJobs.id, id))
+      .returning();
+    return job;
   }
 }
 
