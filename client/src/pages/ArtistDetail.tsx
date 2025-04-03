@@ -45,7 +45,10 @@ import { ArtistProfileEdit } from '@/components/profile/ArtistProfileEdit';
 // Form state type
 type ArtistFormValues = Omit<z.infer<typeof insertArtistSchema>, 'userId'>;
 
-// Activity details interface - removed to simplify approach
+// Activity details interface
+interface ActivityDetails {
+  [key: string]: unknown;
+}
 
 export default function ArtistDetail() {
   // Get artist ID from URL
@@ -108,16 +111,22 @@ export default function ArtistDetail() {
     queryKey: ['/api/grants'],
   });
   
-  // Fetch activities related to this artist
-  const { data: activities } = useQuery<Activity[]>({
+  // Fetch activities related to this artist with type-safe details
+  const { data: activities } = useQuery<(Activity & { details: ActivityDetails })[]>({
     queryKey: ['/api/activities'],
-    select: (data) => data.filter(
-      activity => activity.entityType === 'ARTIST' && activity.entityId === artistId
-    ).sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt.toString()).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt.toString()).getTime() : 0;
-      return dateB - dateA;
-    })
+    select: (data) => data
+      .filter(activity => activity.entityType === 'ARTIST' && activity.entityId === artistId)
+      .map(activity => ({
+        ...activity,
+        details: (activity.details && typeof activity.details === 'object') 
+          ? activity.details as ActivityDetails 
+          : {} as ActivityDetails
+      }))
+      .sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt.toString()).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt.toString()).getTime() : 0;
+        return dateB - dateA;
+      })
   });
 
   // If artist has no genres, provide a placeholder
@@ -304,15 +313,20 @@ export default function ArtistDetail() {
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                               {activity.createdAt ? format(new Date(activity.createdAt.toString()), 'MMMM d, yyyy h:mm a') : 'Unknown date'}
                             </p>
-                            {/* Simplified activity details rendering */}
-                            {activity.details && typeof activity.details === 'object' && (
-                              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                <div className="flex items-start gap-2">
-                                  <span className="font-medium">Details:</span>
-                                  <span>{JSON.stringify(activity.details)}</span>
+                            {/* Activity details rendering */}
+                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                              <div className="flex flex-col gap-1">
+                                <div className="font-medium">Details:</div>
+                                <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded-md">
+                                  {Object.entries(activity.details).map(([key, value]) => (
+                                    <div key={key} className="flex gap-2">
+                                      <span className="font-medium capitalize">{key.replace(/([A-Z])/g, ' $1')}:</span>
+                                      <span>{typeof value === 'string' ? value : JSON.stringify(value)}</span>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
-                            )}
+                            </div>
                           </div>
                         </div>
                       ))}
