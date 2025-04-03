@@ -28,7 +28,7 @@ const navItems: NavItem[] = [
   },
   { 
     href: '/grants', 
-    label: 'Grants', 
+    label: 'My Grants', 
     icon: <DollarSign className="h-5 w-5 mr-3" />,
     // Grants overview is visible to all users
   },
@@ -66,10 +66,10 @@ const navItems: NavItem[] = [
     // AI Assistant visible to all authenticated users with proper subscription
   },
   { 
-    href: '/grant-recommendations', 
+    href: '/find-grants', 
     label: 'Find Grants', 
     icon: <Search className="h-5 w-5 mr-3" />,
-    // Grant Recommendations visible to all authenticated users
+    // Find Grants visible to all authenticated users
   },
   { 
     href: '/documents', 

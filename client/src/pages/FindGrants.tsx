@@ -212,11 +212,11 @@ export default function FindGrantsPage() {
       <div className="container max-w-6xl mx-auto py-6 px-4 sm:px-6">
         <header className="mb-8">
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-2 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-            AI Grant Recommendations
+            Find Grants for Your Music
           </h1>
           <p className="text-lg text-muted-foreground max-w-3xl">
-            Let our AI assistant find perfect grant opportunities for your unique artistic profile. 
-            Get personalized recommendations that match your career stage, genre, and artistic focus.
+            Our AI assistant will find perfect grant opportunities matching your artistic profile. 
+            Get personalized recommendations based on your career stage, genre, and artistic focus.
           </p>
         </header>
 

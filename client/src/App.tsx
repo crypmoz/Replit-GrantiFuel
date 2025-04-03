@@ -15,7 +15,7 @@ import ApplicationDetail from "./pages/ApplicationDetail";
 import NewApplicationForm from "./pages/NewApplicationForm";
 // Templates pages removed (considered useless feature)
 import AIAssistant from "./pages/AIAssistant";
-import GrantRecommendations from "./pages/GrantRecommendations";
+import FindGrantsPage from "./pages/FindGrants";
 import Documents from "./pages/Documents";
 import UserManagement from "./pages/admin/UserManagement";
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -110,8 +110,16 @@ function AppContent() {
               {/* AI Assistant is available to premium users (all roles) */}
               <ProtectedRoute path="/ai-assistant" component={AIAssistant} />
               
-              {/* Grant Recommendations - accessible to all authenticated users */}
-              <ProtectedRoute path="/grant-recommendations" component={GrantRecommendations} />
+              {/* Find Grants - accessible to all authenticated users */}
+              <ProtectedRoute path="/find-grants" component={FindGrantsPage} />
+              
+              {/* Redirect from old path to new path for backward compatibility */}
+              <Route path="/grant-recommendations">
+                {() => {
+                  window.location = "/find-grants";
+                  return null;
+                }}
+              </Route>
               
               {/* Document management - different roles have different access */}
               <ProtectedRoute path="/documents" component={Documents} />
