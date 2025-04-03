@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Grant } from '@shared/schema';
+import { Grant, GrantWithAIRecommendation } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardFooter } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -27,21 +27,22 @@ import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert";
 
 // Define types for the personalized grants response
 interface PersonalizedGrantsResponse {
-  grants: (Grant & { matchScore?: number })[];
+  grants: GrantWithAIRecommendation[];
   isPersonalized: boolean;
   profileComplete: boolean;
   missingInfo?: 'artistProfile' | 'genres';
+  aiEnhanced?: boolean;
 }
 
 export default function Grants() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [grantToDelete, setGrantToDelete] = useState<Grant | null>(null);
+  const [grantToDelete, setGrantToDelete] = useState<GrantWithAIRecommendation | null>(null);
   const [_, navigate] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  const { data: grantsResponse, isLoading, error, refetch } = useQuery<PersonalizedGrantsResponse | Grant[]>({
+  const { data: grantsResponse, isLoading, error, refetch } = useQuery<PersonalizedGrantsResponse | GrantWithAIRecommendation[]>({
     queryKey: ['/api/grants'],
     refetchOnMount: true,
     refetchOnWindowFocus: true,
@@ -57,6 +58,7 @@ export default function Grants() {
   const isPersonalized = !Array.isArray(grantsResponse) && grantsResponse?.isPersonalized;
   const profileComplete = !Array.isArray(grantsResponse) && grantsResponse?.profileComplete;
   const missingInfo = !Array.isArray(grantsResponse) ? grantsResponse?.missingInfo : undefined;
+  const aiEnhanced = !Array.isArray(grantsResponse) && grantsResponse?.aiEnhanced;
   
   // Delete mutation for grants (admin only)
   const deleteGrantMutation = useMutation({
@@ -178,13 +180,24 @@ export default function Grants() {
       
       {/* Personalization indicator */}
       {user && isPersonalized && profileComplete && (
-        <Alert className="mb-6 border-green-300 bg-green-50 dark:bg-green-950/30">
-          <UserRoundCheck className="h-4 w-4 text-green-500" />
-          <AlertTitle className="text-green-700 dark:text-green-400">Personalized grants for you</AlertTitle>
-          <AlertDescription className="text-green-700 dark:text-green-400">
-            These grants are tailored to match your artist profile. 
-            Check the <Link to="/grant-recommendations" className="underline text-green-600 dark:text-green-400">Grant Recommendations</Link> page for an AI-powered analysis.
-          </AlertDescription>
+        <Alert className={`mb-6 ${aiEnhanced ? 'border-purple-300 bg-purple-50 dark:bg-purple-950/30' : 'border-green-300 bg-green-50 dark:bg-green-950/30'}`}>
+          {aiEnhanced ? (
+            <>
+              <FileText className="h-4 w-4 text-purple-500" />
+              <AlertTitle className="text-purple-700 dark:text-purple-400">AI-enhanced grant recommendations</AlertTitle>
+              <AlertDescription className="text-purple-700 dark:text-purple-400">
+                These grants are intelligently matched to your artist profile using AI. Recommendations with a higher match score are most relevant to your profile and career goals.
+              </AlertDescription>
+            </>
+          ) : (
+            <>
+              <UserRoundCheck className="h-4 w-4 text-green-500" />
+              <AlertTitle className="text-green-700 dark:text-green-400">Personalized grants for you</AlertTitle>
+              <AlertDescription className="text-green-700 dark:text-green-400">
+                These grants are tailored to match your artist profile.
+              </AlertDescription>
+            </>
+          )}
         </Alert>
       )}
 
@@ -215,9 +228,21 @@ export default function Grants() {
           {filteredGrants && filteredGrants.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredGrants.map((grant) => (
-                <Card key={grant.id} className="hover:shadow-md transition-shadow">
+                <Card 
+                  key={grant.id} 
+                  className={`hover:shadow-md transition-shadow ${grant.aiRecommended 
+                    ? 'border-purple-200 dark:border-purple-800/40' 
+                    : ''}`}
+                >
                   <CardHeader className="pb-2">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{grant.name}</h3>
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{grant.name}</h3>
+                      {grant.aiRecommended && (
+                        <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300 rounded-sm">
+                          AI
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{grant.organization}</p>
                   </CardHeader>
                   <CardContent>
@@ -238,8 +263,15 @@ export default function Grants() {
                       
                       {/* Show match score for personalized grants */}
                       {'matchScore' in grant && typeof grant.matchScore === 'number' && (
-                        <Badge variant="outline" className="mt-2 border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-400">
+                        <Badge 
+                          variant="outline" 
+                          className={`mt-2 ${grant.aiRecommended 
+                            ? 'border-purple-200 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/30 dark:text-purple-400' 
+                            : 'border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950/30 dark:text-green-400'
+                          }`}
+                        >
                           {`${grant.matchScore}% Match`}
+                          {grant.aiRecommended && <span className="ml-1">✨</span>}
                         </Badge>
                       )}
                     </div>

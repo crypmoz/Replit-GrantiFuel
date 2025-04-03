@@ -52,6 +52,8 @@ export const grants = pgTable("grants", {
   description: text("description"),
   requirements: text("requirements"),
   createdAt: timestamp("created_at").defaultNow(),
+  // NOTE: matchScore and aiRecommended will not be stored in the database
+  // They are calculated dynamically when fetching grants through the API
 });
 
 export const artists = pgTable("artists", {
@@ -314,6 +316,12 @@ export type InsertUserOnboarding = z.infer<typeof insertUserOnboardingSchema>;
 
 export type User = typeof users.$inferSelect;
 export type Grant = typeof grants.$inferSelect;
+
+// Runtime types for API responses
+export type GrantWithAIRecommendation = Grant & {
+  matchScore?: number;
+  aiRecommended?: boolean;
+};
 export type Artist = typeof artists.$inferSelect;
 export type Application = typeof applications.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
