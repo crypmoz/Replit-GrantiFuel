@@ -914,6 +914,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Application export route
+  app.post("/api/applications/:id/export", requireAuth, async (req, res) => {
+    try {
+      const applicationId = parseInt(req.params.id);
+      if (isNaN(applicationId)) {
+        return res.status(400).json({ error: "Invalid application ID" });
+      }
+      
+      const { format } = req.body;
+      if (!format || (format !== "pdf" && format !== "docx")) {
+        return res.status(400).json({ error: "Invalid format. Must be 'pdf' or 'docx'" });
+      }
+      
+      const application = await storage.getApplication(applicationId);
+      if (!application) {
+        return res.status(404).json({ error: "Application not found" });
+      }
+      
+      // Check if user has access to this application
+      if (application.userId !== req.user!.id && req.user!.role !== 'admin' && req.user!.role !== 'manager') {
+        return res.status(403).json({ error: "You don't have permission to export this application" });
+      }
+      
+      // Get related grant and artist data
+      const grant = await storage.getGrant(application.grantId);
+      const artist = await storage.getArtist(application.artistId);
+      
+      if (!grant || !artist) {
+        return res.status(404).json({ error: "Grant or artist associated with this application not found" });
+      }
+      
+      // Generate document content based on application data
+      // Note: In a real implementation, this would use an actual document generation library
+      // For this example, we'll generate a simple text file/buffer
+      const documentContent = Buffer.from(`
+        GrantiFuel Application Export
+        ============================
+        
+        Grant: ${grant.name}
+        Organization: ${grant.organization}
+        Amount: ${grant.amount || 'Not specified'}
+        Deadline: ${grant.deadline.toLocaleDateString()}
+        
+        Artist: ${artist.name}
+        Email: ${artist.email}
+        Phone: ${artist.phone || 'Not provided'}
+        Career Stage: ${artist.careerStage || 'Not specified'}
+        Primary Instrument: ${artist.primaryInstrument || 'Not specified'}
+        Location: ${artist.location || 'Not specified'}
+        
+        Application Status: ${application.status}
+        Progress: ${application.progress}%
+        Started: ${application.startedAt.toLocaleDateString()}
+        ${application.submittedAt ? `Submitted: ${application.submittedAt.toLocaleDateString()}` : ''}
+        
+        Application Answers:
+        ${JSON.stringify(application.answers, null, 2)}
+      `);
+      
+      // Set content type header based on requested format
+      if (format === "pdf") {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="application_${applicationId}.pdf"`);
+      } else {
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="application_${applicationId}.docx"`);
+      }
+      
+      // In a real implementation, we would generate actual PDF or DOCX here
+      // For this example, we're just sending the text buffer
+      res.send(documentContent);
+      
+      // Record activity
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "exported",
+        entityType: "application",
+        entityId: applicationId,
+        details: {
+          format,
+          grantName: grant.name,
+          artistName: artist.name
+        }
+      });
+      
+    } catch (error: any) {
+      console.error("Error exporting application:", error);
+      res.status(500).json({ error: "Error exporting application: " + error.message });
+    }
+  });
+
   // Activities routes
   app.get("/api/activities", async (req, res) => {
     const activities = await storage.getAllActivities();
