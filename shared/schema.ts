@@ -51,6 +51,7 @@ export const grants = pgTable("grants", {
   deadline: timestamp("deadline").notNull(),
   description: text("description"),
   requirements: text("requirements"),
+  website: text("website"),
   createdAt: timestamp("created_at").defaultNow(),
   // NOTE: matchScore and aiRecommended will not be stored in the database
   // They are calculated dynamically when fetching grants through the API
@@ -382,6 +383,7 @@ export type Grant = typeof grants.$inferSelect;
 export type GrantWithAIRecommendation = Grant & {
   matchScore?: number;
   aiRecommended?: boolean;
+  website?: string;
 };
 export type Artist = typeof artists.$inferSelect;
 export type Application = typeof applications.$inferSelect;

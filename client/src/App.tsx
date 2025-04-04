@@ -13,6 +13,7 @@ import ArtistDetail from "./pages/ArtistDetail";
 import Applications from "./pages/Applications";
 import ApplicationDetail from "./pages/ApplicationDetail";
 import NewApplicationForm from "./pages/NewApplicationForm";
+import EnhancedApplicationFlow from "./pages/EnhancedApplicationFlow";
 // Templates pages removed (considered useless feature)
 import AIAssistant from "./pages/AIAssistant";
 import Documents from "./pages/Documents";
@@ -100,6 +101,7 @@ function AppContent() {
               <ArtistRoute path="/artists/:id" component={ArtistDetail} />
               
               {/* Application management */}
+              <ArtistRoute path="/application-flow" component={EnhancedApplicationFlow} />
               <ArtistRoute path="/applications/new" component={NewApplicationForm} />
               <ArtistRoute path="/applications/:id" component={ApplicationDetail} />
               <ManagerRoute path="/applications" component={Applications} />
