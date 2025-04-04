@@ -751,6 +751,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get artists by user ID - this route must come before the /:id route
+  // Get all artists for the current logged-in user
+  app.get("/api/artists/user", requireAuth, async (req, res) => {
+    try {
+      const artists = await storage.getArtistsByUserId(req.user!.id);
+      return res.json(artists);
+    } catch (error) {
+      console.error("Error fetching user artists:", error);
+      return res.status(500).json({ message: "Error fetching artist profiles" });
+    }
+  });
+
   app.get("/api/artists/by-user/:userId", requireAuth, async (req, res) => {
     try {
       const userId = parseInt(req.params.userId);

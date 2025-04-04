@@ -116,7 +116,7 @@ export default function Dashboard() {
       title: "Complete Application Form", 
       description: "Fill out all required application fields",
       icon: <FileCheck className="h-6 w-6" />,
-      url: hasApplications ? `/application/${applications[0].id}` : "/applications",
+      url: hasApplications && applications[0]?.id ? `/application/${applications[0].id}` : "/applications",
       active: currentStep === 4
     },
     { 
@@ -132,7 +132,7 @@ export default function Dashboard() {
       title: "Review & Edit", 
       description: "Review and finalize your application",
       icon: <Edit className="h-6 w-6" />,
-      url: hasApplications ? `/application/${applications[0].id}` : "/applications",
+      url: hasApplications && applications[0]?.id ? `/application/${applications[0].id}` : "/applications",
       active: currentStep === 6
     },
     { 
@@ -140,7 +140,7 @@ export default function Dashboard() {
       title: "Export & Submit", 
       description: "Export your application and submit to grant provider",
       icon: <Download className="h-6 w-6" />,
-      url: hasApplications ? `/application/${applications[0].id}` : "/applications",
+      url: hasApplications && applications[0]?.id ? `/application/${applications[0].id}` : "/applications",
       active: currentStep === 7
     }
   ];
