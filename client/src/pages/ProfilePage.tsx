@@ -40,8 +40,8 @@ export default function ProfilePage() {
     return null;
   }
 
-  // Get list of completed profile fields for the requirements component
-  const getCompletedProfileFields = () => {
+  // Get list of completed profile fields for the requirements component - memoize to prevent re-renders
+  const completedProfileFields = React.useMemo(() => {
     const completedFields = [];
     
     if (artistProfile?.name) completedFields.push('Full Name');
@@ -54,7 +54,16 @@ export default function ProfilePage() {
     if (artistProfile?.projectType) completedFields.push('Project Type');
     
     return completedFields;
-  };
+  }, [
+    artistProfile?.name,
+    artistProfile?.email,
+    artistProfile?.bio,
+    artistProfile?.genres,
+    artistProfile?.careerStage,
+    artistProfile?.primaryInstrument,
+    artistProfile?.location,
+    artistProfile?.projectType
+  ]);
 
   // Create/update artist profile 
   const updateProfileMutation = useMutation({
@@ -290,7 +299,7 @@ export default function ProfilePage() {
         
         <Card className="col-span-1 md:col-span-3 lg:col-span-1">
           <ProfileRequirements 
-            completedFields={getCompletedProfileFields()} 
+            completedFields={completedProfileFields} 
             onFieldClick={handleProfileFieldClick}
           />
         </Card>

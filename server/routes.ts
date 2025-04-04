@@ -1667,9 +1667,8 @@ Return your response in this JSON format:
       
       console.log(`[AI Route] Getting profile requirements for user ${req.user!.id}`);
       
-      // First import the background processor
-      const { backgroundProcessor } = require('./services/background-processor');
-      
+      // Use an import that was already defined at the top of the file
+      // The backgroundProcessor should be imported at the top of routes.ts
       try {
         // Get profile requirements from the background processor
         const profileRequirements = await backgroundProcessor.getProfileRequirements();
@@ -2557,8 +2556,7 @@ Return your response in this JSON format:
     try {
       console.log(`[Admin] Document queue processing requested by user ${req.user!.id}`);
       
-      // First import the background processor
-      const { backgroundProcessor } = require('./services/background-processor');
+      // Use the backgroundProcessor imported at the top of the file
       
       // Queue all unprocessed documents
       const result = await backgroundProcessor.queueAllDocuments();
