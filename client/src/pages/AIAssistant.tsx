@@ -143,13 +143,12 @@ export default function AIAssistant() {
           projectDescription,
           grantName: selectedGrantObj?.name,
           artistName: selectedArtistObj?.name,
-          projectTitle: proposalType === 'project' ? `Music ${proposalType} Proposal` : `${proposalType.charAt(0).toUpperCase() + proposalType.slice(1)} for Music Grant`,
           proposalType,
-          artistBio: selectedArtistObj?.bio,
-          artistGenre: selectedArtistObj?.genre,
-          grantOrganization: selectedGrantObj?.organization,
-          grantRequirements: selectedGrantObj?.requirements,
-          userProfile: userProfile // Include userProfile for context-aware proposals
+          userProfile: userProfile ? {
+            careerStage: userProfile.careerStage || undefined,
+            genre: userProfile.genre || undefined,
+            instrumentOrRole: userProfile.instrumentOrRole || undefined
+          } : undefined
         }),
       });
       
@@ -218,7 +217,11 @@ export default function AIAssistant() {
         body: JSON.stringify({
           question,
           conversationHistory,
-          userProfile: userProfile // Include user profile for context-aware answers
+          userProfile: userProfile ? {
+            careerStage: userProfile.careerStage || undefined,
+            genre: userProfile.genre || undefined,
+            instrumentOrRole: userProfile.instrumentOrRole || undefined
+          } : undefined
         }),
       });
       
