@@ -61,6 +61,7 @@ export default function AIAssistant() {
   const [projectDescription, setProjectDescription] = useState('');
   const [generatingProposal, setGeneratingProposal] = useState(false);
   const [proposalResult, setProposalResult] = useState('');
+  const [aiProvider, setAiProvider] = useState('deepseek'); // 'deepseek' or 'claude'
   
   // Question & Answer states
   const [question, setQuestion] = useState('');
@@ -128,8 +129,13 @@ export default function AIAssistant() {
       const selectedGrantObj = grants?.find((g: any) => g.id === parseInt(selectedGrant));
       const selectedArtistObj = artists?.find((a: any) => a.id === parseInt(selectedArtist));
       
-      // Call the AI API with the user profile included for context
-      const response = await fetch('/api/ai/generate-proposal', {
+      // Determine which endpoint to use based on the selected AI provider
+      const endpoint = aiProvider === 'claude' 
+        ? '/api/ai/claude-music-proposal'
+        : '/api/ai/generate-proposal';
+      
+      // Call the selected AI API with the user profile included for context
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -138,13 +144,18 @@ export default function AIAssistant() {
           projectDescription,
           grantName: selectedGrantObj?.name,
           artistName: selectedArtistObj?.name,
+          projectTitle: proposalType === 'project' ? `Music ${proposalType} Proposal` : `${proposalType.charAt(0).toUpperCase() + proposalType.slice(1)} for Music Grant`,
           proposalType,
+          artistBio: selectedArtistObj?.bio,
+          artistGenre: selectedArtistObj?.genre,
+          grantOrganization: selectedGrantObj?.organization,
+          grantRequirements: selectedGrantObj?.requirements,
           userProfile: userProfile // Include userProfile for context-aware proposals
         }),
       });
       
       if (!response.ok) {
-        throw new Error('Failed to generate proposal');
+        throw new Error(`Failed to generate proposal with ${aiProvider === 'claude' ? 'Claude' : 'Deepseek'}`);
       }
       
       const data = await response.json();
@@ -321,6 +332,21 @@ export default function AIAssistant() {
                       <SelectItem value="artistic">Artistic Statement</SelectItem>
                       <SelectItem value="budget">Budget Justification</SelectItem>
                       <SelectItem value="impact">Impact Statement</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="aiProvider">AI Provider</Label>
+                <Select value={aiProvider} onValueChange={setAiProvider}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select AI provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="deepseek">Deepseek (Standard)</SelectItem>
+                      <SelectItem value="claude">Claude (Advanced Music Expertise)</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>

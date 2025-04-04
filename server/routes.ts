@@ -2,6 +2,7 @@ import { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { aiService, GrantRecommendation } from "./services/ai-service";
+import { anthropicService } from "./services/anthropic-service";
 import { backgroundProcessor } from "./services/background-processor";
 import { z } from "zod";
 import axios from "axios";
@@ -1025,6 +1026,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error in proposal generation endpoint:', error);
       return res.status(500).json({ error: "Failed to generate proposal" });
+    }
+  });
+
+  // Claude Music Proposal endpoint
+  app.post("/api/ai/claude-music-proposal", requireAuth, async (req, res) => {
+    try {
+      // Reuse the same schema since data structure is similar
+      const parsedBody = generateProposalSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.error });
+      }
+      
+      const { projectDescription, grantName, artistName, proposalType, userProfile } = parsedBody.data;
+      
+      // Get user profile info if available from database as a fallback
+      let artistProfile = null;
+      if (req.user) {
+        try {
+          const artists = await storage.getArtistsByUserId(req.user.id);
+          if (artists && artists.length > 0) {
+            // Format the artist into the expected profile structure
+            const artist = artists[0];
+            artistProfile = {
+              careerStage: artist.careerStage || undefined,
+              genre: Array.isArray(artist.genres) && artist.genres.length > 0 ? artist.genres[0] : undefined,
+              instrumentOrRole: artist.primaryInstrument || undefined,
+              name: artist.name,
+              bio: artist.bio || undefined,
+              location: artist.location || undefined
+            };
+          }
+        } catch (profileError) {
+          console.error("Error fetching artist profile for context:", profileError);
+          // Continue without profile info
+        }
+      }
+      
+      // Use the user-provided profile from the frontend if available, otherwise use database profile
+      const profile = userProfile || artistProfile;
+      
+      // Cast the profile to ensure we can safely access properties that might not exist
+      const typedProfile = profile as { 
+        careerStage?: string; 
+        genre?: string; 
+        instrumentOrRole?: string;
+        name?: string;
+        bio?: string;
+        location?: string;
+      } | undefined;
+      
+      // Check for Anthropic API key
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return res.status(500).json({ error: "Anthropic API key not configured" });
+      }
+
+      // Generate proposal using Claude
+      const result = await anthropicService.generateMusicProposal({
+        projectDescription: projectDescription || "Music project proposal",
+        artistName: artistName || typedProfile?.name || "Artist",
+        artistBio: typedProfile?.bio || "Professional musician",
+        artistGenre: typedProfile?.genre || "Music",
+        grantName: grantName || "Arts Grant", 
+        grantOrganization: "Arts Foundation",
+        grantRequirements: "Music project funding requirements",
+        projectTitle: projectDescription.substring(0, 50) || "Project Proposal"
+      });
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error || "Failed to generate proposal with Claude" });
+      }
+      
+      const proposal = result.data;
+      
+      // Create an activity to record the Claude proposal generation
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "GENERATED",
+        entityType: "CLAUDE_PROPOSAL",
+        details: {
+          projectDescription: projectDescription.substring(0, 100),
+          grantName,
+          artistName,
+          model: "claude-3.7-sonnet"
+        }
+      });
+      
+      return res.json({ proposal });
+    } catch (error) {
+      console.error('Error in Claude proposal generation endpoint:', error);
+      return res.status(500).json({ error: "Failed to generate proposal with Claude" });
     }
   });
 
@@ -2328,8 +2419,15 @@ Return your response in this JSON format:
     try {
       console.log(`[Admin] AI cache clear requested by user ${req.user!.id}`);
       
-      // Clear the cache - now returns a status object
+      // Clear both AI service caches
       const clearResult = aiService.clearCache();
+      
+      // Also clear Anthropic service cache if it's available
+      let anthropicResult = { status: 'skipped', message: 'Anthropic service not available' };
+      if (process.env.ANTHROPIC_API_KEY) {
+        anthropicService.clearCache();
+        anthropicResult = { status: 'success', message: 'Anthropic cache cleared' };
+      }
       
       // Log the activity
       await storage.createActivity({
@@ -2337,13 +2435,23 @@ Return your response in this JSON format:
         action: "ADMIN",
         entityType: "AI_CACHE",
         details: {
-          status: clearResult.status,
-          message: clearResult.message,
+          deepseek: {
+            status: clearResult.status,
+            message: clearResult.message
+          },
+          anthropic: anthropicResult,
           timestamp: new Date().toISOString()
         }
       });
       
-      return res.json(clearResult);
+      return res.json({
+        status: 'success',
+        message: 'AI caches cleared successfully',
+        details: {
+          deepseek: clearResult,
+          anthropic: anthropicResult
+        }
+      });
     } catch (error: any) {
       console.error('Error clearing AI cache:', error);
       return res.status(500).json({ 
