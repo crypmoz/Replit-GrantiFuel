@@ -18,7 +18,6 @@ import {
   User,
   Mail,
   Phone,
-  Globe,
   Music,
   MapPin,
   Tag,
@@ -46,7 +45,7 @@ export function ArtistProfileWizard({ onArtistCreated }: ArtistProfileWizardProp
       phone: "",
       bio: "",
       location: "",
-      genres: [],
+      genres: [] as string[],
       careerStage: "",
       primaryInstrument: "",
       projectType: ""
@@ -66,7 +65,7 @@ export function ArtistProfileWizard({ onArtistCreated }: ArtistProfileWizardProp
       toast({
         title: "Success!",
         description: "Artist profile created successfully.",
-        variant: "success",
+        variant: "default",
       });
       onArtistCreated(data);
     },
@@ -204,8 +203,10 @@ export function ArtistProfileWizard({ onArtistCreated }: ArtistProfileWizardProp
                               { label: "Experimental", value: "Experimental" },
                             ]}
                             placeholder="Select genres (can select multiple)"
-                            selected={field.value?.map((genre: string) => ({ label: genre, value: genre })) || []}
-                            onChange={values => form.setValue("genres", values.map(v => v.value))}
+                            selected={field.value || []}
+                            onChange={(selectedValues: string[]) => {
+                              form.setValue("genres", selectedValues);
+                            }}
                           />
                         </div>
                       </FormControl>
@@ -381,7 +382,7 @@ export function ArtistProfileWizard({ onArtistCreated }: ArtistProfileWizardProp
 }
 
 // Icon components for the form
-function Globe(props: React.SVGProps<SVGSVGElement>) {
+function GlobeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}

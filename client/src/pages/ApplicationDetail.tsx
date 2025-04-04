@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import MilestoneCelebration from '@/components/celebration/MilestoneCelebration';
+import { MilestoneCelebration } from '@/components/celebration/MilestoneCelebration';
 import { 
   ChevronLeft, 
   Calendar,
@@ -628,11 +628,17 @@ export default function ApplicationDetail() {
       )}
       
       {/* Milestone celebration popup */}
-      {currentMilestone && (
+      {currentMilestone && showMilestone && (
         <MilestoneCelebration
-          isOpen={showMilestone}
-          onClose={() => setShowMilestone(false)}
-          milestone={currentMilestone}
+          title={`${currentMilestone.type === 'progress' ? `${currentMilestone.value}% Complete!` : 
+                  currentMilestone.type === 'submission' ? 'Application Submitted!' : 
+                  'Application Approved!'}`}
+          message={`${currentMilestone.type === 'progress' ? `You've reached ${currentMilestone.value}% completion on your grant application.` : 
+                   currentMilestone.type === 'submission' ? `You've successfully submitted your application for ${currentMilestone.grantName}.` : 
+                   `Your application for ${currentMilestone.grantName} has been approved!`}`}
+          type={currentMilestone.type === 'progress' ? 'milestone' : 
+                currentMilestone.type === 'submission' ? 'completion' : 'achievement'}
+          onDismiss={() => setShowMilestone(false)}
         />
       )}
     </div>

@@ -73,7 +73,7 @@ export default function EnhancedApplicationFlow() {
     setCelebrationConfig({
       title: "Artist Profile Created!",
       message: "Great job! Now let's find grants that match your profile.",
-      type: "artist-created" as any,
+      type: "success",
     });
     setShowCelebration(true);
     
@@ -89,7 +89,7 @@ export default function EnhancedApplicationFlow() {
     setCelebrationConfig({
       title: "Grant Selected!",
       message: "Excellent choice! Let's start your application for this grant.",
-      type: "grant-selected" as any,
+      type: "milestone",
     });
     setShowCelebration(true);
     
@@ -117,7 +117,7 @@ export default function EnhancedApplicationFlow() {
     setCelebrationConfig({
       title: "Application Started!",
       message: "Your application has been created. Let's enhance it with AI assistance.",
-      type: "application-started" as any,
+      type: "milestone",
     });
     setShowCelebration(true);
     
@@ -168,7 +168,7 @@ export default function EnhancedApplicationFlow() {
     setCelebrationConfig({
       title: "Application Completed!",
       message: "Congratulations! Your application is ready to submit to the grant organization.",
-      type: "application-completed" as any,
+      type: "completion",
     });
     setShowCelebration(true);
     
