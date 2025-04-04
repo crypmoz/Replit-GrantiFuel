@@ -120,12 +120,15 @@ export function ProfileRequirements({
       
       // Then by completion status (incomplete items first) - only if we're viewing all items
       if (activeTab === 'all') {
-        const aCompleted = completedFields.includes(a.fieldName);
-        const bCompleted = completedFields.includes(b.fieldName);
+        const aCompleted = a.fieldName ? completedFields.includes(a.fieldName) : false;
+        const bCompleted = b.fieldName ? completedFields.includes(b.fieldName) : false;
         if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
       }
       
-      // Finally, sort alphabetically by field name
+      // Finally, sort alphabetically by field name (with null checks)
+      if (!a.fieldName && !b.fieldName) return 0;
+      if (!a.fieldName) return 1;
+      if (!b.fieldName) return -1;
       return a.fieldName.localeCompare(b.fieldName);
     });
 
@@ -180,7 +183,7 @@ export function ProfileRequirements({
   };
 
   const getCompletionIcon = (fieldName: string) => {
-    const isCompleted = completedFields.includes(fieldName);
+    const isCompleted = fieldName ? completedFields.includes(fieldName) : false;
     
     if (isCompleted) {
       return <CheckCircle2 className="h-5 w-5 text-green-500" />;
@@ -345,18 +348,18 @@ export function ProfileRequirements({
             defaultValue={
               // By default, expand the first unfinished required field
               sortedRequirements
-                .filter(r => r.importance === 'required' && !completedFields.includes(r.fieldName))
+                .filter(r => r.importance === 'required' && r.fieldName && !completedFields.includes(r.fieldName))
                 .slice(0, 1)
-                .map(r => r.fieldName)
+                .map(r => r.fieldName || `requirement-${Math.random()}`)
             }
           >
             {sortedRequirements.map((requirement: ProfileRequirement) => {
-              const isCompleted = completedFields.includes(requirement.fieldName);
+              const isCompleted = requirement.fieldName ? completedFields.includes(requirement.fieldName) : false;
               
               return (
                 <AccordionItem 
-                  key={requirement.fieldName} 
-                  value={requirement.fieldName}
+                  key={requirement.fieldName || `requirement-${Math.random()}`} 
+                  value={requirement.fieldName || `requirement-${Math.random()}`}
                   className={cn(
                     "border-b last:border-b-0",
                     isCompleted && "bg-green-50/50 dark:bg-green-950/20"
@@ -403,7 +406,7 @@ export function ProfileRequirements({
                           variant={isCompleted ? "outline" : "default"} 
                           size="sm" 
                           className="mt-1.5 w-full sm:w-auto" 
-                          onClick={() => onFieldClick(requirement.fieldName)}
+                          onClick={() => requirement.fieldName && onFieldClick(requirement.fieldName)}
                         >
                           {isCompleted ? (
                             <>
