@@ -101,7 +101,7 @@ function AppContent() {
               <ArtistRoute path="/artists/:id" component={ArtistDetail} />
               
               {/* Application management */}
-              <ArtistRoute path="/application-flow" component={EnhancedApplicationFlow} />
+              <ArtistRoute path="/enhanced-application-flow" component={EnhancedApplicationFlow} />
               <ArtistRoute path="/applications/new" component={NewApplicationForm} />
               <ArtistRoute path="/applications/:id" component={ApplicationDetail} />
               <ManagerRoute path="/applications" component={Applications} />
