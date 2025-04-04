@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { User, Music } from 'lucide-react';
 import { Artist } from '@shared/schema';
-import { ProfileRequirements } from '@/components/profile/ProfileRequirements';
 import { ArtistProfileCard } from '@/components/profile/ArtistProfileCard';
 import { ArtistProfileEdit } from '@/components/profile/ArtistProfileEdit';
 
@@ -39,31 +38,6 @@ export default function ProfilePage() {
   if (!user) {
     return null;
   }
-
-  // Get list of completed profile fields for the requirements component - memoize to prevent re-renders
-  const completedProfileFields = React.useMemo(() => {
-    const completedFields = [];
-    
-    if (artistProfile?.name) completedFields.push('Full Name');
-    if (artistProfile?.email) completedFields.push('Email');
-    if (artistProfile?.bio) completedFields.push('Bio');
-    if (artistProfile?.genres && artistProfile.genres.length > 0) completedFields.push('Genres');
-    if (artistProfile?.careerStage) completedFields.push('Career Stage');
-    if (artistProfile?.primaryInstrument) completedFields.push('Primary Instrument');
-    if (artistProfile?.location) completedFields.push('Location');
-    if (artistProfile?.projectType) completedFields.push('Project Type');
-    
-    return completedFields;
-  }, [
-    artistProfile?.name,
-    artistProfile?.email,
-    artistProfile?.bio,
-    artistProfile?.genres,
-    artistProfile?.careerStage,
-    artistProfile?.primaryInstrument,
-    artistProfile?.location,
-    artistProfile?.projectType
-  ]);
 
   // Create/update artist profile 
   const updateProfileMutation = useMutation({
@@ -129,52 +103,7 @@ export default function ProfilePage() {
     }
   });
 
-  // Handle profile field click from requirements component
-  const handleProfileFieldClick = (fieldName: string) => {
-    // Set the profile to edit mode
-    setEditMode(true);
-    
-    // Use setTimeout to allow the edit form to render, then scroll to the field
-    setTimeout(() => {
-      const fieldId = fieldNameToElementId(fieldName);
-      const element = document.getElementById(fieldId);
-      
-      if (element) {
-        // Scroll to the element with smooth behavior
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
-        // Add a temporary highlight effect
-        element.classList.add('highlight-field');
-        
-        // Remove the highlight after 2 seconds
-        setTimeout(() => {
-          element.classList.remove('highlight-field');
-        }, 2000);
-        
-        // If it's an input element, try to focus it
-        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') {
-          (element as HTMLElement).focus();
-        }
-      }
-    }, 100);
-  };
-  
-  // Convert profile field names to corresponding form element IDs
-  const fieldNameToElementId = (fieldName: string): string => {
-    const mapping: Record<string, string> = {
-      'Full Name': 'artist-name',
-      'Email': 'artist-email',
-      'Bio': 'artist-bio',
-      'Genres': 'artist-genres',
-      'Career Stage': 'artist-careerStage',
-      'Primary Instrument': 'artist-primaryInstrument',
-      'Location': 'artist-location',
-      'Project Type': 'artist-projectType',
-      // Add more mappings as needed
-    };
-    
-    return mapping[fieldName] || 'artist-form';
-  };
+
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -263,7 +192,7 @@ export default function ProfilePage() {
           )}
         </Card>
 
-        <Card className="col-span-1 md:col-span-3 lg:col-span-2">
+        <Card className="col-span-1 md:col-span-3">
           <CardHeader className="flex flex-row items-center">
             <div className="flex-1">
               <CardTitle>Grant Matching Information</CardTitle>
@@ -295,13 +224,6 @@ export default function ProfilePage() {
               </ul>
             </div>
           </CardContent>
-        </Card>
-        
-        <Card className="col-span-1 md:col-span-3 lg:col-span-1">
-          <ProfileRequirements 
-            completedFields={completedProfileFields} 
-            onFieldClick={handleProfileFieldClick}
-          />
         </Card>
       </div>
     </div>
