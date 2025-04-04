@@ -468,7 +468,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             
             // Merge AI recommendations with existing grants
-            const mergedGrants: GrantWithAIRecommendation[] = [...allGrants]; 
+            // Create array of grants compatible with GrantWithAIRecommendation type
+            const mergedGrants: GrantWithAIRecommendation[] = allGrants.map(grant => {
+              // Use type assertion to convert database grant to GrantWithAIRecommendation
+              const enhancedGrant: GrantWithAIRecommendation = {
+                id: grant.id,
+                userId: grant.userId,
+                name: grant.name,
+                organization: grant.organization,
+                amount: grant.amount,
+                deadline: grant.deadline,
+                description: grant.description,
+                requirements: grant.requirements,
+                createdAt: grant.createdAt,
+                // Website is required in GrantWithAIRecommendation, provide empty string if null
+                website: grant.website || "",
+                // AI-specific fields
+                matchScore: undefined,
+                aiRecommended: false
+              };
+              return enhancedGrant;
+            });
             
             // Add AI recommendations at the beginning with their match scores
             aiRecommendations.forEach(rec => {
@@ -480,14 +500,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               if (existingIndex >= 0) {
                 // Update existing grant with AI match score
-                mergedGrants[existingIndex] = {
-                  ...mergedGrants[existingIndex],
-                  matchScore: rec.matchScore,
-                  aiRecommended: true
-                } as GrantWithAIRecommendation;
+                const updatedGrant = mergedGrants[existingIndex];
+                updatedGrant.matchScore = rec.matchScore;
+                updatedGrant.aiRecommended = true;
+                mergedGrants[existingIndex] = updatedGrant;
               } else {
                 // Add new AI recommendation as a "virtual grant"
-                mergedGrants.unshift({
+                const newRecommendation: GrantWithAIRecommendation = {
                   id: -1, // Use negative ID to mark as virtual
                   userId: req.user!.id,
                   name: rec.name,
@@ -500,11 +519,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     : typeof rec.requirements === 'string' 
                       ? rec.requirements 
                       : "",
-                  website: rec.url || "",
+                  website: rec.url || "", // Required field
                   matchScore: rec.matchScore || 50,
                   aiRecommended: true,
                   createdAt: new Date()
-                } as GrantWithAIRecommendation);
+                };
+                mergedGrants.unshift(newRecommendation);
               }
             });
             
@@ -977,7 +997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         Application Status: ${application.status}
         Progress: ${application.progress}%
-        Started: ${application.startedAt.toLocaleDateString()}
+        Started: ${application.startedAt ? application.startedAt.toLocaleDateString() : 'Not available'}
         ${application.submittedAt ? `Submitted: ${application.submittedAt.toLocaleDateString()}` : ''}
         
         Application Answers:

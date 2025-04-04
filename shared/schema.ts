@@ -380,10 +380,20 @@ export type User = typeof users.$inferSelect;
 export type Grant = typeof grants.$inferSelect;
 
 // Runtime types for API responses
-export type GrantWithAIRecommendation = Grant & {
+export type GrantWithAIRecommendation = {
+  id: number;
+  userId: number;
+  name: string;
+  organization: string;
+  amount: string | null;
+  deadline: Date;
+  description: string | null;
+  requirements: string | null;
+  createdAt: Date | null;
+  // These fields are specific to the AI-enhanced grant recommendations
   matchScore?: number;
   aiRecommended?: boolean;
-  website?: string;
+  website: string;
 };
 export type Artist = typeof artists.$inferSelect;
 export type Application = typeof applications.$inferSelect;

@@ -350,16 +350,18 @@ export function ProfileRequirements({
               sortedRequirements
                 .filter(r => r.importance === 'required' && r.fieldName && !completedFields.includes(r.fieldName))
                 .slice(0, 1)
-                .map(r => r.fieldName || `requirement-${Math.random()}`)
+                .map((r, idx) => r.fieldName || `requirement-${idx}`)
             }
           >
-            {sortedRequirements.map((requirement: ProfileRequirement) => {
+            {sortedRequirements.map((requirement: ProfileRequirement, index: number) => {
               const isCompleted = requirement.fieldName ? completedFields.includes(requirement.fieldName) : false;
+              // Use fieldName or index as a stable key/value
+              const uniqueId = requirement.fieldName || `requirement-${index}`;
               
               return (
                 <AccordionItem 
-                  key={requirement.fieldName || `requirement-${Math.random()}`} 
-                  value={requirement.fieldName || `requirement-${Math.random()}`}
+                  key={uniqueId} 
+                  value={uniqueId}
                   className={cn(
                     "border-b last:border-b-0",
                     isCompleted && "bg-green-50/50 dark:bg-green-950/20"
