@@ -65,7 +65,7 @@ export function ArtistProfileWizard({ onArtistCreated }: ArtistProfileWizardProp
       toast({
         title: "Success!",
         description: "Artist profile created successfully.",
-        variant: "default",
+        variant: "success",
       });
       onArtistCreated(data);
     },
@@ -203,9 +203,11 @@ export function ArtistProfileWizard({ onArtistCreated }: ArtistProfileWizardProp
                               { label: "Experimental", value: "Experimental" },
                             ]}
                             placeholder="Select genres (can select multiple)"
-                            selected={field.value || []}
+                            selected={Array.isArray(field.value) ? field.value : []}
                             onChange={(selectedValues: string[]) => {
-                              form.setValue("genres", selectedValues);
+                              form.setValue("genres", selectedValues, { 
+                                shouldValidate: true 
+                              });
                             }}
                           />
                         </div>

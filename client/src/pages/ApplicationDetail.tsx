@@ -639,6 +639,8 @@ export default function ApplicationDetail() {
           type={currentMilestone.type === 'progress' ? 'milestone' : 
                 currentMilestone.type === 'submission' ? 'completion' : 'achievement'}
           onDismiss={() => setShowMilestone(false)}
+          onContinue={() => setShowMilestone(false)}
+          continueText="Continue"
         />
       )}
     </div>
