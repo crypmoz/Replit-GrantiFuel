@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRoute } from 'wouter';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Application, Grant, Artist } from '@shared/schema';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
+import MilestoneCelebration from '@/components/celebration/MilestoneCelebration';
 import { 
   ChevronLeft, 
   Calendar,
@@ -43,6 +44,13 @@ export default function ApplicationDetail() {
   const [editing, setEditing] = useState(false);
   const [proposalContent, setProposalContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [previousProgress, setPreviousProgress] = useState<number | null>(null);
+  const [showMilestone, setShowMilestone] = useState(false);
+  const [currentMilestone, setCurrentMilestone] = useState<{ 
+    type: 'progress' | 'submission' | 'approval';
+    value?: number;
+    grantName?: string;
+  } | null>(null);
   
   // Fetch application data
   const { data: application, isLoading: isLoadingApplication } = useQuery<Application>({
@@ -80,14 +88,14 @@ export default function ApplicationDetail() {
   const isLoading = isLoadingApplication || isLoadingGrant || isLoadingArtist;
   
   // Initialize proposal content from application once data is loaded
-  useState(() => {
+  useEffect(() => {
     if (application?.answers && typeof application.answers === 'object') {
       const answers = application.answers as Record<string, any>;
       if (answers.proposal) {
         setProposalContent(answers.proposal);
       }
     }
-  });
+  }, [application]);
   
   // Get status badge component
   const getStatusBadge = (status: string) => {
@@ -298,6 +306,44 @@ export default function ApplicationDetail() {
     
     return application.answers as Record<string, any>;
   };
+  
+  // Check for progress milestones
+  useEffect(() => {
+    if (!application || !grant) return;
+    
+    // First load - just store the current progress
+    if (previousProgress === null) {
+      setPreviousProgress(application.progress);
+      return;
+    }
+    
+    // Check if progress reached a milestone (25%, 50%, 75%, 100%)
+    const milestones = [25, 50, 75, 100];
+    for (const milestone of milestones) {
+      // Trigger only when crossing a milestone threshold
+      if (application.progress >= milestone && previousProgress < milestone) {
+        setCurrentMilestone({
+          type: 'progress',
+          value: milestone,
+          grantName: grant.name
+        });
+        setShowMilestone(true);
+        break;
+      }
+    }
+    
+    // Check for submission milestone
+    if (application.status === 'submitted' && application.submittedAt && !previousProgress) {
+      setCurrentMilestone({
+        type: 'submission',
+        grantName: grant.name
+      });
+      setShowMilestone(true);
+    }
+    
+    // Update previousProgress
+    setPreviousProgress(application.progress);
+  }, [application, grant, previousProgress]);
   
   const answers = getApplicationAnswers();
   
@@ -579,6 +625,15 @@ export default function ApplicationDetail() {
             </Button>
           </div>
         </Card>
+      )}
+      
+      {/* Milestone celebration popup */}
+      {currentMilestone && (
+        <MilestoneCelebration
+          isOpen={showMilestone}
+          onClose={() => setShowMilestone(false)}
+          milestone={currentMilestone}
+        />
       )}
     </div>
   );
