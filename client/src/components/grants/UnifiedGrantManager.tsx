@@ -270,7 +270,7 @@ export function UnifiedGrantManager({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="rounded-lg overflow-hidden">
+            <Card key={`unified-grant-skeleton-${i}`} className="rounded-lg overflow-hidden">
               <CardHeader className="pb-4">
                 <Skeleton className="h-6 w-4/5" />
                 <Skeleton className="h-4 w-3/5 mt-2" />

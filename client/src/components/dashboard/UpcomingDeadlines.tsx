@@ -77,7 +77,7 @@ export default function UpcomingDeadlines() {
         <CardContent>
           <div className="animate-pulse space-y-4">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="flex items-center gap-3">
+              <div key={`loading-deadline-${i}`} className="flex items-center gap-3">
                 <div className="bg-gray-200 dark:bg-gray-700 h-10 w-10 rounded-md"></div>
                 <div className="space-y-2 flex-1">
                   <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
@@ -370,7 +370,7 @@ export default function UpcomingDeadlines() {
             </Button>
             {[...Array(totalPages)].map((_, i) => (
               <Button
-                key={i}
+                key={`upcoming-deadlines-pagination-${i}`}
                 onClick={() => setPage(i + 1)}
                 variant={page === i + 1 ? "default" : "outline"}
                 size="icon"

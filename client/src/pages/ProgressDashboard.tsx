@@ -145,7 +145,7 @@ export default function ProgressDashboard() {
         <div className="h-6 bg-gray-200 rounded w-full mb-4"></div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[...Array(6)].map((_, index) => (
-            <div key={index} className="h-32 bg-gray-200 rounded"></div>
+            <div key={`progress-skeleton-${index}`} className="h-32 bg-gray-200 rounded"></div>
           ))}
         </div>
       </div>
