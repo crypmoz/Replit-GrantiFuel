@@ -80,7 +80,7 @@ export default function GrantRecommendationsForm({
                     <FormLabel>Music Genre</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                      defaultValue={field.value || ""}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -115,7 +115,7 @@ export default function GrantRecommendationsForm({
                     <FormLabel>Career Stage</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                      defaultValue={field.value || ""}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -142,7 +142,7 @@ export default function GrantRecommendationsForm({
                     <FormLabel>Primary Instrument or Role</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                      defaultValue={field.value || ""}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -195,7 +195,7 @@ export default function GrantRecommendationsForm({
                     <FormLabel>Project Type <span className="text-muted-foreground text-xs">(Optional)</span></FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                      defaultValue={field.value || ""}
                     >
                       <FormControl>
                         <SelectTrigger>

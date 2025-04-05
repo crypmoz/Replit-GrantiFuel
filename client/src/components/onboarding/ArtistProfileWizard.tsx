@@ -228,7 +228,7 @@ export function ArtistProfileWizard({ onArtistCreated }: ArtistProfileWizardProp
                           <Tag className="mr-2 h-4 w-4 opacity-70 mt-3" />
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            defaultValue={field.value || ""}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select your primary instrument or role" />
@@ -266,7 +266,7 @@ export function ArtistProfileWizard({ onArtistCreated }: ArtistProfileWizardProp
                           <Briefcase className="mr-2 h-4 w-4 opacity-70 mt-3" />
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            defaultValue={field.value || ""}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select your project type" />
@@ -316,7 +316,7 @@ export function ArtistProfileWizard({ onArtistCreated }: ArtistProfileWizardProp
                           <Calendar className="mr-2 h-4 w-4 opacity-70 mt-3" />
                           <Select
                             onValueChange={field.onChange}
-                            defaultValue={field.value}
+                            defaultValue={field.value || ""}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Select your career stage" />

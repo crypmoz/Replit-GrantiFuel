@@ -115,10 +115,18 @@ export function UnifiedGrantManager({
   });
 
   // Fetch grants
-  const { data: grants = [], isLoading: isLoadingGrants } = useQuery<Grant[]>({
+  const { data: grantsData, isLoading: isLoadingGrants } = useQuery<{
+    grants: Grant[];
+    isPersonalized?: boolean;
+    profileComplete?: boolean;
+    aiEnhanced?: boolean;
+  }>({
     queryKey: ["/api/grants"],
     enabled: !!user,
   });
+  
+  // Extract grants from response
+  const grants = grantsData?.grants || [];
 
   // Update form values when profile changes
   useEffect(() => {

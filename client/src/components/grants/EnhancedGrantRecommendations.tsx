@@ -59,10 +59,18 @@ export function EnhancedGrantRecommendations({
   const [selectedGrant, setSelectedGrant] = useState<GrantWithAIRecommendation | null>(null);
 
   // Fetch grants
-  const { data: grants = [], isLoading: isLoadingGrants } = useQuery<Grant[]>({
+  const { data: grantsData, isLoading: isLoadingGrants } = useQuery<{
+    grants: Grant[];
+    isPersonalized?: boolean;
+    profileComplete?: boolean;
+    aiEnhanced?: boolean;
+  }>({
     queryKey: ["/api/grants"],
     enabled: !!user,
   });
+  
+  // Extract grants from response
+  const grants = grantsData?.grants || [];
 
   // Get AI recommendations
   const getRecommendationsMutation = useMutation({
