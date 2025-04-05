@@ -131,8 +131,7 @@ export interface DocumentClassificationResult {
 // Define AI provider options
 const AI_PROVIDERS = {
   DEEPSEEK: 'deepseek',
-  PERPLEXITY: 'perplexity',
-  // Add more providers as needed (e.g., OPENAI, ANTHROPIC, etc.)
+  // Only using DeepSeek as the AI provider
 };
 
 // Cache configuration
@@ -154,21 +153,15 @@ export class AIService extends BaseService {
   constructor() {
     super('AIService');
     this.apiKey = process.env.DEEPSEEK_API_KEY || '';
-    const perplexityApiKey = process.env.PERPLEXITY_API_KEY || '';
     
-    // Determine which provider to use based on available API keys
-    if (perplexityApiKey) {
-      this.provider = AI_PROVIDERS.PERPLEXITY;
-      this.defaultModel = 'llama-3.1-small'; // Maps to llama-3.1-sonar-small-128k-online
-      console.log('[AIService] Using Perplexity as the AI provider');
-    } else if (this.apiKey) {
-      this.provider = AI_PROVIDERS.DEEPSEEK;
-      this.defaultModel = 'deepseek-chat';
+    // Always use DeepSeek as the provider
+    this.provider = AI_PROVIDERS.DEEPSEEK;
+    this.defaultModel = 'deepseek-chat';
+    
+    if (this.apiKey) {
       console.log('[AIService] Using Deepseek as the AI provider');
     } else {
-      this.provider = AI_PROVIDERS.DEEPSEEK; // Default provider even without key
-      this.defaultModel = 'deepseek-chat';
-      console.warn('[AIService] No API keys found for any AI provider. AI features may not work correctly.');
+      console.warn('[AIService] No Deepseek API key found. AI features may not work correctly.');
     }
     
     // Initialize circuit breaker with optimized settings for AI service stability
@@ -1249,15 +1242,8 @@ Return your analysis in JSON format with the following fields:
    * Call the AI service based on the current provider
    */
   private async callAI(requestData: AICompletionRequest): Promise<AICompletionResponse> {
-    if (this.provider === AI_PROVIDERS.DEEPSEEK) {
-      return this.callDeepseekAPI(requestData);
-    } else if (this.provider === AI_PROVIDERS.PERPLEXITY) {
-      return this.callPerplexityAPI(requestData);
-    }
-    
-    // Add more providers as needed
-    
-    throw new Error(`AI provider ${this.provider} not supported`);
+    // Only DeepSeek is supported
+    return this.callDeepseekAPI(requestData);
   }
   
   /**
@@ -1313,100 +1299,7 @@ Return your analysis in JSON format with the following fields:
     }
   }
   
-  /**
-   * Call the Perplexity API
-   */
-  private async callPerplexityAPI(requestData: AICompletionRequest): Promise<AICompletionResponse> {
-    const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
-    if (!perplexityApiKey) {
-      throw new Error('Perplexity API key not configured');
-    }
-    
-    // Define Perplexity model mapping
-    const modelMap: Record<string, string> = {
-      'deepseek-chat': 'llama-3.1-sonar-small-128k-online', // Default mapping
-      'llama-3.1-small': 'llama-3.1-sonar-small-128k-online',
-      'llama-3.1-large': 'llama-3.1-sonar-large-128k-online',
-      'llama-3.1-huge': 'llama-3.1-sonar-huge-128k-online',
-    };
-    
-    // Choose appropriate Perplexity model
-    const model = modelMap[requestData.model] || 'llama-3.1-sonar-small-128k-online';
-    
-    try {
-      console.log(`[AIService] Making API request to Perplexity: model=${model}, messages=${requestData.messages.length}`);
-      
-      // Prepare Perplexity-specific request data
-      const perplexityRequest = {
-        model,
-        messages: requestData.messages,
-        max_tokens: requestData.max_tokens || 1024,
-        temperature: requestData.temperature || 0.7,
-        top_p: 0.9,
-        search_domain_filter: [],
-        return_images: false,
-        return_related_questions: false,
-        search_recency_filter: "month",
-        top_k: 0,
-        stream: false,
-        presence_penalty: 0,
-        frequency_penalty: 1
-      };
-      
-      const startTime = Date.now();
-      const response = await axios.post(
-        'https://api.perplexity.ai/chat/completions',
-        perplexityRequest,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${perplexityApiKey}`
-          },
-          timeout: 115000 // 115 seconds - same as Deepseek
-        }
-      );
-      
-      const duration = Date.now() - startTime;
-      console.log(`[AIService] Perplexity API response received in ${duration}ms`);
-      
-      // Transform Perplexity response to match our expected AICompletionResponse format
-      const formattedResponse: AICompletionResponse = {
-        choices: [
-          {
-            message: {
-              role: 'assistant',
-              content: response.data.choices[0].message.content
-            },
-            finish_reason: response.data.choices[0].finish_reason
-          }
-        ]
-      };
-      
-      return formattedResponse;
-    } catch (error: any) {
-      // Log detailed error information
-      if (error.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.error(`[AIService] Perplexity API error: ${error.message}`);
-        console.error(`[AIService] Status: ${error.response.status}`);
-        console.error(`[AIService] Data:`, error.response.data);
-        console.error(`[AIService] Headers:`, error.response.headers);
-      } else if (error.request) {
-        // The request was made but no response was received
-        console.error(`[AIService] Perplexity API no response: ${error.message}`);
-        console.error(`[AIService] Request:`, error.request);
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        console.error(`[AIService] Perplexity API setup error: ${error.message}`);
-      }
-      
-      // Add more details to the error
-      const enhancedError = new Error(`Perplexity API call failed: ${error.message}`);
-      enhancedError.name = 'PerplexityAPIError';
-      throw enhancedError;
-    }
-  }
+  // Removed Perplexity API integration as we're only using DeepSeek
   
   /**
    * Parse grant recommendations from AI response
@@ -1778,13 +1671,11 @@ Return your analysis in JSON format with the following fields:
    */
   async getHealthStatus(): Promise<any> {
     const hasDeepseekKey = !!process.env.DEEPSEEK_API_KEY;
-    const hasPerplexityKey = !!process.env.PERPLEXITY_API_KEY;
     
     return {
       provider: this.provider,
       availableProviders: {
-        [AI_PROVIDERS.DEEPSEEK]: hasDeepseekKey,
-        [AI_PROVIDERS.PERPLEXITY]: hasPerplexityKey
+        [AI_PROVIDERS.DEEPSEEK]: hasDeepseekKey
       },
       defaultModel: this.defaultModel,
       circuitBreakerStatus: this.circuitBreaker.getState(),
@@ -1796,18 +1687,18 @@ Return your analysis in JSON format with the following fields:
    * Change AI provider
    */
   setProvider(providerName: string): ServiceResponse<{provider: string, model: string}> {
-    // Validate provider name
-    if (!Object.values(AI_PROVIDERS).includes(providerName)) {
+    // Only DeepSeek is supported
+    if (providerName !== AI_PROVIDERS.DEEPSEEK) {
       return {
         success: false,
         error: {
-          message: `Invalid provider: ${providerName}. Valid providers are: ${Object.values(AI_PROVIDERS).join(', ')}`
+          message: `Invalid provider: ${providerName}. Only DeepSeek (${AI_PROVIDERS.DEEPSEEK}) is supported.`
         }
       };
     }
     
-    // Check if API key is available for requested provider
-    if (providerName === AI_PROVIDERS.DEEPSEEK && !process.env.DEEPSEEK_API_KEY) {
+    // Check if API key is available
+    if (!process.env.DEEPSEEK_API_KEY) {
       return {
         success: false,
         error: {
@@ -1816,25 +1707,11 @@ Return your analysis in JSON format with the following fields:
       };
     }
     
-    if (providerName === AI_PROVIDERS.PERPLEXITY && !process.env.PERPLEXITY_API_KEY) {
-      return {
-        success: false,
-        error: {
-          message: 'Perplexity API key is not configured'
-        }
-      };
-    }
-    
     // Set provider and update default model
-    this.provider = providerName;
+    this.provider = AI_PROVIDERS.DEEPSEEK;
+    this.defaultModel = 'deepseek-chat';
     
-    if (providerName === AI_PROVIDERS.DEEPSEEK) {
-      this.defaultModel = 'deepseek-chat';
-    } else if (providerName === AI_PROVIDERS.PERPLEXITY) {
-      this.defaultModel = 'llama-3.1-small'; // Maps to llama-3.1-sonar-small-128k-online
-    }
-    
-    console.log(`[AIService] Provider changed to ${this.provider} with model ${this.defaultModel}`);
+    console.log(`[AIService] Provider set to ${this.provider} with model ${this.defaultModel}`);
     
     return {
       success: true,

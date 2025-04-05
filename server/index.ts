@@ -90,24 +90,46 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
+  // Attempt to start the server on port 5000, but fall back to other ports if needed
+  const tryPorts = [5000, 5001, 5002];
+  
+  let currentPortIndex = 0;
+  
+  function tryNextPort() {
+    if (currentPortIndex >= tryPorts.length) {
+      log(`Failed to start server on any port from ${tryPorts.join(', ')}`);
+      process.exit(1);
+      return;
+    }
     
-    // Start the background processor
-    backgroundProcessor.startProcessingInterval();
-    log('Background document processor started');
+    const port = tryPorts[currentPortIndex];
     
-    // Queue any pending documents that might need processing
-    backgroundProcessor.queueAllDocuments()
-      .then(result => log(`Queued ${result.queued} documents for analysis`))
-      .catch(err => console.error('Error queueing documents:', err));
-  });
+    const serverInstance = server.listen({
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    }).on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        log(`Port ${port} is already in use, trying next port...`);
+        currentPortIndex++;
+        tryNextPort();
+      } else {
+        console.error('Server error:', error);
+        process.exit(1);
+      }
+    }).on('listening', () => {
+      log(`serving on port ${port}`);
+      
+      // Start the background processor
+      backgroundProcessor.startProcessingInterval();
+      log('Background document processor started');
+      
+      // Queue any pending documents that might need processing
+      backgroundProcessor.queueAllDocuments()
+        .then(result => log(`Queued ${result.queued} documents for analysis`))
+        .catch(err => console.error('Error queueing documents:', err));
+    });
+  }
+  
+  tryNextPort();
 })();

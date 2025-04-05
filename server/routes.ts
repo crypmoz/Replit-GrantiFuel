@@ -1730,26 +1730,42 @@ Return your response in this JSON format:
     }
   });
   
-  // Get AI service health status
+  // Get DeepSeek AI service health status
   app.get("/api/ai/service-status", requireAuth, async (req, res) => {
     try {
       const status = await aiService.getHealthStatus();
-      res.json(status);
+      
+      // Add a note that only DeepSeek is supported
+      const responseWithNote = {
+        ...status,
+        note: "Only DeepSeek is supported as the AI provider for this application"
+      };
+      
+      res.json(responseWithNote);
     } catch (error: any) {
-      console.error(`[API Route] Error getting AI service status:`, error);
+      console.error(`[API Route] Error getting DeepSeek AI service status:`, error);
       res.status(500).json({
-        error: "Failed to get AI service status"
+        error: "Failed to get DeepSeek AI service status"
       });
     }
   });
   
-  // Endpoint to set AI provider
+  // Endpoint to confirm DeepSeek as AI provider
   app.post("/api/ai/set-provider", requireAuth, requireAdmin, async (req, res) => {
     try {
       const { provider } = req.body;
       
       if (!provider) {
         return res.status(400).json({ error: "Provider name is required" });
+      }
+      
+      // Only DeepSeek is supported
+      if (provider !== 'deepseek') {
+        return res.status(400).json({ 
+          error: { 
+            message: "Only DeepSeek is supported as an AI provider" 
+          } 
+        });
       }
       
       const result = aiService.setProvider(provider);
@@ -1760,9 +1776,9 @@ Return your response in this JSON format:
       
       res.json(result.data);
     } catch (error: any) {
-      console.error(`[API Route] Error setting AI provider:`, error);
+      console.error(`[API Route] Error confirming DeepSeek as AI provider:`, error);
       res.status(500).json({
-        error: "Failed to set AI provider"
+        error: "Failed to confirm DeepSeek as AI provider"
       });
     }
   });
