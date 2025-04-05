@@ -109,7 +109,7 @@ export function EnhancedGrantRecommendations({
   useEffect(() => {
     if (getRecommendationsMutation.data?.recommendations) {
       // Process recommendations to ensure unique IDs
-      const processedRecommendations = getRecommendationsMutation.data.recommendations.map((rec, index) => ({
+      const processedRecommendations = getRecommendationsMutation.data.recommendations.map((rec: Partial<GrantWithAIRecommendation>, index: number) => ({
         ...rec,
         // Ensure a unique ID for each recommendation; if the ID is -1 or missing, create a unique negative ID based on index
         id: typeof rec.id === 'string' 

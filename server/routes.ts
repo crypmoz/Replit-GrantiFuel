@@ -1729,6 +1729,43 @@ Return your response in this JSON format:
       });
     }
   });
+  
+  // Get AI service health status
+  app.get("/api/ai/service-status", requireAuth, async (req, res) => {
+    try {
+      const status = await aiService.getHealthStatus();
+      res.json(status);
+    } catch (error: any) {
+      console.error(`[API Route] Error getting AI service status:`, error);
+      res.status(500).json({
+        error: "Failed to get AI service status"
+      });
+    }
+  });
+  
+  // Endpoint to set AI provider
+  app.post("/api/ai/set-provider", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { provider } = req.body;
+      
+      if (!provider) {
+        return res.status(400).json({ error: "Provider name is required" });
+      }
+      
+      const result = aiService.setProvider(provider);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+      
+      res.json(result.data);
+    } catch (error: any) {
+      console.error(`[API Route] Error setting AI provider:`, error);
+      res.status(500).json({
+        error: "Failed to set AI provider"
+      });
+    }
+  });
 
   // Onboarding routes - support both path formats for backward compatibility
   app.get("/api/user/onboarding", requireAuth, async (req, res) => {
