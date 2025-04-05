@@ -52,14 +52,41 @@ export class BackgroundProcessor {
   }
 
   /**
-   * Stop the background processing interval
+   * Stop the background processing interval and wait for any in-progress tasks
+   * @returns Promise that resolves when all processing is complete
    */
-  public stopProcessingInterval(): void {
-    if (this.processingInterval) {
-      clearInterval(this.processingInterval);
-      this.processingInterval = null;
-      console.log('[BackgroundProcessor] Processing interval stopped');
-    }
+  public stopProcessingInterval(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (this.processingInterval) {
+        clearInterval(this.processingInterval);
+        this.processingInterval = null;
+        console.log('[BackgroundProcessor] Processing interval stopped');
+      }
+      
+      // If processing is currently happening, wait for it to complete
+      if (this.isProcessing) {
+        console.log('[BackgroundProcessor] Waiting for in-progress processing to complete...');
+        
+        // Check every 500ms if processing is complete
+        const checkInterval = setInterval(() => {
+          if (!this.isProcessing) {
+            clearInterval(checkInterval);
+            console.log('[BackgroundProcessor] In-progress processing completed');
+            resolve();
+          }
+        }, 500);
+        
+        // Set a timeout of 5 seconds max to avoid hanging
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          console.log('[BackgroundProcessor] Forcing shutdown after timeout');
+          resolve();
+        }, 5000).unref();
+      } else {
+        // No processing in progress, resolve immediately
+        resolve();
+      }
+    });
   }
 
   /**

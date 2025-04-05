@@ -4,7 +4,9 @@ import { setupVite, serveStatic, log } from "./vite";
 import compression from "compression";
 import { requestLogger } from "./middleware/request-logger";
 import { backgroundProcessor } from "./services/background-processor";
-import http from 'http';
+import http, { Server } from 'http';
+import { pool } from "./db";
+import { memoryManager } from "./utils/memory-manager";
 
 const app = express();
 // Add compression middleware
@@ -114,7 +116,51 @@ app.use((req, res, next) => {
         systemUptime: Math.floor(process.uptime()),
       };
       
-      // Return enhanced health status
+      // Get database connection pool info
+      const dbPoolInfo = {
+        totalConnections: pool.totalCount,
+        activeConnections: pool.totalCount - pool.idleCount,
+        idleConnections: pool.idleCount,
+        waitingClients: pool.waitingCount,
+        maxConnections: 20 // This should match the max value set in db.ts
+      };
+      
+      // Check if memory is under pressure
+      const heapUsedPercent = memoryUsage.heapUsed / memoryUsage.heapTotal;
+      const memoryStatus = heapUsedPercent > 0.85 ? 'high' : heapUsedPercent > 0.7 ? 'moderate' : 'healthy';
+      
+      // Check if resetMemory parameter was provided or memory pressure is high
+      const shouldResetMemory = req.query.resetMemory === 'true';
+      let memoryResetPerformed = false;
+      
+      // Run a force GC if requested or if memory is high and --expose-gc flag is available
+      if ((shouldResetMemory || memoryStatus === 'high') && typeof (global as any).gc === 'function') {
+        console.log('[Health Check] ' + 
+          (shouldResetMemory ? 'Memory reset requested via health endpoint' : 'Memory pressure detected') + 
+          ', forcing garbage collection');
+        
+        const memBefore = process.memoryUsage();
+        (global as any).gc();
+        const memAfter = process.memoryUsage();
+        
+        const freedBytes = memBefore.heapUsed - memAfter.heapUsed;
+        const freedMB = freedBytes / (1024 * 1024);
+        
+        console.log(`[Health Check] Garbage collection complete. Freed ${freedMB.toFixed(2)} MB`);
+        memoryResetPerformed = true;
+      }
+      
+      // Import AI service info (but don't wait on it to avoid slowing down the health response)
+      let aiServiceInfo: any = { status: 'unknown' };
+      try {
+        const { aiService } = await import('./services/ai-service');
+        aiServiceInfo = aiService.getServiceInfo();
+      } catch (error) {
+        console.error("Error getting AI service info:", error);
+        aiServiceInfo = { status: 'error', error: (error as Error).message };
+      }
+      
+      // Return enhanced health status with memory reset information
       res.send(JSON.stringify({
         status: dbStatus === 'healthy' ? 'healthy' : 'degraded',
         timestamp: new Date().toISOString(),
@@ -125,7 +171,12 @@ app.use((req, res, next) => {
         checks: {
           database: {
             status: dbStatus,
-            error: dbError
+            error: dbError,
+            pool: dbPoolInfo
+          },
+          ai: {
+            status: aiServiceInfo.circuitBreakerState?.state || 'unknown',
+            provider: aiServiceInfo.provider || 'unknown'
           }
         },
         system: {
@@ -133,8 +184,20 @@ app.use((req, res, next) => {
             rss: `${Math.round(memoryUsage.rss / 1024 / 1024)} MB`,
             heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)} MB`,
             heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)} MB`,
+            external: `${Math.round(memoryUsage.external / 1024 / 1024)} MB`,
+            heapUsedPercent: `${(heapUsedPercent * 100).toFixed(1)}%`,
+            status: memoryStatus,
+            gcSupported: typeof (global as any).gc === 'function',
+            resetPerformed: memoryResetPerformed
           },
-          uptime: uptime
+          uptime: uptime,
+          version: process.version,
+          platform: process.platform
+        },
+        // Include memory reset query parameter information
+        actions: {
+          memoryReset: "Append ?resetMemory=true to force garbage collection",
+          aiReset: "Use /__ai_health?reset=true to reset AI circuit breaker"
         }
       }));
     } catch (error) {
@@ -211,6 +274,72 @@ app.use((req, res, next) => {
   
   let currentPortIndex = 0;
   
+  // Handle graceful shutdown
+  let isShuttingDown = false;
+  let serverInstance: Server;
+
+  const gracefulShutdown = async (signal: string) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    
+    log(`Received ${signal}. Graceful shutdown initiated...`);
+    
+    // Give ongoing requests some time to complete (max 10 seconds)
+    setTimeout(() => {
+      log('Forcing process exit after timeout');
+      process.exit(1);
+    }, 10000).unref();
+    
+    try {
+      // Stop accepting new connections
+      if (serverInstance) {
+        log('Closing HTTP server...');
+        await new Promise<void>((resolve) => {
+          serverInstance.close(() => resolve());
+        });
+        log('HTTP server closed');
+      }
+      
+      // Stop memory management
+      log('Stopping memory management...');
+      memoryManager.stopMemoryManagement();
+      
+      // Force one last garbage collection
+      if (typeof (global as any).gc === 'function') {
+        log('Running final garbage collection');
+        (global as any).gc();
+      }
+      
+      // Stop background processor
+      log('Stopping background processor...');
+      await backgroundProcessor.stopProcessingInterval();
+      log('Background processor stopped');
+      
+      // Close database pool
+      log('Closing database connections...');
+      await pool.end();
+      log('Database connections closed');
+      
+      log('Graceful shutdown completed');
+      process.exit(0);
+    } catch (error) {
+      console.error('Error during graceful shutdown:', error);
+      process.exit(1);
+    }
+  };
+  
+  // Setup shutdown handlers
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception:', error);
+    gracefulShutdown('uncaughtException');
+  });
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled rejection:', reason);
+    gracefulShutdown('unhandledRejection');
+  });
+
   function tryNextPort() {
     if (currentPortIndex >= tryPorts.length) {
       log(`Failed to start server on any port from ${tryPorts.join(', ')}`);
@@ -220,7 +349,7 @@ app.use((req, res, next) => {
     
     const port = tryPorts[currentPortIndex];
     
-    const serverInstance = server.listen({
+    serverInstance = server.listen({
       port,
       host: "0.0.0.0",
       reusePort: true,
@@ -239,6 +368,10 @@ app.use((req, res, next) => {
       // Start the background processor
       backgroundProcessor.startProcessingInterval();
       log('Background document processor started');
+      
+      // Start memory management
+      memoryManager.startMemoryManagement();
+      log('Memory management started');
       
       // Queue any pending documents that might need processing
       backgroundProcessor.queueAllDocuments()
