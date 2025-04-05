@@ -1,21 +1,17 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
-import { User, Music } from 'lucide-react';
+import { User, Music, ChevronRight } from 'lucide-react';
 import { Artist } from '@shared/schema';
-import { ArtistProfileCard } from '@/components/profile/ArtistProfileCard';
-import { ArtistProfileEdit } from '@/components/profile/ArtistProfileEdit';
+import { ArtistProfileManager } from '@/components/profile/ArtistProfileManager';
+import { Link } from 'wouter';
 
 export default function ProfilePage() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const [editMode, setEditMode] = useState(false);
   
   // Fetch user's artist profile if it exists
   const { data: artistProfile, isLoading: artistLoading } = useQuery<Artist | null>({
@@ -38,72 +34,6 @@ export default function ProfilePage() {
   if (!user) {
     return null;
   }
-
-  // Create/update artist profile 
-  const updateProfileMutation = useMutation({
-    mutationFn: async (data: any) => {
-      // Check if artist profile exists and create/update accordingly
-      if (artistProfile) {
-        // Update existing artist profile
-        const artistResponse = await apiRequest('PATCH', `/api/artists/${artistProfile.id}`, {
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          bio: data.bio,
-          genres: data.genres,
-          careerStage: data.careerStage,
-          primaryInstrument: data.primaryInstrument,
-          location: data.location,
-          projectType: data.projectType
-        });
-        
-        if (!artistResponse.ok) {
-          throw new Error('Failed to update artist profile');
-        }
-        
-        return artistResponse.json();
-      } else {
-        // Create new artist profile
-        const artistResponse = await apiRequest('POST', '/api/artists', {
-          userId: user.id,
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          bio: data.bio,
-          genres: data.genres,
-          careerStage: data.careerStage,
-          primaryInstrument: data.primaryInstrument,
-          location: data.location,
-          projectType: data.projectType
-        });
-        
-        if (!artistResponse.ok) {
-          throw new Error('Failed to create artist profile');
-        }
-        
-        return artistResponse.json();
-      }
-    },
-    onSuccess: () => {
-      toast({
-        title: "Profile updated",
-        description: "Your profile information has been updated successfully.",
-      });
-      // Exit edit mode
-      setEditMode(false);
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/artists/profile'] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Update failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  });
-
-
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -131,65 +61,17 @@ export default function ProfilePage() {
         </Card>
         
         <Card className="col-span-1 md:col-span-2">
-          {artistProfile && !editMode ? (
-            <>
-              <CardHeader>
-                <CardTitle>Artist Profile</CardTitle>
-                <CardDescription>Your personal and grant matching information</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ArtistProfileCard 
-                  artist={artistProfile} 
-                  isLoading={artistLoading}
-                  showEditButton={true}
-                  onEditClick={() => setEditMode(true)}
-                />
-              </CardContent>
-            </>
-          ) : (
-            <>
-              <CardHeader>
-                <CardTitle>{artistProfile ? 'Edit Profile' : 'Create Artist Profile'}</CardTitle>
-                <CardDescription>
-                  {artistProfile 
-                    ? 'Update your profile information' 
-                    : 'Complete your artist profile to improve grant matching'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {artistProfile && (
-                  <ArtistProfileEdit 
-                    artist={artistProfile}
-                    onSubmit={(data) => updateProfileMutation.mutate(data)}
-                    isSubmitting={updateProfileMutation.isPending}
-                    cancelButton={true}
-                    onCancel={() => setEditMode(false)}
-                  />
-                )}
-                {!artistProfile && !artistLoading && (
-                  <ArtistProfileEdit 
-                    artist={{
-                      id: 0,
-                      userId: user.id,
-                      name: user.name || '',
-                      email: user.email || '',
-                      bio: user.bio || '',
-                      phone: '',
-                      genres: [],
-                      careerStage: '',
-                      primaryInstrument: '',
-                      location: '',
-                      projectType: '',
-                      createdAt: new Date()
-                    }}
-                    onSubmit={(data) => updateProfileMutation.mutate(data)}
-                    isSubmitting={updateProfileMutation.isPending}
-                    cancelButton={false}
-                  />
-                )}
-              </CardContent>
-            </>
-          )}
+          <CardHeader>
+            <CardTitle>Artist Profile</CardTitle>
+            <CardDescription>Your personal and grant matching information</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ArtistProfileManager 
+              defaultArtist={artistProfile}
+              displayMode="view"
+              showAiProfileSync={true}
+            />
+          </CardContent>
         </Card>
 
         <Card className="col-span-1 md:col-span-3">
@@ -200,13 +82,13 @@ export default function ProfilePage() {
                 How your profile information helps you find grants
               </CardDescription>
             </div>
-            <Button 
-              variant="outline"
-              onClick={() => window.location.href = '/grant-recommendations'}
-            >
-              <Music className="mr-2 h-4 w-4" />
-              Find Grants
-            </Button>
+            <Link href="/grants">
+              <Button variant="outline">
+                <Music className="mr-2 h-4 w-4" />
+                Find Grants
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground space-y-4">
