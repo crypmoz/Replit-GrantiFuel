@@ -21,7 +21,7 @@ import { Grant, GrantWithAIRecommendation, userRoleEnum } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowUpDown, Calendar, DollarSign, Filter, Plus, ExternalLink, FileText, Search, 
          RefreshCw, AlertCircle, Bookmark, Save, Loader2, UserCheck, User as UserIcon } from 'lucide-react';
-import GrantRecommendationsForm from '@/components/grants/GrantRecommendationsForm';
+import { UnifiedGrantManager } from '@/components/grants/UnifiedGrantManager';
 
 // Enhanced type to represent both database grants and AI-recommended grants
 interface GrantRecommendationExtended {
@@ -489,8 +489,10 @@ export default function UnifiedGrantsPage() {
                       <p className="text-muted-foreground">Loading your artist profile...</p>
                     </div>
                   ) : (
-                    <GrantRecommendationsForm 
-                      onFormSubmit={(values) => {
+                    <UnifiedGrantManager
+                      mode="form"
+                      defaultProfile={profile || undefined}
+                      onProfileUpdate={(values) => {
                         setProfile(values);
                         fetchRecommendations(values);
                         
@@ -524,7 +526,7 @@ export default function UnifiedGrantsPage() {
                           description: "Generating new grant recommendations based on your profile."
                         });
                       }} 
-                      defaultValues={profile || undefined} 
+ 
                     />
                   )}
                 </DialogContent>
@@ -649,7 +651,16 @@ export default function UnifiedGrantsPage() {
             
             {/* Grants Display Area */}
             <TabsContent value="all" className="space-y-6">
-              {renderGrantsList()}
+              <UnifiedGrantManager 
+                defaultProfile={profile || undefined}
+                onProfileUpdate={(values) => {
+                  setProfile(values);
+                }}
+                onSelectGrant={(grant) => {
+                  navigate(`/applications/new?grantId=${grant.id}`);
+                }}
+                mode="list"
+              />
             </TabsContent>
             
             <TabsContent value="ai-recommended" className="space-y-6">
@@ -662,11 +673,29 @@ export default function UnifiedGrantsPage() {
                   </AlertDescription>
                 </Alert>
               )}
-              {renderGrantsList()}
+              <UnifiedGrantManager 
+                defaultProfile={profile || undefined}
+                onProfileUpdate={(values) => {
+                  setProfile(values);
+                }}
+                onSelectGrant={(grant) => {
+                  navigate(`/applications/new?grantId=${grant.id}`);
+                }}
+                mode="list"
+              />
             </TabsContent>
             
             <TabsContent value="my-grants" className="space-y-6">
-              {renderGrantsList()}
+              <UnifiedGrantManager 
+                defaultProfile={profile || undefined}
+                onProfileUpdate={(values) => {
+                  setProfile(values);
+                }}
+                onSelectGrant={(grant) => {
+                  navigate(`/applications/new?grantId=${grant.id}`);
+                }}
+                mode="list"
+              />
             </TabsContent>
           </Tabs>
         </div>
