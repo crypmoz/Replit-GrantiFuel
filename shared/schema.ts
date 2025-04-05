@@ -343,6 +343,15 @@ export const generateProposalSchema = z.object({
   grantName: z.string().optional(),
   artistName: z.string().optional(),
   proposalType: z.string().optional(),
+  userProfile: z.object({
+    careerStage: z.string().optional(),
+    genre: z.string().optional(),
+    instrumentOrRole: z.string().optional(),
+    name: z.string().optional(),
+    bio: z.string().optional(),
+    location: z.string().optional(),
+    primaryInstrument: z.string().optional()
+  }).optional(),
 });
 
 export const answerQuestionSchema = z.object({
@@ -353,6 +362,15 @@ export const answerQuestionSchema = z.object({
       content: z.string(),
     })
   ).optional().default([]),
+  userProfile: z.object({
+    careerStage: z.string().optional(),
+    genre: z.string().optional(),
+    instrumentOrRole: z.string().optional(),
+    name: z.string().optional(),
+    bio: z.string().optional(),
+    location: z.string().optional(),
+    primaryInstrument: z.string().optional()
+  }).optional(),
 });
 
 export const grantRecommendationProfileSchema = z.object({
@@ -393,7 +411,7 @@ export type GrantWithAIRecommendation = {
   // These fields are specific to the AI-enhanced grant recommendations
   matchScore?: number;
   aiRecommended?: boolean;
-  website: string;
+  website?: string | null;
 };
 export type Artist = typeof artists.$inferSelect;
 export type Application = typeof applications.$inferSelect;

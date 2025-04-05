@@ -67,7 +67,7 @@ export function EnhancedGrantRecommendations({
   // Get AI recommendations
   const getRecommendationsMutation = useMutation({
     mutationFn: async (profile: ArtistProfile) => {
-      const response = await apiRequest("POST", "/api/grants/recommendations", profile);
+      const response = await apiRequest("POST", "/api/ai/grant-recommendations", profile);
       if (!response.ok) throw new Error("Failed to get grant recommendations");
       return response.json();
     },
@@ -87,28 +87,44 @@ export function EnhancedGrantRecommendations({
     },
   });
 
+  // State for AI recommendations
+  const [aiRecommendations, setAiRecommendations] = useState<GrantWithAIRecommendation[]>([]);
+  
   // Fetch recommendations when component loads
   useEffect(() => {
     if (artistProfile && user) {
       getRecommendationsMutation.mutate(artistProfile);
     }
   }, [artistProfile, user]);
-
+  
+  // Update AI recommendations when mutation completes
+  useEffect(() => {
+    if (getRecommendationsMutation.data?.recommendations) {
+      setAiRecommendations(getRecommendationsMutation.data.recommendations);
+    }
+  }, [getRecommendationsMutation.data]);
+  
   // Combine regular grants with AI recommended grants
-  const allGrants: GrantWithAIRecommendation[] = grants.map(grant => ({
-    ...grant,
-    // Mock match scores for demonstration - in real implementation, these would come from the AI
-    matchScore: Math.random() * 100,
-    aiRecommended: Math.random() > 0.5
-  }));
+  const allGrants: GrantWithAIRecommendation[] = [
+    ...aiRecommendations,
+    ...grants.filter(grant => 
+      !aiRecommendations.some(rec => rec.id === grant.id)
+    ).map(grant => ({
+      ...grant,
+      matchScore: 0,
+      aiRecommended: false,
+      website: grant.website || null
+    } as GrantWithAIRecommendation))
+  ];
 
   // Sort grants by match score when on AI recommendations tab
   const displayedGrants = activeTab === "ai-recommendations"
-    ? [...allGrants].sort((a, b) => {
-        if (a.matchScore! > b.matchScore!) return -1;
-        if (a.matchScore! < b.matchScore!) return 1;
+    ? [...allGrants].filter(grant => grant.aiRecommended)
+      .sort((a, b) => {
+        if ((a.matchScore ?? 0) > (b.matchScore ?? 0)) return -1;
+        if ((a.matchScore ?? 0) < (b.matchScore ?? 0)) return 1;
         return 0;
-      }).filter(grant => grant.aiRecommended)
+      })
     : allGrants;
 
   const handleSelectGrant = (grant: GrantWithAIRecommendation) => {
