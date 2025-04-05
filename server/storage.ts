@@ -96,6 +96,7 @@ export interface IStorage {
   // Grant Recommendations (AI Cache)
   getGrantRecommendationsForUser(userId: number, artistId?: number): Promise<GrantRecommendation | undefined>;
   createOrUpdateGrantRecommendations(recommendations: InsertGrantRecommendation): Promise<GrantRecommendation>;
+  clearUserAICache(userId: number): Promise<boolean>;
   
   // Background Processing
   createProcessingJob(job: InsertProcessingJob): Promise<ProcessingJob>;
@@ -531,6 +532,35 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       console.error("Error creating/updating grant recommendations:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear AI cache for a specific user
+   * This is a more targeted approach than the global cache clearing in aiService
+   * It focuses only on the user's grant recommendations
+   */
+  async clearUserAICache(userId: number): Promise<boolean> {
+    try {
+      console.log(`[Storage] Clearing AI cache for user ${userId}`);
+      
+      // Delete grant recommendations for this user
+      await db
+        .delete(grantRecommendations)
+        .where(eq(grantRecommendations.userId, userId));
+        
+      // Get artist IDs for this user to clear document analyses if needed
+      const userArtists = await this.getArtistsByUserId(userId);
+      const artistIds = userArtists.map(artist => artist.id);
+      
+      // Log what we're doing
+      console.log(`[Storage] Cleared grant recommendations for user ${userId}`);
+      console.log(`[Storage] User has ${artistIds.length} artist profiles`);
+      
+      return true;
+    } catch (error) {
+      console.error(`[Storage] Error clearing AI cache for user ${userId}:`, error);
       throw error;
     }
   }

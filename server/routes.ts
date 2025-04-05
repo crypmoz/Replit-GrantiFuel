@@ -2639,6 +2639,42 @@ Return your response in this JSON format:
     }
   }
   
+  // Public route to clear AI cache (used by client)
+  app.post("/api/ai/clear-cache", requireAuth, async (req, res) => {
+    try {
+      console.log(`[API] AI cache clear requested by user ${req.user!.id}`);
+      
+      // For non-admin users, only clear the cache for their own data
+      const userId = req.user!.id;
+      
+      // Partially clear cache - only user-specific entries
+      // This is a safer approach for non-admin users
+      await storage.clearUserAICache(userId);
+      
+      // Log the activity
+      await storage.createActivity({
+        userId: req.user!.id,
+        action: "REQUESTED",
+        entityType: "AI_CACHE_REFRESH",
+        details: {
+          timestamp: new Date().toISOString(),
+          context: "grant_recommendations" 
+        }
+      });
+      
+      return res.json({
+        status: 'success',
+        message: 'Your AI recommendation cache has been cleared',
+      });
+    } catch (error: any) {
+      console.error('Error clearing user AI cache:', error);
+      return res.status(500).json({ 
+        status: 'error',
+        message: error.message || "Failed to clear AI cache"
+      });
+    }
+  });
+
   // Admin route to clear AI cache
   app.post("/api/admin/ai/clear-cache", requireAdmin, async (req, res) => {
     try {
