@@ -159,8 +159,11 @@ export function UnifiedGrantManager({
 
   // Combine regular grants with AI recommendations
   const allGrants: GrantWithAIRecommendation[] = [
-    ...(aiRecommendations || []).map(rec => ({
-      id: typeof rec.id === 'string' ? parseInt(rec.id, 10) || -1 : (rec.id || -1),
+    ...(aiRecommendations || []).map((rec, index) => ({
+      // Ensure a unique ID for each recommendation; if the ID is -1 or missing, create a unique negative ID based on index
+      id: typeof rec.id === 'string' 
+        ? (parseInt(rec.id, 10) || -(index + 1)) 
+        : (rec.id || -(index + 1)),
       userId: user?.id || 0,
       name: rec.name,
       organization: rec.organization,

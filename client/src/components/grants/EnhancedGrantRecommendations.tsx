@@ -108,7 +108,16 @@ export function EnhancedGrantRecommendations({
   // Update AI recommendations when mutation completes
   useEffect(() => {
     if (getRecommendationsMutation.data?.recommendations) {
-      setAiRecommendations(getRecommendationsMutation.data.recommendations);
+      // Process recommendations to ensure unique IDs
+      const processedRecommendations = getRecommendationsMutation.data.recommendations.map((rec, index) => ({
+        ...rec,
+        // Ensure a unique ID for each recommendation; if the ID is -1 or missing, create a unique negative ID based on index
+        id: typeof rec.id === 'string' 
+          ? (parseInt(rec.id, 10) || -(index + 1)) 
+          : (rec.id || -(index + 1))
+      }));
+      
+      setAiRecommendations(processedRecommendations);
     }
   }, [getRecommendationsMutation.data]);
   
