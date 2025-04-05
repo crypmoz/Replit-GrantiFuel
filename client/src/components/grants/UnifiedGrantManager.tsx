@@ -554,9 +554,9 @@ export function UnifiedGrantManager({
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {displayedGrants.map((grant) => (
+                {displayedGrants.map((grant, index) => (
                   <GrantCard
-                    key={grant.id}
+                    key={`recommended-grant-${grant.id}-${index}`}
                     grant={grant}
                     isSelected={selectedGrant?.id === grant.id}
                     onSelect={() => handleSelectGrant(grant)}
@@ -579,9 +579,9 @@ export function UnifiedGrantManager({
                   </CardContent>
                 </Card>
               ) : (
-                displayedGrants.map((grant) => (
+                displayedGrants.map((grant, index) => (
                   <GrantCard
-                    key={grant.id}
+                    key={`all-grants-${grant.id}-${index}`}
                     grant={grant}
                     isSelected={selectedGrant?.id === grant.id}
                     onSelect={() => handleSelectGrant(grant)}
