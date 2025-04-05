@@ -284,6 +284,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // API Routes
   
+  // Public health check endpoint
+  app.get("/api/health", (req, res) => {
+    // Set headers to prevent caching and ensure the response is treated as JSON
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
+    // Send JSON response
+    res.send(JSON.stringify({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      message: "API server is running"
+    }));
+  });
+  
+  // AI service status endpoint for diagnostics (no auth required)
+  app.get("/api/ai/health", async (req, res) => {
+    try {
+      // Set headers to prevent caching and ensure the response is treated as JSON
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      // Only return basic health info, no sensitive details
+      const isDeepseekConfigured = !!process.env.DEEPSEEK_API_KEY;
+      const serviceInfo = aiService.getServiceInfo();
+      const circuitState = serviceInfo.circuitBreakerState.state;
+      
+      // Send JSON response
+      res.send(JSON.stringify({
+        status: "success",
+        provider: "deepseek",
+        serviceConfigured: isDeepseekConfigured,
+        serviceState: circuitState,
+        timestamp: new Date().toISOString()
+      }));
+    } catch (error) {
+      console.error("Error checking AI health:", error);
+      
+      // Set headers for error response
+      res.setHeader('Content-Type', 'application/json');
+      res.status(500).send(JSON.stringify({
+        status: "error",
+        message: "Error checking AI service health",
+        timestamp: new Date().toISOString()
+      }));
+    }
+  });
+  
   // Admin Tools
   app.post("/api/admin/ai/reset-circuit-breaker", requireAdmin, async (req, res) => {
     try {

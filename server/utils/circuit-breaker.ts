@@ -178,6 +178,20 @@ export class CircuitBreaker {
       this.resetTimer = null;
     }
   }
+  
+  /**
+   * Public method to force reset the circuit breaker
+   * This is useful for manual recovery after fixing underlying issues
+   */
+  public forceReset(): { status: string, message: string } {
+    const previousState = this.state;
+    this.reset();
+    console.log(`[CircuitBreaker:${this.serviceName}] Circuit manually reset from ${previousState} to ${this.state}`);
+    return {
+      status: 'success',
+      message: `Circuit breaker for ${this.serviceName} manually reset from ${previousState} to ${this.state}`
+    };
+  }
 
   /**
    * Start monitoring the circuit breaker
