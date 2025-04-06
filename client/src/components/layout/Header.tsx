@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Menu, Moon, Sun, Bell, Settings, LogOut, User } from 'lucide-react';
+import { Menu, Moon, Sun, Bell, Settings, LogOut, User, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
@@ -171,6 +171,12 @@ export default function Header() {
                   <Link href="/settings" className="focus:outline-none focus:bg-accent">
                     <Settings className="mr-2 h-4 w-4" aria-hidden="true" />
                     <span>Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/pricing" className="focus:outline-none focus:bg-accent">
+                    <DollarSign className="mr-2 h-4 w-4" aria-hidden="true" />
+                    <span>Pricing & Plans</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

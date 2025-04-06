@@ -72,6 +72,12 @@ const navItems: NavItem[] = [
     // Documents visible to all authenticated users
   },
   { 
+    href: '/pricing', 
+    label: 'Pricing & Plans', 
+    icon: <DollarSign className="h-5 w-5 mr-3" />,
+    // All users can see pricing plans
+  },
+  { 
     href: '/profile', 
     label: 'Profile', 
     icon: <UserIcon className="h-5 w-5 mr-3" />,

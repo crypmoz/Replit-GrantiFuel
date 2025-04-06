@@ -143,9 +143,7 @@ function CheckoutContainer() {
   });
   
   const plan = plans?.find(p => p.tier === planName || 
-    p.name.toLowerCase() === planName || 
-    (planName === 'pro' && p.tier === 'basic') || 
-    (planName === 'teams' && p.tier === 'premium'));
+    p.name.toLowerCase() === planName);
   
   useEffect(() => {
     // If we have plans data but couldn't find a matching plan
