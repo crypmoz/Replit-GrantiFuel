@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { aiService, GrantRecommendation } from "./services/ai-service";
 import { anthropicService } from "./services/anthropic-service";
+import { deepseekService } from "./services/deepseek-service";
 import { backgroundProcessor } from "./services/background-processor";
 import { z } from "zod";
 import axios from "axios";
@@ -16,6 +17,7 @@ import path from "path";
 import fs from "fs";
 import express from "express";
 import { requireRole, requireAdmin, requireGrantWriter, requireManager, requireArtist } from './middleware/role-check';
+import aiRoutes from './routes/ai-routes';
 
 // Middleware to prevent caching for all API responses
 const noCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -2759,6 +2761,10 @@ Return your response in this JSON format:
     }
   });
 
+  // Register DeepSeek AI routes
+  app.use('/api/deepseek', aiRoutes);
+  
+  // Create HTTP server
   const httpServer = createServer(app);
 
   return httpServer;
