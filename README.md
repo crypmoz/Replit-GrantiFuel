@@ -48,7 +48,39 @@ GrantiFuel offers various subscription tiers to match different needs:
 - **Subscription Management**: Complete integration with Stripe for payment processing
 - **Background Processing**: Efficient document analysis with throttling and task management
 - **Circuit Breaker Patterns**: Enhanced API resilience for external services
+- **Comprehensive Testing**: Automated testing infrastructure for code quality and database health
+- **Secure Authentication**: Role-based access control with server middleware and frontend protections
+- **Subscription Management**: Complete integration with Stripe for payment processing
+- **Background Processing**: Efficient document analysis with throttling and task management
+- **Circuit Breaker Patterns**: Enhanced API resilience for external services
 - **Intelligent Caching**: Performance optimization for grant recommendations and AI services
+
+### Testing Tools
+
+GrantiFuel includes powerful testing tools for subscription management:
+
+- **Subscription Lifecycle Tests**: Automated tests for the subscription creation, upgrade, downgrade, and cancellation flow
+- **User Subscription Flow Tests**: Integration tests simulating real user subscription journey
+- **Webhook Handler Tests**: Tests for Stripe webhook event handling
+- **Manual Testing Guide**: Comprehensive guide for manually testing the subscription functionality
+
+Run subscription tests with:
+```bash
+./test-subscriptions.sh all    # Run all tests
+```
+STRIPE_WEBHOOK_SECRET=your-stripe-webhook-secret
+
+For more details, see the testing documentation in server/tests/README.md.
+- **User Subscription Flow Tests**: Integration tests simulating real user subscription journey
+- **Webhook Handler Tests**: Tests for Stripe webhook event handling
+- **Manual Testing Guide**: Comprehensive guide for manually testing the subscription functionality
+
+Run subscription tests with:
+```bash
+./test-subscriptions.sh all    # Run all tests
+```
+
+For more details, see the [testing documentation](server/tests/README.md).
 
 ## Getting Started
 
