@@ -7,7 +7,10 @@
 import { Router } from 'express';
 import { deepseekService } from '../services/deepseek-service';
 import { storage } from '../storage';
-import { requireAuth, requireAdmin } from '../middleware/auth-middleware';
+import { requireRole, requireAdmin } from '../middleware/role-check';
+
+// Helper constants
+const requireAuth = requireRole([]);
 
 const router = Router();
 
@@ -41,7 +44,6 @@ router.post('/grant-recommendations', requireAuth, async (req, res) => {
         userId,
         artistId: artistId || null,
         recommendations: JSON.stringify(result.data),
-        createdAt: new Date()
       });
       
       console.log(`[AI Route] Stored grant recommendations for user ${userId}`);

@@ -18,59 +18,62 @@ export default function PricingPage() {
   const pricingPlans = [
     {
       name: 'Free',
-      description: 'Perfect for individuals just getting started',
+      tier: 'free',
+      description: 'Basic plan for individual musicians',
       price: {
         monthly: 0,
         annual: 0
       },
       features: [
-        { included: true, text: '3 grant applications' },
-        { included: true, text: 'Basic AI assistant' },
-        { included: true, text: 'Standard templates' },
-        { included: false, text: 'Advanced analytics' },
-        { included: false, text: 'Custom templates' },
-        { included: false, text: 'Collaboration tools' },
-        { included: false, text: 'Priority support' }
+        { included: true, text: '1 grant application' },
+        { included: true, text: '1 artist profile' },
+        { included: true, text: 'AI assistance' },
+        { included: true, text: 'Basic templates' },
+        { included: false, text: 'Priority AI assistance' },
+        { included: false, text: 'Email support' },
+        { included: false, text: 'Grant deadline alerts' }
       ],
       cta: 'Get Started',
       popular: false
     },
     {
-      name: 'Pro',
-      description: 'For serious artists with multiple projects',
+      name: 'Basic',
+      tier: 'basic',
+      description: 'Great for small ensembles and emerging artists',
       price: {
-        monthly: 19,
-        annual: 15
+        monthly: 25,
+        annual: 20
       },
       features: [
-        { included: true, text: 'Unlimited applications' },
-        { included: true, text: 'Advanced AI assistant' },
-        { included: true, text: 'Premium templates' },
-        { included: true, text: 'Basic analytics' },
-        { included: true, text: 'Custom templates' },
-        { included: false, text: 'Collaboration tools' },
-        { included: false, text: 'Priority support' }
+        { included: true, text: '5 grant applications' },
+        { included: true, text: '2 artist profiles' },
+        { included: true, text: 'Priority AI assistance' },
+        { included: true, text: 'All templates' },
+        { included: true, text: 'Email support' },
+        { included: false, text: 'Grant deadline alerts' },
+        { included: false, text: 'Application analytics' }
       ],
-      cta: 'Upgrade to Pro',
+      cta: 'Upgrade to Basic',
       popular: true
     },
     {
-      name: 'Teams',
-      description: 'For ensembles, bands and organizations',
+      name: 'Premium',
+      tier: 'premium',
+      description: 'Professional package for established musicians and organizations',
       price: {
-        monthly: 39,
-        annual: 33
+        monthly: 60,
+        annual: 50
       },
       features: [
-        { included: true, text: 'Unlimited applications' },
-        { included: true, text: 'Advanced AI assistant' },
-        { included: true, text: 'All premium templates' },
-        { included: true, text: 'Advanced analytics' },
-        { included: true, text: 'Custom templates' },
-        { included: true, text: 'Collaboration for up to 10 users' },
-        { included: true, text: 'Priority support' }
+        { included: true, text: '20 grant applications' },
+        { included: true, text: '10 artist profiles' },
+        { included: true, text: 'Priority AI assistance' },
+        { included: true, text: 'All templates' },
+        { included: true, text: 'Priority support' },
+        { included: true, text: 'Grant deadline alerts' },
+        { included: true, text: 'Application analytics' }
       ],
-      cta: 'Start Team Plan',
+      cta: 'Start Premium Plan',
       popular: false
     }
   ];
@@ -154,14 +157,11 @@ export default function PricingPage() {
                       className="w-full" 
                       variant={plan.popular ? 'default' : 'outline'}
                       onClick={() => {
-                        if (plan.name === 'Free') {
+                        if (plan.tier === 'free') {
                           setLocation('/dashboard');
                         } else {
                           // Redirect to checkout page with the plan tier
-                          const tier = plan.name === 'Pro' ? 'basic' : 
-                                        plan.name === 'Teams' ? 'premium' : 
-                                        plan.name.toLowerCase();
-                          setLocation('/checkout/' + tier);
+                          setLocation('/checkout/' + plan.tier);
                         }
                       }}
                     >

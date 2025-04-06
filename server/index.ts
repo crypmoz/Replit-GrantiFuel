@@ -11,7 +11,16 @@ import { memoryManager } from "./utils/memory-manager";
 const app = express();
 // Add compression middleware
 app.use(compression());
-app.use(express.json());
+
+// Handle Stripe webhooks with raw body before JSON parsing middleware
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe-webhook') {
+    next();
+  } else {
+    express.json()(req, res, next);
+  }
+});
+
 app.use(express.urlencoded({ extended: false }));
 
 // Add request logger middleware for API routes

@@ -2168,7 +2168,8 @@ Return your response in this JSON format:
   });
 
   // Stripe webhook handler for subscription events
-  app.post("/api/stripe-webhook", async (req, res) => {
+  // Use raw body for Stripe webhooks
+  app.post("/api/stripe-webhook", express.raw({ type: 'application/json' }), async (req, res) => {
     let event;
     
     try {

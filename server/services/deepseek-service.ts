@@ -266,6 +266,9 @@ DOUBLE-CHECK: Before returning, verify that every deadline date is actually in t
     return this.executeWithErrorHandling(async () => {
       const { artistProfile } = params;
       
+      // Define a type for the known keys to enable type-safe access
+      type ArtistProfileKey = keyof typeof artistProfile;
+      
       // Create cache key
       const cacheKey = `profile-feedback-${JSON.stringify(artistProfile)}`;
       
@@ -327,11 +330,25 @@ Format your response as a valid JSON object.`;
           return feedbackData;
         } catch (error) {
           console.error('[DeepseekService] Error parsing profile feedback:', error);
+          
+          // Get keys with values 
+          const filledKeys: string[] = [];
+          const emptyKeys: string[] = [];
+          
+          // Check for each known key if it has a value
+          for (const key of ['name', 'bio', 'genre', 'careerStage', 'location', 'primaryInstrument', 'projectType']) {
+            if (artistProfile[key as keyof typeof artistProfile]) {
+              filledKeys.push(key);
+            } else {
+              emptyKeys.push(key);
+            }
+          }
+          
           // Provide a default response if parsing fails
           return {
-            completeness: Math.min(Object.keys(artistProfile).filter(k => Boolean(artistProfile[k])).length * 20, 100),
+            completeness: Math.min(filledKeys.length * 20, 100),
             feedback: "I couldn't generate detailed feedback, but your profile has some information. The more details you provide, the better your grant matches will be.",
-            missingFields: Object.keys(artistProfile).filter(k => !artistProfile[k]),
+            missingFields: emptyKeys,
             recommendations: ["Add more details to your profile to improve your grant recommendations."]
           };
         }
